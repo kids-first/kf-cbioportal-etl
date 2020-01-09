@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+
+import sys
+from requests import request
+import argparse
+import concurrent.futures
+import json
+from time import sleep
+
+
+def mt_query_calls(line):
+    try:
+        info = line.rstrip('\n').split('\t')
+        (tum_bs_id, norm_bs_id) = (info[0], info[1])
+        norm_str = ''
+        if norm_bs_id != 'NA' and norm_bs_id not in norm_seen:
+            bs_info = query_dataservice_bs_id(url, norm_bs_id, bs_attrs, pt_attrs, dx_attrs)
+            norm_str = norm_bs_id + '\t' + '\t'.join(bs_info) + '\n'
+            norm_seen[norm_bs_id] = 1
+        bs_info = query_dataservice_bs_id(url, tum_bs_id, bs_attrs, pt_attrs, dx_attrs)
+        tum_str = tum_bs_id + '\t' + '\t'.join(bs_info) + '\n'
+        return tum_str, norm_str
+    except Exception as e:
+        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process ' + line)
+        exit(1)
+
+
+def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs):
+    bs_url = url + '/biospecimens/' + bs_id
+    # sys.stderr.write(bs_url + '\n')
+    bs_info = None
+    try:
+        bs_info = request('GET', bs_url)
+    except Exception as e:
+        sys.stderr.write('Got error ' + str(e) + ',could not retrieve info from ' + bs_url + ', pausing and retrying\n')
+        sys.stderr.flush()
+        sleep(1)
+        bs_info = request('GET', bs_url)
+    result = []
+    if bs_info.json()['_status']['code'] == 404:
+        result.append(bs_info.json()['_status']['message'])
+        sys.stderr.write(bs_id + ' not found!\n')
+        sys.stderr.flush()
+        return result
+    elif not bs_info.json()['results']['visible']:
+        sys.stderr.write(bs_id + ' was set to hide.  skipping!\n')
+        sys.stderr.flush()
+        return result
+    dx_url = url + bs_info.json()['_links']['diagnoses']
+    dx_dict = {}
+    dx_obj = 'NoDX'
+    try:
+        dx_obj = request('GET', dx_url) if len(dx_attrs) > 0 else 'NoDX'
+    except Exception as e:
+        sys.stderr.write('Got error ' + str(e) + ',could not retrieve info from ' + dx_url + ', pausing and retrying\n')
+        sys.stderr.flush()
+        sleep(1)
+        dx_obj = request('GET', dx_url) if len(dx_attrs) > 0 else 'NoDX'
+    # dir(bs_info)
+    pt_url = bs_info.json()['_links']['participant']
+    pt_info = None
+    try:
+        pt_info = request('GET', url + pt_url)
+    except Exception as e:
+        sys.stderr.write('Got error ' + str(e) + ', could not retrieve info from ' + pt_url + ', pausing and retrying\n')
+        sys.stderr.flush()
+        sleep(1)
+        pt_info = request('GET', url + pt_url)
+    result.append(pt_info.json()['results']['kf_id'])
+    for attr in bs_attrs:
+        # sys.stderr.write(attr + ': ')
+        res = bs_info.json()['results'][attr]
+        if res is None:
+            res = 'NULL'
+        # sys.stderr.write(res + '\n')
+        result.append(str(res))
+    for attr in pt_attrs:
+        # sys.stderr.write(attr + ': ')
+        res = pt_info.json()['results'][attr]
+        if res is None:
+            res = 'NULL'
+        # sys.stderr.write(res + '\n')
+        result.append(res)
+    for attr in dx_attrs:
+        dx_dict[attr] = []
+        for cur_res in dx_obj.json()['results']:
+            for dx_split in cur_res['source_text_diagnosis'].split(','):
+                if attr == 'source_text_diagnosis':
+                    dx_dict[attr].append(dx_split) 
+                else:   
+                    dx_dict[attr].append(str(cur_res[attr]))
+        result.append(';'.join(dx_dict[attr]))
+
+    return result
+
+
+parser = argparse.ArgumentParser(description='Script to walk through data service and grab all relevant meetadata'
+                                             ' by bs id.')
+parser.add_argument('-u', '--kf-url', action='store', dest='url',
+                    help='Kids First data service url, i.e. https://kf-api-dataservice.kidsfirstdrc.org/')
+parser.add_argument('-c', '--cavatica', action='store', dest='cav',
+                    help='file with task info from cavatica (see step 1)')
+parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
+                                                                               'data locations')
+
+args = parser.parse_args()
+with open(args.config_file) as f:
+    config_data = json.load(f)
+file_list = args.cav
+bs_attrs = ['external_aliquot_id', 'analyte_type', 'source_text_tissue_type', 'source_text_tumor_descriptor',
+            'composition', 'external_sample_id']
+pt_attrs = ['external_id', 'gender', 'ethnicity', 'race']
+dx_attrs = ['source_text_diagnosis', 'source_text_tumor_location', 'age_at_event_days']
+url = args.url
+
+norm_out_fh = open('norm_bs_ds_info.txt', 'w')
+tum_out_fh = open('tum_bs_ds_info.txt', 'w')
+norm_out_fh.write('BS_ID\tPT_ID\t' + '\t'.join(bs_attrs) + '\t' + '\t'.join(pt_attrs))
+tum_out_fh.write('BS_ID\tPT_ID\t' + '\t'.join(bs_attrs) + '\t' + '\t'.join(pt_attrs))
+if len(dx_attrs) > 0:
+    norm_out_fh.write('\t' + '\t'.join(dx_attrs))
+    tum_out_fh.write('\t' + '\t'.join(dx_attrs))
+norm_out_fh.write('\n')
+tum_out_fh.write('\n')
+
+
+x = 1
+m = 100
+task_fh = open(file_list)
+head = next(task_fh)
+norm_seen = {}
+with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
+    results = {executor.submit(mt_query_calls, entry): entry for entry in task_fh}
+    for result in concurrent.futures.as_completed(results):
+        if x % m == 0:
+            sys.stderr.write('Processed ' + str(x) + ' lines\n')
+            sys.stderr.flush()
+        (tum_info, norm_info) = result.result()
+        tum_out_fh.write(tum_info)
+        if norm_info != '':
+            norm_out_fh.write(norm_info)
+        x += 1
+norm_out_fh.close()
+tum_out_fh.close()
+sys.stderr.write('Done!')
