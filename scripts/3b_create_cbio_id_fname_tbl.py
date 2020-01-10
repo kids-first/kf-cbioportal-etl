@@ -2,9 +2,7 @@
 import argparse
 import sys
 import os
-import math
 import json
-import re
 
 
 def process_ds(dsname, cav_dict, out):
@@ -44,11 +42,9 @@ def process_ds(dsname, cav_dict, out):
         print(e)
         sys.exit()
 
-parser = argparse.ArgumentParser(description='Convert metadata info in data patient and sample sheets for cbio portal')
+parser = argparse.ArgumentParser(description='Create temp table with cbio ids, bs ids, and file locations and types for downstream file merging. Should be run one level above datasheets dir.')
 parser.add_argument('-c', '--cavatica', action='store', dest='cav',
-                    help='file with task info from cavatica (see step 1)')
-parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
-                                                                               'data locations')
+                    help='file with task info from cavatica (see step 1b)')
 
 args = parser.parse_args()
 # config_data dict has most customizable options from json config file
@@ -63,6 +59,7 @@ for line in manifest:
     fnames = info[-2]
     atype = info[4]
     cav_dict[bs_id] = {}
+    # will likely have to add fusion ext soon
     for fname in fnames.split(','):
         ftype = 'rsem'
         if atype == 'DNA':
@@ -78,7 +75,7 @@ ds_list = flist.decode().split('\n')
 if ds_list[-1] == '':
     ds_list.pop()
 out = open('cbio_id_fname_table.txt', 'w')
-out.write('Cbio project\tT/CL BS ID\tFile Type\tCbio Name\tFile Name\n')
+out.write('Cbio project\tT/CL BS ID\tNorm BS ID\tFile Type\tCbio Name\tFile Name\n')
 for dpath in ds_list:
     process_ds(dpath, cav_dict, out)
 out.close()
