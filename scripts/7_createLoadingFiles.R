@@ -231,17 +231,6 @@ createStudyAll <- function(myDisease=NULL,
 		system(paste("cp ", cnaDir, myDisease, ".predicted_cnv.txt ", myDiseaseStudyFolder, "/data_linear_CNA.txt", sep=""));
 		system(paste("cp ", cnaDir, myDisease, ".discrete_cnvs.txt ", myDiseaseStudyFolder, "/data_CNA.txt", sep=""));
 
-		#Create Discrete CNA File
-		# tmpCNV <- read.delim(paste(cnaDir, myDisease, ".predicted_cnv.txt",sep=""))
-		# tmpCNVGenes <- tmpCNV[1];
-		# tmpCNVVals <- as.matrix(tmpCNV[2:ncol(tmpCNV)]);
-		# tmpCNVVals <- tmpCNVVals-2;
-		# tmpCNVVals[tmpCNVVals>6]<-2
-		# tmpCNVVals[tmpCNVVals>2.1]<-1
-		# tmpCNV <- data.frame(tmpCNVGenes, tmpCNVVals)
-		# colnames(tmpCNV) <- gsub("^X", "", colnames(tmpCNV))
-		# colnames(tmpCNV) <- gsub("\\.", "-", colnames(tmpCNV))
-		# write.table(tmpCNV, paste(myDiseaseStudyFolder, "/data_CNA.txt", sep=""), row.names=F, sep="\t", quote=F)
 		#Create CNV meta files
 		createCNVMeta(myDiseaseStudyFolder, cancStudyID=myCancStudyID, myDescMC);
 		createCNVDiscreteMeta(myDiseaseStudyFolder, cancStudyID=myCancStudyID, myDescMCD);

@@ -1,0 +1,8 @@
+cancer_study_identifier: 
+stable_id: linear_CNA
+profile_name: copy-number values
+profile_description: Predicted copy number values from WGS (Continuous)
+genetic_alteration_type: COPY_NUMBER_ALTERATION
+datatype: CONTINUOUS
+show_profile_in_analysis_tab: false
+data_filename: data_linear_CNA.txt

@@ -1,0 +1,9 @@
+cancer_study_identifier: 
+stable_id: cna
+profile_name: Binned copy-number values
+profile_description: Predicted copy number values from WGS (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification.
+data_filename: data_CNA.txt
+genetic_alteration_type: COPY_NUMBER_ALTERATION
+datatype: DISCRETE
+show_profile_in_analysis_tab: true
+data_filename: data_CNA.txt

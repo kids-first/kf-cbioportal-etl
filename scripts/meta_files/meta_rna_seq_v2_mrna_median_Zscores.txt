@@ -1,0 +1,8 @@
+cancer_study_identifier: 
+stable_id: rna_seq_v2_mrna_median_Zscores
+profile_name: mRNA expression z-scores
+profile_description: Expression levels from RNA-Seq (z-scores)
+genetic_alteration_type: MRNA_EXPRESSION
+datatype: Z-SCORE
+show_profile_in_analysis_tab: true
+data_filename: data_rna_seq_v2_mrna_median_Zscores.txt
