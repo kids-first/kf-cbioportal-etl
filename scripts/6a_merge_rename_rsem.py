@@ -13,13 +13,15 @@ def process_rsem_file(rsem_info, rsem_dir, fpkm_cts):
         rsem_path = rsem_dir + rsem_info[1]
         bs_id = rsem_info[2]
         if bs_id in mapping_dict:
+            samp_id = mapping_dict[bs_id]
+            samp_list.append(samp_id)
             cur = gzip.open(rsem_dir + rsem_info[1])
             next(cur)
             for line in cur:
                 data = line.decode().rstrip('\n').split('\t')
                 gene_info = data[0].split('_')
                 ensg_id = gene_info[0]
-                fpkm_cts[ensg_id][bs_id] = data[-1]
+                fpkm_cts[ensg_id][samp_id] = data[-1]
             cur.close()
         else:
             sys.stderr.write(rsem_path + ' not in mapping file, skipping!\n')
@@ -55,7 +57,6 @@ if __name__ == "__main__":
     for line in open(config_data['mapFileLoc']):
         info = line.rstrip('\n').split('\t')
         mapping_dict[info[1]] = info[0]
-        samp_list.append(info[1])
     rsem_fh = open(args.flist)
     rsem_dir = args.rsem_dir
 
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     for line in rsem_fh:
         rsem_list.append(line.rstrip('\n').split('\t'))
     rsem_fh.close()
-    samp_list.sort()
+    
 
     out_dir = 'merged_rsem/'
     try:
@@ -86,6 +87,7 @@ if __name__ == "__main__":
             if i % n == 0:
                 sys.stderr.write('Processed ' + str(i) + ' input files\n')
             i += 1
+    samp_list.sort()
     rsem_merge = open(out_dir + 'rsem_merged.txt', 'w')
     rsem_merge.write('gene_id' + '\t' + 'gene_symbol' + '\t' + '\t'.join(samp_list) + '\n')
     for ens_id in id_list:

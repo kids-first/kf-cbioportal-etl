@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
-import sevenbridges as sbg
 import sys
 import argparse
 import concurrent.futures
-from sevenbridges.http.error_handlers import rate_limit_sleeper, maintenance_sleeper
 import re
 import json
 import pdb
@@ -61,6 +59,7 @@ for line in meta:
         cav_dict[bs_id]['atype'] = "RNA"
         cav_dict[bs_id]['fname'] = info[1]
         cav_dict[bs_id]['bs_id'] = bs_id
+        cav_dict[bs_id]['project'] info[2]
     elif ext in dna_ext_list and skip == 0:
         t_bs_id = info[ind['tum']]
         n_bs_id = info[ind['norm']]
@@ -75,14 +74,14 @@ for line in meta:
             cav_dict[dkey]['fname'] = []
             cav_dict[dkey]['t_bs_id'] = t_bs_id
             cav_dict[dkey]['n_bs_id'] = n_bs_id
+            cav_dict[dkey]['project'] = info[2]
         cav_dict[dkey]['fname'].append(info[1])
 mafs.close()
 cnvs.close()
 rsem.close()
-proj = config_data['cancStudyID']
 for tid in cav_dict:
     if cav_dict[tid]['atype'] == 'RNA':
-        old_out.write("\t".join((cav_dict[tid]['bs_id'], "NA","RNA_TASK", tid, "RNA", cav_dict[tid]['fname'], proj)) + '\n')
+        old_out.write("\t".join((cav_dict[tid]['bs_id'], "NA","RNA_TASK", tid, "RNA", cav_dict[tid]['fname'], cav_dict[tid]['project'])) + '\n')
     else:
-        old_out.write("\t".join((cav_dict[tid]['t_bs_id'], cav_dict[tid]['n_bs_id'],"DNA_TASK", tid, "DNA", ",".join(cav_dict[tid]['fname']), proj)) + '\n')
+        old_out.write("\t".join((cav_dict[tid]['t_bs_id'], cav_dict[tid]['n_bs_id'],"DNA_TASK", tid, "DNA", ",".join(cav_dict[tid]['fname']), cav_dict[tid]['project'])) + '\n')
 old_out.close()
