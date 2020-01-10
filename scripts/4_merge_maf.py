@@ -29,7 +29,7 @@ def process_ds(dsname, c_bs_dict, tid_idx, nid_idx, v_idx, eid_idx, n_idx, print
         parts = dsname.split('/')
         # project/disease name should be name of directory hosting datasheet
         sys.stderr.write('Processing ' + parts[-2] + ' project' + '\n')
-        new_maf = open(out_dir + parts[-2] + '.strelka.vep.filtered.maf', 'w')
+        new_maf = open(out_dir + parts[-2] + maf_ext, 'w')
         new_maf.write(print_head)
         cur_ds = open(dsname)
         for i in range(0, 4, 1):
@@ -67,6 +67,14 @@ parser.add_argument('-j', '--config', action='store', dest='config_file', help='
 args = parser.parse_args()
 with open(args.config_file) as f:
     config_data = json.load(f)
+# get maf file ext
+maf_ext = ''
+for ext in config_data['dna_ext_list']:
+    if ext[-3:] == 'maf':
+        if ext[0] != '.':
+            ext = "." + ext
+        maf_ext = ext
+        break
 maf_dir = args.maf_dir
 if maf_dir[-1] != '/':
     maf_dir += '/'
