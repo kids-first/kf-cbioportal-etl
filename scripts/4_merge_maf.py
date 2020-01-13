@@ -28,13 +28,13 @@ def process_tbl(cbio_dx, file_meta_dict, tid_idx, nid_idx, v_idx, eid_idx, n_idx
         x = 0
         # project/disease name should be name of directory hosting datasheet
         sys.stderr.write('Processing ' + cbio_dx + ' project' + '\n')
-        new_maf = open(out_dir + cbio_dx + maf_ext, 'w')
+        new_maf = open(out_dir + cbio_dx + ".maf", 'w')
         new_maf.write(print_head)
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             cbio_norm_id = file_meta_dict[cbio_dx][cbio_tum_id]['cbio_norm_id']
             fname = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
             sys.stderr.write('Found relevant maf to process for ' + cbio_dx + ' ' + cbio_tum_id + '\t' + cbio_norm_id + '\t'
-            + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + '\t' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + '\t' + fname '\n')
+            + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + '\t' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + '\t' + fname + '\n')
             sys.stderr.flush()
             process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id, tid_idx, nid_idx, v_idx, eid_idx, n_idx)
             x += 1
@@ -60,7 +60,7 @@ with open(args.config_file) as f:
 maf_dir = args.maf_dir
 if maf_dir[-1] != '/':
     maf_dir += '/'
-file_meta_dict = get_file_metadata_helper(args.table, 'maf')
+file_meta_dict = get_file_metadata(args.table, 'maf')
 head_fh = open(args.header)
 
 print_head = next(head_fh)

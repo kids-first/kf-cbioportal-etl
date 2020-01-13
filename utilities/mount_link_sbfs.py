@@ -27,11 +27,11 @@ manifest = open(args.manifest)
 head = next(manifest)
 cwd = os.getcwd() + "/"
 for line in manifest:
-    info = line.rstrip('\n').split(',')
+    info = line.rstrip('\n').split('\t')
     fnames = info[-2]
     project = info[-1]
     atype = info[4]
-    (u,p) = project.split(',')
+    (u,p) = project.split('/')
     if p not in m_dict:
         os.mkdir(p)
         cmd = 'sbfs mount ' + p + ' --project ' + project + ' --profile turbo --read-only'
