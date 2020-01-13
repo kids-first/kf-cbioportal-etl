@@ -46,6 +46,7 @@ for line in meta:
     parts = info[1].split('.')
     ext = ".".join(parts[1:])
     skip = 0
+    
     for key in ind:
         if info[ind[key]] in skip_dict:
             skip = 1
@@ -59,7 +60,7 @@ for line in meta:
         cav_dict[bs_id]['atype'] = "RNA"
         cav_dict[bs_id]['fname'] = info[1]
         cav_dict[bs_id]['bs_id'] = bs_id
-        cav_dict[bs_id]['project'] info[2]
+        cav_dict[bs_id]['project'] = info[2]
     elif ext in dna_ext_list and skip == 0:
         t_bs_id = info[ind['tum']]
         n_bs_id = info[ind['norm']]

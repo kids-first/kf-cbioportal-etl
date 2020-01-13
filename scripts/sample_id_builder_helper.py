@@ -11,7 +11,7 @@ def build_samp_id(style, t_header, info):
 
     elif style == 'cbttc_norm_std':
         # sample ID will consist of kf external_sample_id with .SUFFIX removed
-        sid_idx = t_header.index('external_id')
+        sid_idx = t_header.index('external_sample_id')
         samp_id = info[sid_idx].split('.')[:-1][0]
         return samp_id
 

@@ -1,8 +1,9 @@
-
+#!/usr/bin/env python3
 import argparse
 import sys
 import os
 import json
+import subprocess
 
 
 def process_ds(dsname, cav_dict, out):
@@ -20,24 +21,24 @@ def process_ds(dsname, cav_dict, out):
         ds_header = ds_head.rstrip('\n').split('\t')
         sa_idx = ds_header.index('SAMPLE_ID')
         sp_idx = ds_header.index('SPECIMEN_ID')
-        ns_idx = ds_header.index('MATCHED_NORMAL_SAMPLE_ID')
+        ns_idx = ds_header.index('MATCHED_NORMAL_SPECIMEN_ID')
         for entry in cur_ds:
             meta = entry.rstrip('\n').split('\t')
             check = meta[sp_idx].split(';')
             for bs_id in check:
                 # can't tell if RNA or DNA from datasheet, but DNA will be tum + norm bs id, RNA tum + NA
-                id1 = bs_id + "_" + meta[ns_idx]
-                id2 = bs_id + "_NA"
+                id1 = bs_id + "\t" + meta[ns_idx]
+                id2 = bs_id + "\tNA"
                 key = id1
                 if key in cav_dict:
-                    for ftype in cav[id1]:
-                        out.write("\t".join([cbio_proj, key, ftype, meta[sa_idx], cav_dict[key][ftype]]) + "\n")
+                    for ftype in cav_dict[key]:
+                        out.write("\t".join([cbio_proj, key, ftype, meta[sa_idx], meta[ns_idx], cav_dict[key][ftype]]) + "\n")
                 elif id2 in cav_dict:
                     key = id2
-                    for ftype in cav[id1]:
-                        out.write("\t".join([cbio_proj, key, ftype, meta[sa_idx], cav_dict[key][ftype]]) + "\n")
+                    for ftype in cav_dict[key]:
+                        out.write("\t".join([cbio_proj, key, ftype, meta[sa_idx], 'NA', cav_dict[key][ftype]]) + "\n")
                 else:
-                    sys.stderr.write('WARNING: ' + id1 + ' nor ' id2 + 'found in data sheet entry\n' + entry + 'Check inputs!\n')
+                    sys.stderr.write('WARNING: ' + id1 + ' nor ' + id2 + ' found in data sheet entry\n' + entry + 'Check inputs!\n')
     except Exception as e:
         print(e)
         sys.exit()
@@ -47,18 +48,16 @@ parser.add_argument('-c', '--cavatica', action='store', dest='cav',
                     help='file with task info from cavatica (see step 1b)')
 
 args = parser.parse_args()
-# config_data dict has most customizable options from json config file
-with open(args.config_file) as f:
-    config_data = json.load(f)
 
 cav_dict = {}
 manifest = open(args.cav)
+head = next(manifest)
 for line in manifest:
-    info = line.rstrip('\n').split(',')
-    bs_ids = info[0] + "_" + info[1]
+    info = line.rstrip('\n').split('\t')
+    bs_ids = info[0] + "\t" + info[1]
     fnames = info[-2]
     atype = info[4]
-    cav_dict[bs_id] = {}
+    cav_dict[bs_ids] = {}
     # will likely have to add fusion ext soon
     for fname in fnames.split(','):
         ftype = 'rsem'
@@ -67,7 +66,7 @@ for line in manifest:
                 ftype = 'maf'
             else:
                 ftype =  "cnv"
-        cav_dict[bs_id][ftype] = fname
+        cav_dict[bs_ids][ftype] = fname
 
 flist = subprocess.check_output('find ./datasheets -name data_clinical_sample.txt', shell=True)
 
@@ -75,7 +74,7 @@ ds_list = flist.decode().split('\n')
 if ds_list[-1] == '':
     ds_list.pop()
 out = open('cbio_id_fname_table.txt', 'w')
-out.write('Cbio project\tT/CL BS ID\tNorm BS ID\tFile Type\tCbio Name\tFile Name\n')
+out.write('Cbio project\tT/CL BS ID\tNorm BS ID\tFile Type\tCbio Tumor Name\tCbio Matched Normal Name\tFile Name\n')
 for dpath in ds_list:
     process_ds(dpath, cav_dict, out)
 out.close()
