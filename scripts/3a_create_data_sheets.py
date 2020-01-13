@@ -20,7 +20,6 @@ def get_tn_pair_data(c_tbl, bs_ids_blacklist):
             rna_data[bs_id] = 0
         else:
             if bs_id not in pairs:
-                pairs[bs_id] = []
                 pairs[bs_id] = info[1]
             else:
                 bs_ids_blacklist[bs_id] = 'Double norm'

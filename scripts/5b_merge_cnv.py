@@ -75,20 +75,6 @@ cav_fh = open(args.cav)
 cnv_dir = args.cnv_dir
 if cnv_dir[-1] != '/':
     cnv_dir += '/'
-head = next(cav_fh)
-header = head.rstrip('\n').split('\t')
-b_idx = header.index('T/CL BS ID')
-a_idx = header.index('Analyte Type')
-r_idx = header.index('Relevant Outputs')
-c_bs_dict = {}
-for line in cav_fh:
-    info = line.rstrip('\n').split('\t')
-    if info[a_idx] == 'DNA':
-        files = info[r_idx].split(',')
-        for fn in files:
-            if fn[-16:] == 'CNVs.p.value.txt':
-                c_bs_dict[info[b_idx]] = fn.split('.')[0]
-cav_fh.close()
 
 suffix = '.CNVs.Genes.copy_number'
 

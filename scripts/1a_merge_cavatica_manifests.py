@@ -8,22 +8,26 @@ import json
 import pdb
 
 parser = argparse.ArgumentParser(description='Get all relevant analyzed file outputs from cavatica manifest.')
-parser.add_argument('-o', '--output', action='store', dest='output', help='output basename name')
 parser.add_argument('-m', '--manifest', action='store', dest='manifest', help='cavatica manifest file csv list')
 
-
+args = parser.parse_args()
 out_head = 'id,name,project,Kids First Biospecimen ID Tumor,Kids First Biospecimen ID Normal,Kids First Biospecimen ID\n'
 out = open('1a_cavatica_merged_manifest.csv', 'w')
-for manifests in arg.manifest.split(','):
+out.write(out_head)
+for manifests in args.manifest.split(','):
     meta = open(manifests)
-    rel_head = {"Kids First Biospecimen ID Tumor": "tum", "Kids First Biospecimen ID Normal": "norm", "Kids First Biospecimen ID": "rna"}
+    rel_head = ["Kids First Biospecimen ID Tumor", "Kids First Biospecimen ID Normal", "Kids First Biospecimen ID"]
     head = next(meta)
     ind = []
+
     # get index positions of where relevant bs ids would be form tumor dna, normal dna, and rna
     header = head.rstrip('\n').split(',')
-    for i in range(len(header)):
-        if header[i] in rel_head:
-            ind.append[i]
+    for i in range(len(rel_head)):
+        try:
+            ind.append(header.index(rel_head[i]))
+        except:
+            sys.stderr.write(rel_head[i] + " not in this manifest, assiging 0\n")
+            ind.append(0)
     for line in meta:
         info = line.rstrip('\n').split(',')
         out.write(','.join(info[0:3]))
