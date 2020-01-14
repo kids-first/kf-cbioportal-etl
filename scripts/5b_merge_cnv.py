@@ -20,50 +20,42 @@ def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
     return cur_cnv_dict
 
 
-def process_ds(dpath, c_bs_dict):
+def process_table(cbio_dx, file_meta_dict):
     try:
-        if dpath != '':
-            parts = dpath.split('/')
-            # project/disease name should be name of directory hosting datasheet
-            sys.stderr.write('Processing ' + parts[-2] + ' project' + '\n')
-            new_cnv = open(out_dir + parts[-2] + '.predicted_cnv.txt', 'w')
-            cur_cnv_dict = {}
-            s_list = []
-            cur_ds = open(dpath)
-            for i in range(0, 4, 1):
-                next(cur_ds)
-            ds_head = next(cur_ds)
-            ds_header = ds_head.rstrip('\n').split('\t')
-            sa_idx = ds_header.index('SAMPLE_ID')
-            sp_idx = ds_header.index('SPECIMEN_ID')
-            for line in cur_ds:
-                info = line.rstrip('\n').split('\t')
-                check = info[sp_idx].split(';')
-                for bs_id in check:
-                    if bs_id in c_bs_dict:
-                        sys.stderr.write('Found relevant cnv to process ' + bs_id + '\t' + c_bs_dict[bs_id] + '\t' + info[sa_idx] + '\n')
-                        sys.stderr.flush()
-                        s_list.append(info[sa_idx])
-                        cur_cnv_dict = process_cnv(cnv_dir + c_bs_dict[bs_id] + suffix, cur_cnv_dict, info[sa_idx])
-            new_cnv.write('Hugo_Symbol\t' + '\t'.join(s_list) + '\n')
-            for gene in cur_cnv_dict:
-                new_cnv.write(gene)
-                for samp in s_list:
-                    if samp in cur_cnv_dict[gene]:
-                        new_cnv.write('\t' + cur_cnv_dict[gene][samp])
-                    else:
-                        new_cnv.write('\t2')
-                new_cnv.write('\n')
-            new_cnv.close()
-            cur_ds.close()
+
+        # project/disease name should be name of directory hosting datasheet
+        sys.stderr.write('Processing ' + cbio_dx + ' project' + '\n')
+        new_cnv = open(out_dir + cbio_dx + '.predicted_cnv.txt', 'w')
+        cur_cnv_dict = {}
+        s_list = []
+
+        for cbio_tum_id in file_meta_dict[cbio_dx]:
+            orig_fname = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
+            parts = re.search('^(\w+)\.' + orig_suffix, orig_fname)
+            gene_fname = parts.group(1) + w_gene_suffix
+            sys.stderr.write('Found relevant cnv to process ' + ' ' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + ' '
+            + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + ' ' + gene_fname + '\n')
+            sys.stderr.flush()
+            s_list.append(cbio_tum_id)
+            cur_cnv_dict = process_cnv(cnv_dir + gene_fname, cur_cnv_dict, cbio_tum_id)
+        new_cnv.write('Hugo_Symbol\t' + '\t'.join(s_list) + '\n')
+        for gene in cur_cnv_dict:
+            new_cnv.write(gene)
+            for samp in s_list:
+                if samp in cur_cnv_dict[gene]:
+                    new_cnv.write('\t' + cur_cnv_dict[gene][samp])
+                else:
+                    new_cnv.write('\t2')
+            new_cnv.write('\n')
+        new_cnv.close()
     except Exception as e:
         print(e)
         sys.exit(1)
 
 
 parser = argparse.ArgumentParser(description='Merge cnv files using cavatica task info and datasheets.')
-parser.add_argument('-c', '--cavatica', action='store', dest='cav',
-                    help='file with task info from cavatica (see step 1)')
+parser.add_argument('-t', '--table', action='store', dest='table',
+                    help='Table with cbio project, kf bs ids, cbio IDs, and file names')
 parser.add_argument('-n', '--cnv-dir-gene', action='store', dest='cnv_dir', help='cnv as gene file directory')
 parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
                                                                                'data locations')
@@ -71,21 +63,19 @@ parser.add_argument('-j', '--config', action='store', dest='config_file', help='
 args = parser.parse_args()
 with open(args.config_file) as f:
     config_data = json.load(f)
-cav_fh = open(args.cav)
 cnv_dir = args.cnv_dir
 if cnv_dir[-1] != '/':
     cnv_dir += '/'
 
-suffix = '.CNVs.Genes.copy_number'
-
-flist = subprocess.check_output('find ./datasheets -name data_clinical_sample.txt', shell=True)
+orig_suffix = config_data['dna_ext_list']['cnv']
+w_gene_suffix = '.CNVs.Genes.copy_number'
 out_dir = 'merged_cnvs/'
 try:
     os.mkdir(out_dir)
 except:
     sys.stderr.write('output dir already exists\n')
-
+file_meta_dict = get_file_metadata(args.table, 'cnv')
 with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
-    results = {executor.submit(process_ds, dpath, c_bs_dict): dpath for dpath in flist.decode().split('\n')}
+    results = {executor.submit(process_table, cbio_dx, file_meta_dict): cbio_dx for cbio_dx in file_meta_dict}
 
 sys.stderr.write('Done, check logs\n')

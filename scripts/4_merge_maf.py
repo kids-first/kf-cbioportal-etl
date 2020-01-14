@@ -33,8 +33,8 @@ def process_tbl(cbio_dx, file_meta_dict, tid_idx, nid_idx, v_idx, eid_idx, n_idx
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             cbio_norm_id = file_meta_dict[cbio_dx][cbio_tum_id]['cbio_norm_id']
             fname = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
-            sys.stderr.write('Found relevant maf to process for ' + cbio_dx + ' ' + cbio_tum_id + '\t' + cbio_norm_id + '\t'
-            + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + '\t' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + '\t' + fname + '\n')
+            sys.stderr.write('Found relevant maf to process for ' + ' ' + cbio_tum_id + ' ' + cbio_norm_id + ' '
+            + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + ' ' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + ' ' + fname + '\n')
             sys.stderr.flush()
             process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id, tid_idx, nid_idx, v_idx, eid_idx, n_idx)
             x += 1
