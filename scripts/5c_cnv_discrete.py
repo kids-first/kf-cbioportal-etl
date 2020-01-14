@@ -6,11 +6,12 @@ import argparse
 from sevenbridges.http.error_handlers import rate_limit_sleeper, maintenance_sleeper
 import concurrent.futures
 import json
+import subprocess
 import pandas as pd
 import numpy as np
 
 parser = argparse.ArgumentParser(description='Convert merged cnv values to discrete coded values.')
-parser.add_argument('-f', '--merged_cnv_file', action='store', dest='cnv_file', help='merged cnv file')
+parser.add_argument('-d', '--merged_cnv_dir', action='store', dest='merged_cnv_dir', help='merged cnv dir')
 parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
                                                                                'data locations')
 parser.add_argument('-m', '--info_manifest', action='store', dest='manifest', help='cavatica cfree info file manifest')
@@ -55,42 +56,48 @@ api = sbg.Api(config=config, error_handlers=[
                 sbg.http.error_handlers.rate_limit_sleeper,
                 sbg.http.error_handlers.maintenance_sleeper])
 
-data = pd.read_csv(args.cnv_file, sep="\t")
-data.set_index('Hugo_Symbol')
+flist = subprocess.check_output('find ' + args.merged_cnv_dir + ' -name *.predicted_cnv.txt', shell=True)
 
-samp_list = list(data.columns)[1:]
-manifest = pd.read_csv(args.manifest)
-# may need to change this for other projects :(
-manifest.set_index('case_id', inplace=True)
-bulk_ids = []
-#fid_dict = {}
-for samp_id in samp_list:
-    bulk_ids.append(manifest.loc[samp_id]['id'])
-    # fid_dict[samp_id] = manifest.loc[samp_id]['id']
-file_objs = []
-max_j = 100
-total = len(bulk_ids)
-for i in range(0, total, max_j):
-    uset = i + max_j
-    sys.stderr.write('Processing ' + str(uset) + ' set\n')
-    if uset > total:
-        uset = total
-    subset = api.files.bulk_get(files=bulk_ids[i:uset])
-    file_objs.extend(subset)
-# may want to make a config file option
-high_gain = 4
+fname_list = flist.decode().split('\n')
+if fname_list[-1] == '':
+    fname_list.pop()
+for fname in fname_list:
+    data = pd.read_csv(fname, sep="\t")
+    data.set_index('Hugo_Symbol')
 
-x = 1
-m = 100
-with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
-    results = {executor.submit(mt_adjust_cn, obj): obj for obj in file_objs}
-    for result in concurrent.futures.as_completed(results):
-        if result.result()[0] == 1:
-            'Had trouble processing object ' + result.result([1] + '\n')
-            sys.exit(1)
-        if x % m == 0:
-            sys.stderr.write('Processed ' + str(x) + ' samples\n')
-            sys.stderr.flush()
-        x += 1
-sys.stderr.write('Conversion completed.  Writing results to file\n')
-data.to_csv(r'discrete_cnvs.txt', sep='\t', mode='w', index=False)
+    samp_list = list(data.columns)[1:]
+    manifest = pd.read_csv(args.manifest)
+    # may need to change this for other projects :(
+    manifest.set_index('Kids First Biospecimen ID Tumor', inplace=True)
+    bulk_ids = []
+    #fid_dict = {}
+    for samp_id in samp_list:
+        bulk_ids.append(manifest.loc[samp_id]['id'])
+        # fid_dict[samp_id] = manifest.loc[samp_id]['id']
+    file_objs = []
+    max_j = 100
+    total = len(bulk_ids)
+    for i in range(0, total, max_j):
+        uset = i + max_j
+        sys.stderr.write('Processing ' + str(uset) + ' set\n')
+        if uset > total:
+            uset = total
+        subset = api.files.bulk_get(files=bulk_ids[i:uset])
+        file_objs.extend(subset)
+
+    high_gain = config_data['cnv_high_gain']
+
+    x = 1
+    m = 100
+    with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
+        results = {executor.submit(mt_adjust_cn, obj): obj for obj in file_objs}
+        for result in concurrent.futures.as_completed(results):
+            if result.result()[0] == 1:
+                'Had trouble processing object ' + result.result([1] + '\n')
+                sys.exit(1)
+            if x % m == 0:
+                sys.stderr.write('Processed ' + str(x) + ' samples\n')
+                sys.stderr.flush()
+            x += 1
+    sys.stderr.write('Conversion completed.  Writing results to file\n')
+    data.to_csv(r'discrete_cnvs.txt', sep='\t', mode='w', index=False)

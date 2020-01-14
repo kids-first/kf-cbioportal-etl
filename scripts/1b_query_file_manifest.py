@@ -5,11 +5,10 @@ import argparse
 import concurrent.futures
 import re
 import json
-import pdb
 
 parser = argparse.ArgumentParser(description='Get all relevant analyzed file outputs from cavatica manifest.')
 parser.add_argument('-o', '--output', action='store', dest='output', help='output basename name')
-parser.add_argument('-m', '--manifest', action='store', dest='manifest', help='cavatica csv manifest file')
+parser.add_argument('-m', '--manifest', action='store', dest='manifest', help='cavatica csv manifest file, may be from step 1a')
 parser.add_argument('-b', '--blacklist', action='store', dest='blacklist', help='Optional bs id blacklist')
 parser.add_argument('-c', '--config', action='store', dest='config_file', help='json config file with data types and '
                                                                                'data locations')
@@ -26,12 +25,15 @@ for i in range(len(header)):
     if header[i] in rel_head:
         ind[rel_head[header[i]]] = i
 
-mafs = open(args.output + '_maf_file_list.txt', 'w')
-cnvs = open(args.output + '_cnv_file_list.txt', 'w')
-rsem = open(args.output + '_rsem_file_list.txt', 'w')
 old_out = open(args.output + '_task_list.txt', 'w')
-rna_ext_list = config_data['rna_ext_list']
-dna_ext_list = config_data['dna_ext_list']
+rna_ext_dict = config_data['rna_ext_list']
+rna_ext_list = []
+for key in rna_ext_dict:
+    rna_ext_list.append(rna_ext_dict[key])
+dna_ext_dict = config_data['dna_ext_list']
+dna_ext_list = []
+for key in dna_ext_dict:
+    dna_ext_list.append(dna_ext_dict[key])
 
 skip_dict = {}
 if args.blacklist is not None:
@@ -52,34 +54,28 @@ for line in meta:
             skip = 1
             skip_dict[info[ind[key]]] = 1
             sys.stderr.write('BS ID in blacklist.  Skipping ' + line)
-
+    file_id = info[0]
+    fname = info[1]
+    project = info[2]
     if ext in rna_ext_list and skip == 0:
         bs_id = info[ind['rna']]
-        rsem.write("\t".join((info[0], info[1], bs_id)) + "\n")
         cav_dict[bs_id] = {}
         cav_dict[bs_id]['atype'] = "RNA"
-        cav_dict[bs_id]['fname'] = info[1]
+        cav_dict[bs_id]['fname'] = fname
         cav_dict[bs_id]['bs_id'] = bs_id
-        cav_dict[bs_id]['project'] = info[2]
+        cav_dict[bs_id]['project'] = project
     elif ext in dna_ext_list and skip == 0:
         t_bs_id = info[ind['tum']]
         n_bs_id = info[ind['norm']]
         dkey = t_bs_id + n_bs_id
-        if re.search('.maf', info[1]):
-            mafs.write("\t".join((info[0], info[1])) + "\n")
-        else:
-            cnvs.write("\t".join((info[0], info[1])) + "\n")
         if dkey not in cav_dict:
             cav_dict[dkey] = {}
             cav_dict[dkey]['atype'] = "DNA"
             cav_dict[dkey]['fname'] = []
             cav_dict[dkey]['t_bs_id'] = t_bs_id
             cav_dict[dkey]['n_bs_id'] = n_bs_id
-            cav_dict[dkey]['project'] = info[2]
-        cav_dict[dkey]['fname'].append(info[1])
-mafs.close()
-cnvs.close()
-rsem.close()
+            cav_dict[dkey]['project'] = project
+        cav_dict[dkey]['fname'].append(fname)
 for tid in cav_dict:
     if cav_dict[tid]['atype'] == 'RNA':
         old_out.write("\t".join((cav_dict[tid]['bs_id'], "NA","RNA_TASK", tid, "RNA", cav_dict[tid]['fname'], cav_dict[tid]['project'])) + '\n')

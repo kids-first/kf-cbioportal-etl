@@ -45,7 +45,7 @@ args = parser.parse_args()
 with open(args.config_file) as f:
     config_data = json.load(f)
 
-suffix = 'CNVs.p.value.txt'
+suffix = config_data['dna_ext_list']['copy_number']
 f_cmd = 'find ' + args.cnv_dir + ' -name "*.' + suffix + '"'
 sys.stderr.write('Getting cnv list ' + f_cmd + '\n')
 flist = subprocess.check_output(f_cmd, shell=True)
