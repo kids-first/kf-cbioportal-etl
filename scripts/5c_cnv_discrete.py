@@ -7,6 +7,7 @@ from sevenbridges.http.error_handlers import rate_limit_sleeper, maintenance_sle
 import concurrent.futures
 import json
 import subprocess
+import re
 import pandas as pd
 import numpy as np
 
@@ -15,6 +16,8 @@ parser.add_argument('-d', '--merged_cnv_dir', action='store', dest='merged_cnv_d
 parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
                                                                                'data locations')
 parser.add_argument('-m', '--info_manifest', action='store', dest='manifest', help='cavatica cfree info file manifest')
+parser.add_argument('-t', '--table', action='store', dest='table',
+                    help='Table with cbio project, kf bs ids, cbio IDs, and file names')
 parser.add_argument('-p', '--profile', action='store', dest='profile', help='cavatica profile name. requires '
                                                                             '.sevenbridges/credentials file be present')
 
@@ -59,20 +62,24 @@ api = sbg.Api(config=config, error_handlers=[
 flist = subprocess.check_output('find ' + args.merged_cnv_dir + ' -name *.predicted_cnv.txt', shell=True)
 
 fname_list = flist.decode().split('\n')
+cbio_tbl = pd.read_csv(args.table, sep = "\t")
+manifest = pd.read_csv(args.manifest)
+# Cbio Tumor Name
+cbio_tbl.set_index('Cbio Tumor Name', inplace=True)
+manifest.set_index(['Kids First Biospecimen ID Tumor'], inplace=True)
 if fname_list[-1] == '':
     fname_list.pop()
 for fname in fname_list:
+    parts = re.search('^(.*).predicted_cnv.txt', fname)
     data = pd.read_csv(fname, sep="\t")
     data.set_index('Hugo_Symbol')
-
+    # sample list would be cbio ids
     samp_list = list(data.columns)[1:]
-    manifest = pd.read_csv(args.manifest)
-    # may need to change this for other projects :(
-    manifest.set_index('Kids First Biospecimen ID Tumor', inplace=True)
     bulk_ids = []
     #fid_dict = {}
     for samp_id in samp_list:
-        bulk_ids.append(manifest.loc[samp_id]['id'])
+        bs_id = cbio_tbl.loc[samp_id]['T/CL BS ID']
+        bulk_ids.append(manifest.loc[bs_id]['id'])
         # fid_dict[samp_id] = manifest.loc[samp_id]['id']
     file_objs = []
     max_j = 100
@@ -88,7 +95,7 @@ for fname in fname_list:
     high_gain = config_data['cnv_high_gain']
 
     x = 1
-    m = 100
+    m = 50
     with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
         results = {executor.submit(mt_adjust_cn, obj): obj for obj in file_objs}
         for result in concurrent.futures.as_completed(results):
@@ -100,4 +107,5 @@ for fname in fname_list:
                 sys.stderr.flush()
             x += 1
     sys.stderr.write('Conversion completed.  Writing results to file\n')
-    data.to_csv(r'discrete_cnvs.txt', sep='\t', mode='w', index=False)
+    new_fname = parts[0] + '_discrete_cnvs.txt'
+    data.to_csv(new_fname, sep='\t', mode='w', index=False)
