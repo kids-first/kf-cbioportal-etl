@@ -5,6 +5,8 @@ import argparse
 import json
 import subprocess
 import concurrent.futures
+import re
+from get_file_metadata_helper import get_file_metadata
 
 
 def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
@@ -31,7 +33,7 @@ def process_table(cbio_dx, file_meta_dict):
 
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             orig_fname = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
-            parts = re.search('^(\w+)\.' + orig_suffix, orig_fname)
+            parts = re.search('^(.*)\.' + orig_suffix, orig_fname)
             gene_fname = parts.group(1) + w_gene_suffix
             sys.stderr.write('Found relevant cnv to process ' + ' ' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + ' '
             + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + ' ' + gene_fname + '\n')
@@ -67,7 +69,7 @@ cnv_dir = args.cnv_dir
 if cnv_dir[-1] != '/':
     cnv_dir += '/'
 
-orig_suffix = config_data['dna_ext_list']['cnv']
+orig_suffix = config_data['dna_ext_list']['copy_number']
 w_gene_suffix = '.CNVs.Genes.copy_number'
 out_dir = 'merged_cnvs/'
 try:
