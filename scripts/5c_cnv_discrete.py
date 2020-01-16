@@ -25,7 +25,8 @@ parser.add_argument('-p', '--profile', action='store', dest='profile', help='cav
 
 def mt_adjust_cn(obj):
     try:
-        samp_id = obj.resource.metadata['case_id']
+        bs_id = obj.resource.metadata['Kids First Biospecimen ID Tumor']
+        samp_id = bs_cbio_dict[bs_id]
         info = obj.resource.content().split('\n')
         info_dict = {}
         for datum in info:
@@ -33,7 +34,7 @@ def mt_adjust_cn(obj):
                 (key, value) = datum.split('\t')
                 info_dict[key] = value
             except Exception as e:
-                sys.stderr.write(str(e) + " entry could not be split. skipping!\n")
+                sys.stderr.write("WARN: " + str(e) + " entry could not be split\n")
         ploidy = int(info_dict['Output_Ploidy'])
         data[samp_id] = data[samp_id] - ploidy
         min_cn = ploidy * -1
@@ -70,16 +71,18 @@ manifest.set_index(['Kids First Biospecimen ID Tumor'], inplace=True)
 if fname_list[-1] == '':
     fname_list.pop()
 for fname in fname_list:
-    parts = re.search('^(.*).predicted_cnv.txt', fname)
+    parts = re.search('^' + args.merged_cnv_dir + '/(.*).predicted_cnv.txt', fname)
     cbio_dx = parts.group(1)
     data = pd.read_csv(fname, sep="\t")
     data.set_index('Hugo_Symbol')
     # sample list would be cbio ids
     samp_list = list(data.columns)[1:]
     bulk_ids = []
+    bs_cbio_dict = {}
     #fid_dict = {}
     for samp_id in samp_list:
         bs_id = file_meta_dict[cbio_dx][samp_id]['kf_tum_id']
+        bs_cbio_dict[bs_id] = samp_id
         bulk_ids.append(manifest.loc[bs_id]['id'])
         # fid_dict[samp_id] = manifest.loc[samp_id]['id']
     file_objs = []
@@ -108,5 +111,5 @@ for fname in fname_list:
                 sys.stderr.flush()
             x += 1
     sys.stderr.write('Conversion completed.  Writing results to file\n')
-    new_fname =     cbio_dx = parts.group(1) + '_discrete_cnvs.txt'
+    new_fname = cbio_dx = args.merged_cnv_dir + '/' + parts.group(1) + '_discrete_cnvs.txt'
     data.to_csv(new_fname, sep='\t', mode='w', index=False)
