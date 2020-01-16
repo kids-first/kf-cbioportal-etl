@@ -3,9 +3,19 @@ import argparse
 import os
 import concurrent.futures
 import json
+import subprocess
 import pandas as pd
 import numpy as np
 from scipy import stats
+
+
+def mt_calc_zscore(gene):
+    try:
+        data[:gene] = stats.zscore(np.array(data[:gene]), axis=1, ddof=1)
+        return [0, gene]
+    except Exception as e:
+        sys.stderr.write(str(e) + "\n")
+        return [1, gene]
 
 
 parser = argparse.ArgumentParser(description='Merge rsem files using cavatica file info.')
@@ -23,13 +33,25 @@ if fname_list[-1] == '':
     fname_list.pop()
 for fname in fname_list:
     data = pd.read_csv(fname, sep="\t", index_col=0)
-    samp_list = list(data.columns)[1:]
+    header = list(data.columns)
     gene_list = list(data.index.values)
-    if len(samp_list) > 1:
+    if len(header) > 2:
         new_fname = fname.replace('.rsem_merged.txt', '.rsem_merged_zscore.txt')
-        for gene in gene_list:
-            data[:gene] = stats.zscore(np.array(data[:gene]), axis=1)
-        data.to_csv(new_fname, sep='\t', mode='w', index=False)    
+        # x = 1
+        # m = 1000
+        # with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
+        #     results = {executor.submit(mt_calc_zscore, gene): gene for gene in gene_list}
+        #     for result in concurrent.futures.as_completed(results):
+        #         if result.result()[0] == 1:
+        #             'Had trouble processing gene ' + result.result([1] + '\n')
+        #             sys.exit(1)
+        #         if x % m == 0:
+        #             sys.stderr.write('Processed ' + str(x) + ' genes\n')
+        #             sys.stderr.flush()
+        #         x += 1
+        z_scored = stats.zscore(np.array(data), axis=1)
+        new_data = pd.DataFrame(z_scored, index=gene_list, columns=header)
+        sys.stderr.write('Outputting results to ' + new_fname + '\n')
+        new_data.to_csv(new_fname, sep='\t', mode='w', index=True)    
     else:
         sys.stderr.write('Only 1 sample found in ' + fname + ', skipping!\n')
-    
