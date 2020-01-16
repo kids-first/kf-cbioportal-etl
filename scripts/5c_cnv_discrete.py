@@ -8,6 +8,7 @@ import concurrent.futures
 import json
 import subprocess
 import re
+from get_file_metadata_helper import get_file_metadata
 import pandas as pd
 import numpy as np
 
@@ -62,15 +63,15 @@ api = sbg.Api(config=config, error_handlers=[
 flist = subprocess.check_output('find ' + args.merged_cnv_dir + ' -name *.predicted_cnv.txt', shell=True)
 
 fname_list = flist.decode().split('\n')
-cbio_tbl = pd.read_csv(args.table, sep = "\t")
+file_meta_dict = get_file_metadata(args.table, 'cnv')
 manifest = pd.read_csv(args.manifest)
 # Cbio Tumor Name
-cbio_tbl.set_index('Cbio Tumor Name', inplace=True)
 manifest.set_index(['Kids First Biospecimen ID Tumor'], inplace=True)
 if fname_list[-1] == '':
     fname_list.pop()
 for fname in fname_list:
     parts = re.search('^(.*).predicted_cnv.txt', fname)
+    cbio_dx = parts.group(1)
     data = pd.read_csv(fname, sep="\t")
     data.set_index('Hugo_Symbol')
     # sample list would be cbio ids
@@ -78,7 +79,7 @@ for fname in fname_list:
     bulk_ids = []
     #fid_dict = {}
     for samp_id in samp_list:
-        bs_id = cbio_tbl.loc[samp_id]['T/CL BS ID']
+        bs_id = file_meta_dict[cbio_dx][samp_id]['kf_tum_id']
         bulk_ids.append(manifest.loc[bs_id]['id'])
         # fid_dict[samp_id] = manifest.loc[samp_id]['id']
     file_objs = []
@@ -107,5 +108,5 @@ for fname in fname_list:
                 sys.stderr.flush()
             x += 1
     sys.stderr.write('Conversion completed.  Writing results to file\n')
-    new_fname = parts[0] + '_discrete_cnvs.txt'
+    new_fname =     cbio_dx = parts.group(1) + '_discrete_cnvs.txt'
     data.to_csv(new_fname, sep='\t', mode='w', index=False)
