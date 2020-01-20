@@ -11,7 +11,7 @@ from scipy import stats
 
 def mt_calc_zscore(gene):
     try:
-        data[:gene] = stats.zscore(np.array(data[:gene]), axis=1, ddof=1)
+        data[:gene] = stats.zscore(np.array(data[:gene]), axis=1)
         return [0, gene]
     except Exception as e:
         sys.stderr.write(str(e) + "\n")
@@ -37,21 +37,10 @@ for fname in fname_list:
     gene_list = list(data.index.values)
     if len(header) > 2:
         new_fname = fname.replace('.rsem_merged.txt', '.rsem_merged_zscore.txt')
-        # x = 1
-        # m = 1000
-        # with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
-        #     results = {executor.submit(mt_calc_zscore, gene): gene for gene in gene_list}
-        #     for result in concurrent.futures.as_completed(results):
-        #         if result.result()[0] == 1:
-        #             'Had trouble processing gene ' + result.result([1] + '\n')
-        #             sys.exit(1)
-        #         if x % m == 0:
-        #             sys.stderr.write('Processed ' + str(x) + ' genes\n')
-        #             sys.stderr.flush()
-        #         x += 1
         z_scored = stats.zscore(np.array(data), axis=1)
         new_data = pd.DataFrame(z_scored, index=gene_list, columns=header)
+        new_data.fillna('NA', inplace=True)
         sys.stderr.write('Outputting results to ' + new_fname + '\n')
-        new_data.to_csv(new_fname, sep='\t', mode='w', index=True)    
+        new_data.to_csv(new_fname, sep='\t', mode='w', index=True)
     else:
         sys.stderr.write('Only 1 sample found in ' + fname + ', skipping!\n')
