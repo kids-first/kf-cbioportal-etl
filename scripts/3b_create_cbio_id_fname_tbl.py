@@ -74,7 +74,7 @@ ds_list = flist.decode().split('\n')
 if ds_list[-1] == '':
     ds_list.pop()
 out = open('cbio_id_fname_table.txt', 'w')
-out.write('Cbio project\tT/CL BS ID\tNorm BS ID\tFile Type\tCbio Tumor Name\tCbio Matched Normal Name\tFile Name\n')
+out.write('Cbio_project\tT_CL_BS_ID\tNorm_BS_ID\tFile_Type\tCbio_Tumor_Name\tCbio_Matched_Normal_Name\tFile_Name\n')
 for dpath in ds_list:
     process_ds(dpath, cav_dict, out)
 out.close()
