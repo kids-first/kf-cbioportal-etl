@@ -12,9 +12,8 @@ from get_file_metadata_helper import get_file_metadata
 def process_rsem_file(cbio_tum_id, rsem_dir, fpkm_cts):
     try:
         rsem_path = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
-        if bs_id in mapping_dict:
         samp_list.append(cbio_tum_id)
-        cur = gzip.open(rsem_dir + "/" + rsem_path)
+        cur = gzip.open(rsem_dir + rsem_path)
         next(cur)
         for line in cur:
             data = line.decode().rstrip('\n').split('\t')
@@ -67,6 +66,7 @@ if __name__ == "__main__":
         sys.stderr.flush()
     for cbio_dx in file_meta_dict:
         fpkm_cts = {}
+        samp_list = []
         for ens_id in id_list:
             fpkm_cts[ens_id] = {}
         # working with shared dict with "global" scope, no need to pass as param or may be overwritten

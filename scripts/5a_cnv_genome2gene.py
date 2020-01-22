@@ -59,7 +59,7 @@ try:
 except:
     sys.stderr.write('output dir already exists\n')
 
-with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
+with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
     results = {executor.submit(process_cnv, cpath): cpath for cpath in flist.decode().split('\n')}
 
 sys.stderr.write('Done, check logs\n')

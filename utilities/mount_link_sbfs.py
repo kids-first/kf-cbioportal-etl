@@ -14,11 +14,11 @@ parser.add_argument('-p', '--profile', action='store', dest='profile', help='cav
 args = parser.parse_args()
 with open(args.config_file) as f:
     config_data = json.load(f)
-os.mkdir('mafs')
+os.makedirs('mafs', exist_ok=True)
 if config_data['cna_flag'] == 1:
-    os.mkdir('cnvs')
+    os.makedirs('cnvs', exist_ok=True)
 if config_data['rna_flag'] == 1:
-    os.mkdir('rsem')
+    os.makedirs('rsem', exist_ok=True)
 
 # create mounts and make links
 m_dict = {}
@@ -30,18 +30,19 @@ for line in manifest:
     info = line.rstrip('\n').split('\t')
     fnames = info[-2].split(',')
     projects = info[-1]
+    project = projects.split(',')
     atype = info[4]
-    for i in projects.split(','):
-        (u,p) = projects[i].split('/')
+    for i in range(len(project)):
+        (u,p) = project[i].split('/')
         if p not in m_dict:
             os.mkdir(p)
-            cmd = 'sbfs mount ' + p + ' --project ' + projects[i] + ' --profile turbo --read-only'
+            cmd = 'sbfs mount ' + p + ' --project ' + project[i] + ' --profile turbo --read-only'
             subprocess.call(cmd, shell=True)
-            mdir = cwd + p + "/projects/" + projects[i] + "/"
+            mdir = cwd + p + "/projects/" + project[i] + "/"
             m_dict[p] = mdir
         cmd = 'ln -s ' + m_dict[p] + fnames[i]
         if atype == 'DNA':
-            if fname[-3:] == 'maf':
+            if fnames[i]:[-3:] == 'maf':
                 cmd += " mafs"
             else:
                 cmd += " cnvs"

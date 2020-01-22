@@ -5,7 +5,7 @@ def get_file_metadata(table, ftype):
     cp_idx = header.index('Cbio_project')
     ft_idx = header.index('File_Type')
     fn_idx = header.index('File_Name')
-    ct_idx = header.index('Cbio_Tumor Name')
+    ct_idx = header.index('Cbio_Tumor_Name')
     cn_idx = header.index('Cbio_Matched_Normal_Name')
     kt_idx = header.index('T_CL_BS_ID')
     kn_idx = header.index('Norm_BS_ID')
