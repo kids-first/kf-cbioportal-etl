@@ -28,18 +28,18 @@ head = next(manifest)
 cwd = os.getcwd() + "/"
 for line in manifest:
     info = line.rstrip('\n').split('\t')
-    fnames = info[-2]
-    project = info[-1]
+    fnames = info[-2].split(',')
+    projects = info[-1]
     atype = info[4]
-    (u,p) = project.split('/')
-    if p not in m_dict:
-        os.mkdir(p)
-        cmd = 'sbfs mount ' + p + ' --project ' + project + ' --profile turbo --read-only'
-        subprocess.call(cmd, shell=True)
-        mdir = cwd + p + "/projects/" + project + "/"
-        m_dict[p] = mdir
-    for fname in fnames.split(','):
-        cmd = 'ln -s ' + m_dict[p] + fname
+    for i in projects.split(','):
+        (u,p) = projects[i].split('/')
+        if p not in m_dict:
+            os.mkdir(p)
+            cmd = 'sbfs mount ' + p + ' --project ' + projects[i] + ' --profile turbo --read-only'
+            subprocess.call(cmd, shell=True)
+            mdir = cwd + p + "/projects/" + projects[i] + "/"
+            m_dict[p] = mdir
+        cmd = 'ln -s ' + m_dict[p] + fnames[i]
         if atype == 'DNA':
             if fname[-3:] == 'maf':
                 cmd += " mafs"

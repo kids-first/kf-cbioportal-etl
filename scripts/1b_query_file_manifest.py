@@ -74,11 +74,12 @@ for line in meta:
             cav_dict[dkey]['fname'] = []
             cav_dict[dkey]['t_bs_id'] = t_bs_id
             cav_dict[dkey]['n_bs_id'] = n_bs_id
-            cav_dict[dkey]['project'] = project
+            cav_dict[dkey]['project'] = []
+        cav_dict[dkey]['project'].append(project)
         cav_dict[dkey]['fname'].append(fname)
 for tid in cav_dict:
     if cav_dict[tid]['atype'] == 'RNA':
         old_out.write("\t".join((cav_dict[tid]['bs_id'], "NA","RNA_TASK", tid, "RNA", cav_dict[tid]['fname'], cav_dict[tid]['project'])) + '\n')
     else:
-        old_out.write("\t".join((cav_dict[tid]['t_bs_id'], cav_dict[tid]['n_bs_id'],"DNA_TASK", tid, "DNA", ",".join(cav_dict[tid]['fname']), cav_dict[tid]['project'])) + '\n')
+        old_out.write("\t".join((cav_dict[tid]['t_bs_id'], cav_dict[tid]['n_bs_id'],"DNA_TASK", tid, "DNA", ",".join(cav_dict[tid]['fname']), ','.join(cav_dict[tid]['project']))) + '\n')
 old_out.close()
