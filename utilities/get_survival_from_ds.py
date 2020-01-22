@@ -6,6 +6,7 @@ import argparse
 import concurrent.futures
 import json
 from time import sleep
+import pdb
 
 def query_ds(pt_id):
     try:
@@ -14,7 +15,8 @@ def query_ds(pt_id):
         out_info = request('GET', outcome_url)
         statuses = []
         for result in out_info.json()['results']:
-            statuses.append([pt_id, result['vital_status'], str(result['age_at_event_days'])])
+            if result['vital_status'] is not None:
+                statuses.append([pt_id, result['vital_status'], str(result['age_at_event_days'])])
         return statuses
     except Exception as e:
         sys.stderr.write(str(e))
@@ -22,8 +24,7 @@ def query_ds(pt_id):
         sys.exit(1)
 
 
-parser = argparse.ArgumentParser(description='Script to walk through data service and grab all relevant meetadata'
-                                             ' by bs id.')
+parser = argparse.ArgumentParser(description='Get vital status by PT ID')
 parser.add_argument('-u', '--kf-url', action='store', dest='url',
                     help='Kids First data service url, i.e. https://kf-api-dataservice.kidsfirstdrc.org/')
 parser.add_argument('-p', '--pt-list', action='store', dest='pt_list',
@@ -45,9 +46,14 @@ with concurrent.futures.ThreadPoolExecutor(16) as executor:
             sys.stderr.write('Processed ' + str(x) + ' lines\n')
             sys.stderr.flush()
         outcomes = result.result()
-        if len(outcomes) > 0:
-            for outcome in outcomes:
-                out.write("\t".join(outcome) + "\n")
-        else:
-            sys.stderr.write('No outcome for a patient\n')
+        try:
+            if len(outcomes) > 0:
+                for outcome in outcomes:
+                    out.write("\t".join(outcome) + "\n")
+            else:
+                sys.stderr.write('No outcome for a patient\n')
+        except Exception as e:
+            sys.stderr.write(str(e))
+            pdb.set_trace()
+            hold = 1
         x += 1
