@@ -12,10 +12,14 @@ from scipy import stats
 
 
 def mt_process_master(rsem_file):
-    current = pd.read_csv(rsem_dir + rsem_list[i], sep="\t", index_col=0)
-    sample = rna_subset.loc[rna_subset['File_Name'] == rsem_list[i], 'Cbio_Tumor_Name'].iloc[0]
-    sample_list.append(sample)
-    master_tbl = pd.concat([master_tbl, current[['FPKM']]], axis=1)
+    try:
+        current = pd.read_csv(rsem_dir + rsem_list[i], sep="\t", index_col=0)
+        sample = rna_subset.loc[rna_subset['File_Name'] == rsem_list[i], 'Cbio_Tumor_Name'].iloc[0]
+        sample_list.append(sample)
+        master_tbl = pd.concat([master_tbl, current[['FPKM']]], axis=1)
+    except Exception as e:
+        sys.stderr.write('Failed to concat ' + rsem_file + '\n')
+        sys.exit(1)
 
 
 if __name__ == "__main__":
@@ -83,9 +87,20 @@ if __name__ == "__main__":
         mean_expr = gene_eval[sample_list].mean(axis=1).sort_values(ascending=False)
         to_dump = list(mean_expr.index)[1:]
         master_tbl.drop(to_dump, inplace=True)
+    
+    sys.stderr.write('Calculating z scores\n')
     master_tbl.set_index('Hugo_Symbol', inplace=True)
     gene_sym_list = master_tbl.index
     log_tf = np.log(np.array(master_tbl))
     z_scored = stats.zscore(log_tf, axis = 1)
     master_zscore_log = pd.DataFrame(z_scored, index=gene_sym_list, columns=sample_list)
     master_zscore_log.fillna('NA', inplace=True)
+    
+    sys.stderr.write('Outputing project files\n')
+    project_list = rna_subset.Cbio_project.unique()
+    for project in project_list:
+        sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project_list[0], 'Cbio_Tumor_Name'])
+        expr_fname = out_dir + project + '.rsem_merged.txt'
+        master_tbl[sub_sample_list].to_csv(expr_fname, sep='\t', mode='w', index=True)
+        zscore_fname = out_dir + project + '.rsem_merged_zscore.txt'
+        master_zscore_log[sub_sample_list].to_csv(zscore_fname, sep='\t', mode='w', index=True)
