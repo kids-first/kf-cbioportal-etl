@@ -7,9 +7,13 @@ import subprocess
 import concurrent.futures
 
 
-def process_cnv(cpath):
+def process_cnv(cpath, config_data, out_dir):
     try:
         if cpath != '':
+            bedtools = config_data['bedtools']
+            cnv_cp_only = config_data['cp_only_script']
+            bed_file = config_data['bed_genes']
+            hugo_tsv = config_data['hugo_tsv']
             sys.stderr.write('Processing ' + cpath + '\n')
             root = os.path.basename(cpath).split('.')[0]
             limit = config_data['cnv_min_len']
@@ -49,18 +53,14 @@ suffix = config_data['dna_ext_list']['copy_number']
 f_cmd = 'find ' + args.cnv_dir + ' -name "*.' + suffix + '"'
 sys.stderr.write('Getting cnv list ' + f_cmd + '\n')
 flist = subprocess.check_output(f_cmd, shell=True)
-bedtools = config_data['bedtools']
-cnv_cp_only = config_data['cp_only_script']
-bed_file = config_data['bed_genes']
-hugo_tsv = config_data['hugo_tsv']
 out_dir = 'converted_cnvs/'
 try:
     os.mkdir(out_dir)
 except:
     sys.stderr.write('output dir already exists\n')
 
-with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
-    results = {executor.submit(process_cnv, cpath): cpath for cpath in flist.decode().split('\n')}
+with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
+    results = {executor.submit(process_cnv, cpath, config_data, out_dir): cpath for cpath in flist.decode().split('\n')}
 
 sys.stderr.write('Done, check logs\n')
 
