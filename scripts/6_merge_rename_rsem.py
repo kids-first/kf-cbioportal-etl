@@ -98,7 +98,7 @@ if __name__ == "__main__":
     sys.stderr.write('Outputting FPKM expression results\n')
     sys.stderr.flush()
     for project in project_list:
-        sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project_list[0], 'Cbio_Tumor_Name'])
+        sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project, 'Cbio_Tumor_Name'])
         expr_fname = out_dir + project + '.rsem_merged.txt'
         master_tbl[sub_sample_list].to_csv(expr_fname, sep='\t', mode='w', index=True)
     
@@ -112,6 +112,6 @@ if __name__ == "__main__":
     sys.stderr.write('Outputing z scored results\n')
     
     for project in project_list:
-        sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project_list[0], 'Cbio_Tumor_Name'])
+        sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project, 'Cbio_Tumor_Name'])
         zscore_fname = out_dir + project + '.rsem_merged_zscore.txt'
         master_zscore_log[sub_sample_list].to_csv(zscore_fname, sep='\t', mode='w', index=True)

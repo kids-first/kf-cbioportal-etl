@@ -42,7 +42,7 @@ for line in manifest:
             m_dict[p] = mdir
         cmd = 'ln -s ' + m_dict[p] + fnames[i]
         if atype == 'DNA':
-            if fnames[i]:[-3:] == 'maf':
+            if fnames[i][-3:] == 'maf':
                 cmd += " mafs"
             else:
                 cmd += " cnvs"
