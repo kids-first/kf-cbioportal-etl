@@ -67,7 +67,7 @@ if __name__ == "__main__":
     cbio_master.set_index('Hugo_Symbol', inplace=True)
     cbio_master[['Fusion']] = cbio_master[['Fusion']].replace(to_replace=r'--', value='-', regex=True)
     for project in project_list:
-        sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project_list[0], 'Cbio_Tumor_Name'])
+        sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project, 'Cbio_Tumor_Name'])
         fus_fname = out_dir + project + '.fusions.txt'
         cbio_master[cbio_master.Tumor_Sample_Barcode.isin(sub_sample_list)].to_csv(fus_fname, sep='\t', mode='w', index=True)
 
