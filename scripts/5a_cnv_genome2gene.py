@@ -51,6 +51,7 @@ args = parser.parse_args()
 with open(args.config_file) as f:
     config_data = json.load(f)
 
+limit = config_data['cnv_min_len']
 suffix = config_data['dna_ext_list']['copy_number']
 f_cmd = 'find ' + args.cnv_dir + ' -name "*.' + suffix + '"'
 sys.stderr.write('Getting cnv list ' + f_cmd + '\n')
@@ -65,5 +66,6 @@ ct_dict = {'total_cnvs': 0, 'short_cnvs': 0}
 with concurrent.futures.ThreadPoolExecutor(config_data['cpus']) as executor:
     results = {executor.submit(process_cnv, cpath): cpath for cpath in flist.decode().split('\n')}
 sys.stderr.write(str(ct_dict['total_cnvs']) + ' total cnv calls processed\n')
+sys.stderr.write(str(ct_dict['short_cnvs']) + ' calls dropped for not meeting min bp size ' + str(limit) + '\n')
 sys.stderr.write('Done, check logs\n')
 
