@@ -7,7 +7,7 @@ import subprocess
 import concurrent.futures
 
 
-def process_cnv(cpath, config_data, out_dir):
+def process_cnv(cpath):
     try:
         if cpath != '':
             bedtools = config_data['bedtools']
@@ -22,11 +22,13 @@ def process_cnv(cpath, config_data, out_dir):
             in_cnv = open(cpath)
             skip = next(in_cnv)
             for cnv in in_cnv:
+                ct_dict['total_cnvs'] += 1
                 cnv_data = cnv.rstrip('\n').split('\t')
                 if int(cnv_data[2]) - int(cnv_data[1]) >= limit:
                     len_fh.write("\t".join(cnv_data[0:5]) + "\n")
                 else:
-                    sys.stderr.write("Entry too short " + cnv)
+                    ct_dict['short_cnvs'] += 1
+                    # sys.stderr.write("Entry too short " + cnv)
             len_fh.close()
             temp = root + '.CNVs.Genes'
             to_genes_cmd = bedtools + ' intersect -a ' + out_dir + temp_len + ' -b ' + bed_file + ' -wb > ' + out_dir + temp
@@ -59,8 +61,9 @@ try:
 except:
     sys.stderr.write('output dir already exists\n')
 
-with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
-    results = {executor.submit(process_cnv, cpath, config_data, out_dir): cpath for cpath in flist.decode().split('\n')}
-
+ct_dict = {'total_cnvs': 0, 'short_cnvs': 0}
+with concurrent.futures.ThreadPoolExecutor(config_data['cpus']) as executor:
+    results = {executor.submit(process_cnv, cpath): cpath for cpath in flist.decode().split('\n')}
+sys.stderr.write(str(ct_dict['total_cnvs']) + ' total cnv calls processed\n')
 sys.stderr.write('Done, check logs\n')
 

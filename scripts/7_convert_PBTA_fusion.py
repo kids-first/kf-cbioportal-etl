@@ -28,7 +28,7 @@ if __name__ == "__main__":
     fusion_data = pd.read_csv(args.fusion_file, sep="\t")
     sq_info = pd.read_csv(args.sq_file, sep="\t")
     all_file_meta = pd.read_csv(args.table, sep="\t")
-    entrez_data = pd.read_csv(config_data['hugo_tsv'], sep="\t")
+    entrez_data = pd.read_csv(config_data['entrez_tsv'], sep="\t")
 
     # deal only with RNA metadata
     rna_subset = all_file_meta.loc[all_file_meta['File_Type'] == 'rsem']
