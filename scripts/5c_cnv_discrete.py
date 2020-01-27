@@ -111,5 +111,5 @@ for fname in fname_list:
                 sys.stderr.flush()
             x += 1
     sys.stderr.write('Conversion completed.  Writing results to file\n')
-    new_fname = cbio_dx = args.merged_cnv_dir + '/' + parts.group(1) + '_discrete_cnvs.txt'
+    new_fname = cbio_dx = args.merged_cnv_dir + '/' + parts.group(1) + '.discrete_cnvs.txt'
     data.to_csv(new_fname, sep='\t', mode='w', index=False)
