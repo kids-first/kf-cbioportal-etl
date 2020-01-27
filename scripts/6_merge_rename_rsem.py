@@ -108,7 +108,9 @@ if __name__ == "__main__":
     z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis = 1)
     del master_tbl
     master_zscore_log = pd.DataFrame(z_scored, index=gene_sym_list, columns=sample_list)
-    
+    # this may be memory-intensive for some insane reson...
+    sys.stderr.write("Replacing NaN with NA\n")
+    master_zscore_log.fillna(0, inplace=True)
     sys.stderr.write('Outputing z scored results\n')
     
     for project in project_list:

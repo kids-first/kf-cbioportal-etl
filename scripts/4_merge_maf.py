@@ -76,7 +76,7 @@ cur_header.pop((n_idx-1))
 
 head_fh.close()
 print_head += '\t'.join(cur_header) + '\n'
-maf_exc = {"Silent": 0, "Intron": 0, "IGR": 0, "3'UTR": 0, "5'UTR": 0, "3'Flank": 0, "5'Flank": 0}
+maf_exc = {"Silent": 0, "Intron": 0, "IGR": 0, "3'UTR": 0, "5'UTR": 0, "3'Flank": 0, "5'Flank": 0, "RNA": 0}
 out_dir = 'merged_mafs/'
 try:
     os.mkdir(out_dir)
