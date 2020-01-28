@@ -113,7 +113,7 @@
     },
     "study": {
         "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
-        "description": ["Genomic Characterization of", "samples provided by the <a href=\"http://www.pnoc.us/\">Pacific Neuroncology Consortium (PNOC)</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. PNOC has generated and provided WGS and WXS for subjects enrolled in a PNOC clinical trial. This data set is part of the OpenDIPG Initiative that has collected, generated, harmonized and annotated the largest cohort of DIPG genome data to date."],
+        "description": ["Genomic Characterization of", "samples provided by the <a href=\"http://www.pnoc.us/\">Pacific Neuroncology Consortium (PNOC)</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. PNOC has generated and provided WGS and WXS for subjects enrolled in a PNOC clinical trial. This data set is part of the OpenDIPG Initiative that has collected, generated, harmonized and annotated the largest cohort of DIPG genome data to date. Updated January 29, 2020 from last load, September 2019."],
         "groups": "PUBLIC",
         "cancer_study_identifier": "pbta_pnoc003",
         "dir_suffix": "",
