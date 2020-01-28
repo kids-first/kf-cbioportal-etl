@@ -16,11 +16,10 @@
   },
   "ens_gene_list":"/home/ubuntu/tools/kfdrc_cbioportal_etl/REFS/gencode27_gene_list.txt",
   "script_dir": "/home/ubuntu/tools/kfdrc_cbioportal_etl/scripts/",
-  "dx_tbl_fn": "dx_index.txt",
+  "dx_tbl_fn": "pbta_combined_dx_index.txt",
   "cna_flag": 1,
-  "cnv_min_len": 50000,
   "cnv_high_gain": 4,
-  "prepend_cancStudyID_flag": 0,
+  "cnv_min_len": 50000,
   "rna_flag": 1,
   "cpus": 8,
   "threads": 40,
@@ -34,4 +33,5 @@
     "#STRING\tSTRING\tSTRING\tNUMBER\tSTRING\tSTRING\tSTRING",
     "#1\t1\t1\t1\t1\t1\t1",
     "PATIENT_ID\tEXTERNAL_PATIENT_ID\tGENDER\tAGE\tTUMOR_SITE\tRACE\tETHNICITY\n"]
+
 }
