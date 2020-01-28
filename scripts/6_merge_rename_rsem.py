@@ -109,9 +109,11 @@ if __name__ == "__main__":
     del master_tbl
     master_zscore_log = pd.DataFrame(z_scored, index=gene_sym_list, columns=sample_list)
     # this may be memory-intensive for some insane reson...
-    sys.stderr.write("Replacing NaN with NA\n")
+    sys.stderr.write("Replacing NaN with 0\n")
+    sys.stderr.flush()
     master_zscore_log.fillna(0, inplace=True)
     sys.stderr.write('Outputing z scored results\n')
+    sys.stderr.flush()
     
     for project in project_list:
         sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project, 'Cbio_Tumor_Name'])

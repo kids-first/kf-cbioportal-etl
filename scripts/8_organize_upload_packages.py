@@ -49,7 +49,7 @@ def process_meta_data(meta_data, output_dir, canc_study_id, study):
             meta_data_file.write(mkey + ": " + attr_dict[mkey] + "\n")
         meta_data_file.close()
         # create data_ links to data
-        cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "." + meta_data["dtypes"]["ext"] + " " + output_dir + study + "/" + cbio_name
+        cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "." + meta_data["dtypes"]["ext"] + " " + output_dir + cbio_name
         subprocess.call(cmd, shell=True)
 
 
@@ -65,13 +65,23 @@ def process_clinical_data(meta_data, output_dir, canc_study_id, study):
             meta_data_file.write(mkey + ": " + attr_dict[mkey] + "\n")
         meta_data_file.close()
         # create data_ links to data
-        cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "/" + cbio_name + " " + output_dir + study + "/" + cbio_name
+        cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "/" + cbio_name + " " + output_dir  + cbio_name
         subprocess.call(cmd, shell=True)
 
 
+def write_case_list(case_key, attr_dict, sample_list):
+    case_file = open(case_dir + case_key + ".txt", "w")
+    case_file.write("cancer_study_identifier: " + canc_study_id + "\n")
+    key_list = list(attr_dict)
+    for i in range(0, len(key_list) - 1, 1):
+        cases_sequenced.write(key_list[i] + ": " + attr_dict[key_list[i]] + "\n")
+    cases_sequenced.write(key_list[-1] + ":" + attr_dict[key_list[-1]] + " (" + str(len(sample_list)) + ")\n")
+    case_file.write("case_list_ids: " + "\t".join(sample_list) + "\n")
+    case_file.close()
+
 def create_case_lists(data_dict, output_dir, canc_study_id, study):
     try:
-        case_dir = out_dir + study + "/case_lists/"
+        case_dir = out_dir + "case_lists/"
         os.mkdir(case_dir)
     except:
         sys.stderr.write(case_dir + ' already exists.\n')
@@ -81,19 +91,19 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
     rna_list = []
     fusion_list = []
 
-    muts_fname = output_dir + study + "/" + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
+    muts_fname = output_dir + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
     muts_file = open(muts_fname)
     head = next(muts_file)
     head = next(muts_file)
     header = head.rstrip('\n').split('\t')
     s_idx = header.index('Tumor_Sample_Barcode')
     for line in muts_file:
-        data = line.rstrip('\n').spliot('\t')
+        data = line.rstrip('\n').split('\t')
         muts_list.append(data[s_idx])
     muts_file.close()
     muts_list = [*{*muts_list}]
     if data_dict["merged_cnvs"] == 1:
-        cna_fname = output_dir + study + "/" + config_data["merged_cnvs"]["dtypes"]["linear"]["cbio_name"]
+        cna_fname = output_dir +  config_data["merged_cnvs"]["dtypes"]["linear"]["cbio_name"]
         cna_file = open(cna_fname)
         head = next(cna_file)
         # assumes header is Hugo_symbols\tsample_name1\tsamplename2 etc, if entrez ID, will need to change!
@@ -101,23 +111,40 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
         cna_file.close()
     if data_dict["merged_rsem"] == 1:
         # assumes header is Hugo_symbols\tsample_name1\tsamplename2 etc, if entrez ID, will need to change!
-        rna_fname = output_dir + study + "/" + config_data["merged_rsem"]["dtypes"]["counts"]["cbio_name"]
+        rna_fname = output_dir + config_data["merged_rsem"]["dtypes"]["counts"]["cbio_name"]
         rna_file = open(rna_fname)
         head = next(rna_file)
         rna_list = head.rstrip('\n').split('\t')[1:]
     if data_dict["merged_fusion"] == 1:
-        fusion_fname = output_dir + study + "/" + config_data["merged_fusion"]["dtypes"]["fusion"]["cbio_name"]
+        fusion_fname = output_dir + config_data["merged_fusion"]["dtypes"]["fusion"]["cbio_name"]
         fusion_file = open(fusion_fname)
         head = next(fusion_file)
         header = head.rstrip('\n').split('\t')
         s_idx = header.index('Tumor_Sample_Barcode')
         for line in fusion_file:
-            data = line.rstrip('\n').spliot('\t')
+            data = line.rstrip('\n').split('\t')
             fusion_list.append(data[s_idx])
         fusion_file.close()
         fusion_list = [*{*fusion_list}]
-    
-
+    muts_plus_fusion = muts_list + fusion_list
+    muts_plus_fusion = [*{*muts_plus_fusion}]
+    all_cases = muts_plus_fusion
+    write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_plus_fusion)
+    if len(cna_list) > 0:
+        write_case_list('cases_cna', config_data['cases_cna'], cna_list)
+        all_cases += cna_list
+        muts_plus_cna = list(set(muts_list) & set(cna_list))
+        write_case_list('cases_cnaseq', config_data['cases_cnaseq'], cna_list)
+    if len(rna_list) > 0:
+        write_case_list('cases_RNA_Seq_v2_mRNA', config_data['cases_RNA_Seq_v2_mRNA'], rna_list)
+        all_cases += rna_list
+        # loading mutations is a minimum, so if cna exists...3 way file can be made
+        if len(cna_list) > 0:
+            three_way = list(set(muts_list) & set(cna_list) & set(rna_list))
+            write_case_list('cases_3way_complete', config_data['cases_3way_complete'], three_way)
+    all_cases= [*{*muts_plus_fusion}]
+    write_case_list('cases_all', config_data['cases_all'], all_cases)
+            
 
 
 
