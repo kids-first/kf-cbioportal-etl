@@ -8,6 +8,7 @@ import re
 import json
 import subprocess
 
+
 parser = argparse.ArgumentParser(description='Create cases lists, meta files, and organize data for cbio upload.'
                                 ' It is assumed you are at the dir level of all input data files')
 parser.add_argument('-o', '--output_dir', action='store', dest='out_dir', help='output directory name')
