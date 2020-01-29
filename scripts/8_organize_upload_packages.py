@@ -79,7 +79,8 @@ def write_case_list(case_key, attr_dict, sample_list, case_dir):
     case_file = open(case_dir + case_key + ".txt", "w")
     case_file.write("cancer_study_identifier: " + canc_study_id + "\n")
     key_list = list(attr_dict)
-    for i in range(0, len(key_list) - 1, 1):
+    case_file.write(key_list[0] + ": " + canc_study_id + " " + attr_dict[key_list[0]])
+    for i in range(1, len(key_list) - 1, 1):
         case_file.write(key_list[i] + ": " + attr_dict[key_list[i]] + "\n")
     case_file.write(key_list[-1] + ": " + attr_dict[key_list[-1]] + " (" + str(len(sample_list)) + ")\n")
     case_file.write("case_list_ids: " + "\t".join(sample_list) + "\n")

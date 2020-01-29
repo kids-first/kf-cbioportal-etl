@@ -23,11 +23,15 @@ if __name__ == "__main__":
     def mt_collate_df(rsem_file):
         try:
             sample = rna_subset.loc[rna_subset['File_Name'] == rsem_file, 'Cbio_Tumor_Name'].iloc[0]
-            sample_list.append(sample)
-            current = pd.read_csv(rsem_dir + rsem_file, sep="\t", index_col=0)
-            cur_subset = current[['FPKM']]
-            cur_subset.rename(columns={"FPKM": sample}, inplace=True)
-            df_list.append(cur_subset)
+            if sample not in seen_list:
+                sample_list.append(sample)
+                current = pd.read_csv(rsem_dir + rsem_file, sep="\t", index_col=0)
+                cur_subset = current[['FPKM']]
+                cur_subset.rename(columns={"FPKM": sample}, inplace=True)
+                df_list.append(cur_subset)
+                seen_list.append(sample)
+            else:
+                sys.stderr.write(sample + " was already seen, likely due to mulitple dx, skipping!\n")
             return 1
         except Exception as e:
             sys.stderr.write(str(e) + "\nFailed to process " + rsem_file)
@@ -61,6 +65,8 @@ if __name__ == "__main__":
     m = 50
 
     df_list = []
+    # some samples have more than one dx, need only process once
+    seen_list = []
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
         results = {executor.submit(mt_collate_df, rsem_list[i]): rsem_list[i] for i in range(len(rsem_list))}
         for result in concurrent.futures.as_completed(results):
