@@ -48,6 +48,7 @@ def process_meta_data(meta_data, output_dir, canc_study_id, study):
         attr_dict = cur_data["meta_file_attr"]
         for mkey in attr_dict:
             meta_data_file.write(mkey + ": " + attr_dict[mkey] + "\n")
+        meta_data_file.write("data_filename: " + cbio_name + "\n")
         meta_data_file.close()
         # create data_ links to data
         cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "." + cur_data["ext"] + " " + output_dir + cbio_name
