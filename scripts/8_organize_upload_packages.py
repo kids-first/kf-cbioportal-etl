@@ -44,6 +44,8 @@ def process_meta_data(meta_data, output_dir, canc_study_id, study):
         cbio_name = cur_data["cbio_name"]
         parts = cbio_name.split("_")
         meta_name = "meta_" + "_".join(parts[1:])
+        if cur_data["datatype"] == "FUSION":
+            meta_name = "meta_" + cur_data["datatype"] + ".txt"
         meta_data_file = open(output_dir + meta_name, "w")
         meta_data_file.write("cancer_study_identifier: " + canc_study_id + "\n")
         attr_dict = cur_data["meta_file_attr"]
@@ -80,9 +82,11 @@ def write_case_list(case_key, attr_dict, sample_list, case_dir):
     case_file.write("cancer_study_identifier: " + canc_study_id + "\n")
     key_list = list(attr_dict)
     case_file.write(key_list[0] + ": " + canc_study_id + "_" + attr_dict[key_list[0]] + "\n")
-    for i in range(1, len(key_list) - 1, 1):
-        case_file.write(key_list[i] + ": " + attr_dict[key_list[i]] + "\n")
-    case_file.write(key_list[-1] + ": " + attr_dict[key_list[-1]] + " (" + str(len(sample_list)) + ")\n")
+    for i in range(1, len(key_list), 1):
+        to_write = key_list[i] + ": " + attr_dict[key_list[i]]
+        if key_list[i] == "case_list_description":
+            to_write += + " (" + str(len(sample_list)) + ")"
+        case_file.write(to_write + "\n")
     case_file.write("case_list_ids: " + "\t".join(sample_list) + "\n")
     case_file.close()
 
