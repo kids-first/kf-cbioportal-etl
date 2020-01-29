@@ -80,7 +80,7 @@
         "dtypes": {
             "fusion": {
                 "ext": "fusions.txt",
-                "cbio_name": "data_fusion.txt",
+                "cbio_name": "data_fusions.txt",
                 "meta_file_attr": {
                     "stable_id": "fusion",
                     "profile_name": "Predicted RNA fusions",
