@@ -7,6 +7,7 @@ import concurrent.futures
 import re
 import json
 import subprocess
+import pdb
 
 
 parser = argparse.ArgumentParser(description='Create cases lists, meta files, and organize data for cbio upload.'
@@ -39,42 +40,52 @@ def process_meta_study(meta_data, output_dir, study):
 
 def process_meta_data(meta_data, output_dir, canc_study_id, study):
     for dtype in meta_data["dtypes"]:
-        # pointer for easier readability and dict key traciing
-        cur_data = meta_data["dtypes"][dtype]
-        cbio_name = cur_data["cbio_name"]
-        parts = cbio_name.split("_")
-        meta_name = "meta_" + "_".join(parts[1:])
-        if cur_data["datatype"] == "FUSION":
-            meta_name = "meta_" + cur_data["datatype"] + ".txt"
-        meta_data_file = open(output_dir + meta_name, "w")
-        meta_data_file.write("cancer_study_identifier: " + canc_study_id + "\n")
-        attr_dict = cur_data["meta_file_attr"]
-        for mkey in attr_dict:
-            meta_data_file.write(mkey + ": " + attr_dict[mkey] + "\n")
-        meta_data_file.write("data_filename: " + cbio_name + "\n")
-        meta_data_file.close()
-        # create data_ links to data
-        cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "." + cur_data["ext"] + " " + output_dir + cbio_name
-        subprocess.call(cmd, shell=True)
+        try:
+            # pointer for easier readability and dict key traciing
+            cur_data = meta_data["dtypes"][dtype]
+            cbio_name = cur_data["cbio_name"]
+            parts = cbio_name.split("_")
+            attr_dict = cur_data["meta_file_attr"]
+            meta_name = "meta_" + "_".join(parts[1:])
+            if attr_dict["datatype"] == "FUSION":
+                meta_name = "meta_" + attr_dict["datatype"] + ".txt"
+            meta_data_file = open(output_dir + meta_name, "w")
+            meta_data_file.write("cancer_study_identifier: " + canc_study_id + "\n")
+            for mkey in attr_dict:
+                meta_data_file.write(mkey + ": " + attr_dict[mkey] + "\n")
+            meta_data_file.write("data_filename: " + cbio_name + "\n")
+            meta_data_file.close()
+            # create data_ links to data
+            cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "." + cur_data["ext"] + " " + output_dir + cbio_name
+            subprocess.call(cmd, shell=True)
+        except Exception as e:
+            sys.stderr.write(str(e) + " failed processing meta data file\n")
+            pdb.set_trace()
+            hold = 1
 
 
 def process_clinical_data(meta_data, output_dir, canc_study_id, study):
     for dtype in meta_data["dtypes"]:
-        # pointer for easier readability and dict key traciing
-        cur_data = meta_data["dtypes"][dtype]
-        cbio_name = cur_data["cbio_name"]
-        parts = cbio_name.split("_")
-        meta_name = "meta_" + "_".join(parts[1:])
-        meta_data_file = open(output_dir + meta_name, "w")
-        meta_data_file.write("cancer_study_identifier: " + canc_study_id + "\n")
-        attr_dict = cur_data["meta_file_attr"]
-        for mkey in attr_dict:
-            meta_data_file.write(mkey + ": " + attr_dict[mkey] + "\n")
-        meta_data_file.write("data_filename: " + cbio_name + "\n")
-        meta_data_file.close()
-        # create data_ links to data
-        cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "/" + cbio_name + " " + output_dir  + cbio_name
-        subprocess.call(cmd, shell=True)
+        # pointer for easier readability and dict key tracing
+        try:
+            cur_data = meta_data["dtypes"][dtype]
+            cbio_name = cur_data["cbio_name"]
+            parts = cbio_name.split("_")
+            meta_name = "meta_" + "_".join(parts[1:])
+            meta_data_file = open(output_dir + meta_name, "w")
+            meta_data_file.write("cancer_study_identifier: " + canc_study_id + "\n")
+            attr_dict = cur_data["meta_file_attr"]
+            for mkey in attr_dict:
+                meta_data_file.write(mkey + ": " + attr_dict[mkey] + "\n")
+            meta_data_file.write("data_filename: " + cbio_name + "\n")
+            meta_data_file.close()
+            # create data_ links to data
+            cmd = "ln -s " + cwd + meta_data["dir"] + "/" + study + "/" + cbio_name + " " + output_dir  + cbio_name
+            subprocess.call(cmd, shell=True)
+        except Exception as e:
+            sys.stderr.write(str(e) + " failed processing meta data file\n")
+            pdb.set_trace()
+            hold = 1
 
 
 def write_case_list(case_key, attr_dict, sample_list, case_dir):
@@ -85,7 +96,7 @@ def write_case_list(case_key, attr_dict, sample_list, case_dir):
     for i in range(1, len(key_list), 1):
         to_write = key_list[i] + ": " + attr_dict[key_list[i]]
         if key_list[i] == "case_list_description":
-            to_write += + " (" + str(len(sample_list)) + ")"
+            to_write += " (" + str(len(sample_list)) + ")"
         case_file.write(to_write + "\n")
     case_file.write("case_list_ids: " + "\t".join(sample_list) + "\n")
     case_file.close()
@@ -209,4 +220,3 @@ for dx in dx_dict:
             sys.stderr.write("No datasheets for " + dx + ", skipping!\n")
     except Exception as e:
         sys.stderr.write(str(e) + "\nerror processing files for " + dx + "!\n")
-        pass
