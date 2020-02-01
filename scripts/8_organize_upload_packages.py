@@ -111,7 +111,7 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
     muts_list = []
     cna_list = []
     rna_list = []
-    fusion_list = []
+    # fusion_list = []
 
     muts_fname = output_dir + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
     muts_file = open(muts_fname)
@@ -151,7 +151,8 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
     muts_plus_fusion = muts_list + fusion_list
     muts_plus_fusion = [*{*muts_plus_fusion}]
     all_cases = muts_plus_fusion
-    write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_plus_fusion, case_dir)
+    # write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_plus_fusion, case_dir)
+    write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_list, case_dir)
     if len(cna_list) > 0:
         write_case_list('cases_cna', config_data['cases_cna'], cna_list, case_dir)
         all_cases += cna_list
@@ -160,6 +161,9 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
     if len(rna_list) > 0:
         write_case_list('cases_RNA_Seq_v2_mRNA', config_data['cases_RNA_Seq_v2_mRNA'], rna_list, case_dir)
         all_cases += rna_list
+        write_case_list('cases_sv', config_data['cases_sv'], rna_list, case_dir)
+        all_cases += rna_list
+
         # loading mutations is a minimum, so if cna exists...3 way file can be made
         if len(cna_list) > 0:
             three_way = list(set(muts_list) & set(cna_list) & set(rna_list))
