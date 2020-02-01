@@ -11,7 +11,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--out-dir', action='store', dest='out_dir', help='output dir - don\'t make it the same as current datasheet location!!!')
 
     args = parser.parse_args()
-    added_header = ['With Fusion Data',
+    added_header = ['WITH_FUSION_DATA',
     'Indicator that sample has fusions associated with it',
     'STRING',
     '1',

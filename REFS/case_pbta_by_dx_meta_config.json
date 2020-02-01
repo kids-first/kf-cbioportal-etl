@@ -154,5 +154,11 @@
         "case_list_name": "Tumor samples with mutations and/or fusions",
         "case_list_description": "All tumor samples with mutation and fusion data",
         "case_list_category": "all_cases_with_mutation_data"
+    },
+    "cases_sv": {
+        "stable_id": "sv",
+        "case_list_name": "Tumor samples with mutations and/or fusions",
+        "case_list_description": "All tumor samples with mutation and fusion data",
+        "case_list_category": "all_cases_with_sv_data"
     }
 }

@@ -68,7 +68,7 @@ if __name__ == "__main__":
     cbio_master[['Fusion']] = cbio_master[['Fusion']].replace(to_replace=r'--', value='-', regex=True)
     # remove trailing .0 from entrez ID being treated as number
     cbio_master['Entrez_Gene_Id']=cbio_master.Entrez_Gene_Id.apply(lambda x: str(x))
-    cbio_master['Entrez_Gene_Id'] = cbio_master['Entrez_Gene_Id'].str.rstrip('.0')
+    cbio_master['Entrez_Gene_Id'] = cbio_master['Entrez_Gene_Id'].str.replace('.0$', '')
     for project in project_list:
         sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project, 'Cbio_Tumor_Name'])
         fus_fname = out_dir + project + '.fusions.txt'
