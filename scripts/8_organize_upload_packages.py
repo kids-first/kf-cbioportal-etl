@@ -137,20 +137,7 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
         rna_file = open(rna_fname)
         head = next(rna_file)
         rna_list = head.rstrip('\n').split('\t')[1:]
-    if data_dict["merged_fusion"] == 1:
-        fusion_fname = output_dir + config_data["merged_fusion"]["dtypes"]["fusion"]["cbio_name"]
-        fusion_file = open(fusion_fname)
-        head = next(fusion_file)
-        header = head.rstrip('\n').split('\t')
-        s_idx = header.index('Tumor_Sample_Barcode')
-        for line in fusion_file:
-            data = line.rstrip('\n').split('\t')
-            fusion_list.append(data[s_idx])
-        fusion_file.close()
-        fusion_list = [*{*fusion_list}]
-    muts_plus_fusion = muts_list + fusion_list
-    muts_plus_fusion = [*{*muts_plus_fusion}]
-    all_cases = muts_plus_fusion
+    all_cases = muts_list
     # write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_plus_fusion, case_dir)
     write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_list, case_dir)
     if len(cna_list) > 0:
@@ -168,7 +155,7 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
         if len(cna_list) > 0:
             three_way = list(set(muts_list) & set(cna_list) & set(rna_list))
             write_case_list('cases_3way_complete', config_data['cases_3way_complete'], three_way, case_dir)
-    all_cases= [*{*muts_plus_fusion}]
+    all_cases= [*{*all_cases}]
     write_case_list('cases_all', config_data['cases_all'], all_cases, case_dir)
 
 
