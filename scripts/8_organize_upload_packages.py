@@ -138,10 +138,10 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
         head = next(rna_file)
         rna_list = head.rstrip('\n').split('\t')[1:]
         fusion_list = rna_list
-    muts_plus_fusion = muts_list + fusion_list
-    muts_plus_fusion = [*{*muts_plus_fusion}]
+    # muts_plus_fusion = muts_list + fusion_list
+    # muts_plus_fusion = [*{*muts_plus_fusion}]
     all_cases = muts_list
-    write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_plus_fusion, case_dir)
+    write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_list, case_dir)
     # write_case_list('cases_sequenced', config_data['cases_sequenced'], muts_list, case_dir)
     if len(cna_list) > 0:
         write_case_list('cases_cna', config_data['cases_cna'], cna_list, case_dir)
@@ -152,7 +152,6 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
         write_case_list('cases_RNA_Seq_v2_mRNA', config_data['cases_RNA_Seq_v2_mRNA'], rna_list, case_dir)
         all_cases += rna_list
         write_case_list('cases_sv', config_data['cases_sv'], rna_list, case_dir)
-        all_cases += rna_list
 
         # loading mutations is a minimum, so if cna exists...3 way file can be made
         if len(cna_list) > 0:
