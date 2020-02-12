@@ -240,4 +240,169 @@ brain	BS_AQMKA8NC	BS_CTEM6SYF	cnv	7316-2577-T-463571	BS_CTEM6SYF	f9100849-4049-4
 brain	BS_FEPRNEXX	NA	rsem	7316-2577-T-463571	NA	2c98cd42-5c3f-4a7e-8e53-7fce6b317222.rsem.genes.results.gz
 ```
 
+### scripts/4_merge_maf.py
+*Prerequisite: Download all maf files to be merged into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Merges maf files by cbio disease type.  Will remove calls of certain categories as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#mutation-data)
+```
+usage: 4_merge_maf.py [-h] [-t TABLE] [-i HEADER] [-m MAF_DIR]
+                      [-j CONFIG_FILE]
 
+Merge and filter mafs using cavatica task info and datasheets.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file
+                        names
+  -i HEADER, --header HEADER
+                        File with maf header only. Example in REFS/ dir
+  -m MAF_DIR, --maf-dir MAF_DIR
+                        maf file directory
+  -j CONFIG_FILE, --config CONFIG_FILE
+                        json config file with data types and data locations
+```
+Data processing config file is used, with relevant fields:
++ `cpus`: Number of files to process concurrently using `ProcessPoolExecutor`.  8 recommended
+Output created: `merged_mafs` directory with maf files named based on cbio disease type.
+
+### scripts/5a_cnv_genome2gene.py
+*Prerequisite: Download all ControlFreeC p value output files to be converted into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Converts copy number genome coordinate calls to gene copy number calls
+```
+usage: 5a_cnv_genome2gene.py [-h] [-d CNV_DIR] [-j CONFIG_FILE]
+
+Convert controlFreeC cnv genome coords to gene level
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d CNV_DIR, --cnv-dir CNV_DIR
+                        cnv as genome coords file directory
+  -j CONFIG_FILE, --config CONFIG_FILE
+                        json config file with data types and data locations
+```
+Data processing config file is used, with relevant fields:
++ `cnv_min_len`: Minimum copy number length (in base pairs) to be considered a candidate.  50000 recommended.
++ [`dna_ext_list`][`copy_number`]: File extension of inputs with no leading `.`, i.e. `controlfreec.CNVs.p.value.txt`
++ `cpus`: Number of files to process concurrently using `ProcessPoolExecutor`.  8 recommended
++ `bedtools`: Location of bedtools executable.  Can just be `bedtools` if in PATH
++ `cp_only_script`: Location of helper perl script that merges bedtools results. Script name `get_cbio_copy_only_num.pl`
++ `bed_genes`: Bed file with gene coordinates.  Example:
+```
+17	7581964	7584072	AC113189.5
+17	7583529	7592789	MPDU1
+17	7588178	7590170	SOX15
+17	7591230	7614871	FXR2
+17	7613946	7633383	SHBG
+17	7626234	7627876	SAT2
+17	7646627	7657768	ATP1B2
+17	7661779	7687550	TP53
+```
++ `hugo_tsv`: tsv file with HUGO gene symbols and entrez IDs for perl copy script
+Output created: `converted_cnvs` directory with converted files, extension `CNVs.Genes.copy_number`, with HUGO gene symbol, entrez ID,and raw copy number.  Example:
+```
+DCC     1630    4
+DCD     117159  3
+DCDC1   341019  3
+DCHS1   8642    3
+DCHS2   54798   3
+DCK     1633    3
+DCLK2   166614  3
+```
+
+### scripts/5b_merge_cnv.py
+Merge files generated from step 5a into a genes-by-sample raw copy number matrix
+```
+usage: 5b_merge_cnv.py [-h] [-t TABLE] [-n CNV_DIR] [-j CONFIG_FILE]
+
+Merge cnv files using cavatica task info and datasheets.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file
+                        names
+  -n CNV_DIR, --cnv-dir-gene CNV_DIR
+                        cnv as gene file directory
+  -j CONFIG_FILE, --config CONFIG_FILE
+                        json config file with data types and data locations
+```
+Data processing config file is used, with relevant fields:
++ [`dna_ext_list`][`copy_number`]: File extension of inputs (used in 5a) with no leading `.`, i.e. `controlfreec.CNVs.p.value.txt`
++ `cpus`: Number of files to process concurrently using `ProcessPoolExecutor`.  8 recommended
+Output created: `merged_cnvs` directory with merged raw copy number files named based on cbio disease type. Will have extension `predicted_cnv.txt`
+
+### scripts/5c_cnv_discrete.py
+*Prerequisite: A cavatica file manifest of ControlFreeC `info.txt` files* Converts raw copy number to gistic-style discrete values. Uses info.txt files to adjust for calculated ploidy
+```
+usage: 5c_cnv_discrete.py [-h] [-d MERGED_CNV_DIR] [-j CONFIG_FILE]
+                          [-m MANIFEST] [-t TABLE] [-p PROFILE]
+
+Convert merged cnv values to discrete coded values.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d MERGED_CNV_DIR, --merged_cnv_dir MERGED_CNV_DIR
+                        merged cnv dir
+  -j CONFIG_FILE, --config CONFIG_FILE
+                        json config file with data types and data locations
+  -m MANIFEST, --info_manifest MANIFEST
+                        cavatica cfree info file manifest
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file
+                        names
+  -p PROFILE, --profile PROFILE
+                        cavatica profile name. requires
+                        .sevenbridges/credentials file be present
+```
+Data processing config file is used, with relevant fields:
++ `cnv_high_gain`: Value cutoff to assign gistic high amplification gain value of 2, after ploidy adjustment.  For example, a value of `4` (recommended) would be equivalent of setting anything with value greater than (ploidy + 4) to a value of 2, repesenting high gain
++ `threads`: Number of files to process concurrently using `ThreadPoolExecutor`. 40 recommended
+Output created: In `merged_cnvs` directory with merged discrete copy number files named based on cbio disease type. Will have extension `discrete_cnvs.txt`
+
+### scripts/6_merge_rename_rsem.py
+*Prerequisite: Download all rsem files to be merged into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Merges rsem files into a gene-by-sample matrix.  Repeat HUGO symbols are resolved by taking the row with the highest mean expression and dropping the rest. Also creates a merged z score table.  Z scores are calculated before breaking up into individual cbio disease files; FPKM counts have a pseudocount added, then are log2 transformed before z score is calculated
+```usage: 6_merge_rename_rsem.py [-h] [-t TABLE] [-r RSEM_DIR] [-j CONFIG_FILE]
+
+Merge rsem files using cavatica file info.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file
+                        names
+  -r RSEM_DIR, --rsem-dir RSEM_DIR
+                        rsem file directory
+```
+Output created: `merged_rsem` directory with by cbio disease `rsem_merged.txt` and `rsem_merged_zscore.txt` files.
+
+### scripts/7_convert_PBTA_fusion.py
+*Prerequisite: openPBTA fusion file from releases [here](https://s3.console.aws.amazon.com/s3/buckets/kf-openaccess-us-east-1-prd-pbta/data/?region=us-east-1&tab=overview)* Sort of a hack until we make annoFuse part of the workflow, to incorporate merged and filtered fusions from annoFuse created for the openPBTA project
+```usage: 7_convert_PBTA_fusion.py [-h] [-t TABLE] [-f FUSION_FILE] [-s SQ_FILE]
+                                [-j CONFIG_FILE]
+
+Convert openPBTA fusion table to cbio format.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file
+                        names
+  -f FUSION_FILE, --fusion-file FUSION_FILE
+                        openPBTA fusion file
+  -s SQ_FILE, --center-file SQ_FILE
+                        File with BS IDs and sequencing centers
+  -j CONFIG_FILE, --config CONFIG_FILE
+                        json config file with data types and data locations
+```
+Data processing config file is used, with relevant fields:
++ `entrez_tsv`: tsv file that is basically the revers of th ehugo tsv file.  Should unfiy that...
+Example format:
+```
+ENTREZ_GENE_ID	HUGO_GENE_SYMBOL
+100506173	1060P11.3
+6775087	12S RRNA
+8923213	12S RRNA
+8923219	16S RRNA
+109951028	A-GAMMA3'E
+1	A1BG
+503538	A1BG-AS1
+```
+Outputs: `merged_fusion` directory with merged fusion files by cbio disease as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data). Files have extension `fusions.txt`

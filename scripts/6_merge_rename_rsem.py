@@ -5,7 +5,6 @@ import argparse
 import os
 import concurrent.futures
 import gzip
-import json
 import pandas as pd
 import numpy as np
 from scipy import stats
@@ -16,9 +15,8 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--table', action='store', dest='table',
                     help='Table with cbio project, kf bs ids, cbio IDs, and file names')
     parser.add_argument('-r', '--rsem-dir', action='store', dest='rsem_dir', help='rsem file directory')
-    parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types '
-                                                                                   'and data locations')
     args = parser.parse_args()
+
 
     def mt_collate_df(rsem_file):
         try:
@@ -36,8 +34,7 @@ if __name__ == "__main__":
         except Exception as e:
             sys.stderr.write(str(e) + "\nFailed to process " + rsem_file)
 
-    with open(args.config_file) as f:
-        config_data = json.load(f)
+
     rsem_dir = args.rsem_dir
 
     if rsem_dir[-1] != '/':
