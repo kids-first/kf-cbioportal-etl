@@ -10,10 +10,10 @@ parser = argparse.ArgumentParser(description='Added survival data to data_clinic
 parser.add_argument('-d', '--data', action='store', dest='data',
                     help='File with patients IDS and survival data, can be gotten from running get_survival_from_ds.py')
 parser.add_argument('-l', '--list', action='store', dest='flist', help='Data file list')
+parser.add_argument('-m', '--tum-bs-id', action='store', dest='tum_file', help='Tum bs id file from step 2 to properly calculate survival')
 parser.add_argument('-o', '--outdir', action='store', dest='outdir', help='output dir - MAKE THIS DIFFERENT FROM INPUT DIR')
 parser.add_argument('-t', '--id-type', action='store', dest='itype', help='kf or ext')
 parser.add_argument('-f', '--dfs-flag', action='store', dest='dflag', help='1 if DFS data available, 0 if not')
-parser.add_argument('-c', '--c-flag', action='store', dest='cflag', help='1 to convert survival, 0 if not')
 
 
 def calc_os_months(surv_data_val):
@@ -68,9 +68,7 @@ for fname in open(args.flist):
         pt_id = data[id_idx[args.itype]]
         
         if pt_id in surv_dict:
-            surv_data_value = surv_dict[pt_id]
-            if int(args.cflag) == 1:
-                surv_data_value = calc_os_months(surv_data_value)
+            surv_data_value = calc_os_months(surv_dict[pt_id])
             newdata.write('\t' + surv_data_value + '\n')
         else:
             newdata.write('\t\t\t\t\n')

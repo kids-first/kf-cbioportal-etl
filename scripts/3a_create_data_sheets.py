@@ -6,6 +6,7 @@ import os
 import math
 import json
 import re
+import pdb
 from sample_id_builder_helper import build_samp_id
 
 
@@ -80,6 +81,8 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
     g_idx = t_header.index('gender')
     eth_idx = t_header.index('ethnicity')
     r_idx = t_header.index('race')
+    outcome_age_idx = t_header.index('outcome_age_at_event_days')
+    vit_idx = t_header.index('vital_status')
     # collate tum info with DNA pair info and norm info by dx
     sys.stderr.write('Collating information for data sheet\n')
     for line in tum_fh:
@@ -115,11 +118,12 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
                     temp_dx[cur_dx]['loc'].append(loc_list[i])
                 if cdx_list[i] not in temp_dx[cur_dx]['dx']:
                     temp_dx[cur_dx]['dx'].append(cdx_list[i])
-                age = 999
-                if age_list[i] != 'NULL' and age_list[i] != 'None':
-                    age = math.floor(float(age_list[i]) / 365.25)
+                # age = 999
+                # if age_list[i] != 'NULL' and age_list[i] != 'None':
+                #     age = math.floor(float(age_list[i]) / 365.25)
+                # pdb.set_trace()
                 if age_list[i] not in temp_dx[cur_dx]['age']:
-                    temp_dx[cur_dx]['age'].append(age)
+                    temp_dx[cur_dx]['age'].append(age_list[i])
             else:
                 bs_ids_blacklist[bs_id] = 'No dx\n'
                 sys.stderr.write('WARN: biospecimen ' + bs_id + ' with dx ' + cdx_list[i] + ' is invalid, skipping!\n')
@@ -134,17 +138,34 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
             if pt_id not in master_dict[cur_dx]:
                 master_dict[cur_dx][pt_id] = {}
                 cur_pt = master_dict[cur_dx][pt_id]
-                cur_pt['age'] = 999
+                # set to a crazy number, unlikely to see a 100 year old pediatric patient
+                cur_pt['age'] = 36525
                 cur_pt['gender'] = info[g_idx]
                 cur_pt['ethnicity'] = info[eth_idx]
                 cur_pt['race'] = info[r_idx]
                 cur_pt['external_id'] = info[e_pidx]
                 cur_pt['tumor_site'] = ';'.join(temp_dx[cur_dx]['loc'])
+                # will adjust this at the end
+                cur_pt['os_age_mos'] = info[outcome_age_idx]
+                v_status = 'NULL'
+                if info[vit_idx] in v_status_dict:
+                    v_status = v_status_dict[info[vit_idx]]
+                cur_pt['vital_status'] = v_status
                 cur_pt['samples'] = {}
             cur_pt = master_dict[cur_dx][pt_id]
+            # calc min age that is not null
+            n_flag = 1
+            # will convert age to years at end, after earliest dx age determined
             for age in ages:
-                if int(age) < cur_pt['age']:
-                    cur_pt['age'] = age
+                try:
+                    if age != "NULL" and age != "None":
+                        n_flag = 0
+                        if int(age) < int(cur_pt['age']):
+                            cur_pt['age'] = int(age)
+                except Exception as e:
+                    sys.stderr.write(str(e) + "\n")
+                    pdb.set_trace()
+                    hold = 1
             if samp_id not in cur_pt['samples']:
                 cur_pt['samples'][samp_id] = {}
             cur_samp = master_dict[cur_dx][pt_id]['samples'][samp_id]
@@ -197,6 +218,7 @@ except:
     sys.stderr.write(out_dir + ' already exists.\n')
 blacklist = {}
 bs_ids_blacklist = {}
+v_status_dict = {'Alive': 'LIVING', 'Deceased': 'DECEASED'}
 # gathering DNA somatic bs id pairs and RNA bs ids run on cavatica
 cav_fn = args.cav
 dna_pairs = get_tn_pair_data(args.cav, bs_ids_blacklist)
@@ -340,12 +362,24 @@ for dx in master_dict:
 
         if f > 0:
             cur_pt = master_dict[dx][pt_id]
-            if cur_pt['age'] == 999:
+            if cur_pt['age'] == 36525:
                 cur_pt['age'] = ''
             else:
-                cur_pt['age'] = str(cur_pt['age'])
+                age_in_days = cur_pt['age']
+                cur_pt['age'] = str(math.floor(float(age_in_days)/365.25))
+                if cur_pt['os_age_mos'] != 'NULL':
+                    diff = int(cur_pt['os_age_mos']) - age_in_days
+                    if diff < 0:
+                        sys.stderr.write('WARN: OS status occurs before patient dx for ' + pt_id + ' skipping outcome age calc\n')
+                        cur_pt['os_age_mos'] = 'NA'
+                    elif diff == 0 and cur_pt['vital_status'] == 'LIVING':
+                        cur_pt['os_age_mos'] = 'NA'
+                    else:
+                        cur_pt['os_age_mos'] = str(math.floor(float(diff) / (365.25/12)))
+                else:
+                    cur_pt['os_age_mos'] = 'NA'
             out_pt.write('\t'.join((pt_id, cur_pt['external_id'], cur_pt['gender'], cur_pt['age'], cur_pt['tumor_site'],
-                                    cur_pt['race'], cur_pt['ethnicity'])) + '\n')
+                            cur_pt['race'], cur_pt['ethnicity'], cur_pt['vital_status'], cur_pt['os_age_mos'])) + '\n')
         else:
             sys.stderr.write('WARN: ' + pt_id + ' skipped, all samples were in blacklist\n')
     out_samp.close()
