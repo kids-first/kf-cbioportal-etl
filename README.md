@@ -1,10 +1,12 @@
-# Outline on ETL for converting data from cavatica and data service to pedcbioportal format
+# Outline on ETL for converting data from cavatica and data service to pedcbioportal format.  In general, we are creating upload pckages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats)
 ## Software Prerequisites
 
 + `python3` v3.5.3+
   + `sevenbridges` package (https://sevenbridges-python.readthedocs.io/en/latest/installation/)
   + `numpy`, `pandas`, `scipy`
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
++ `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
++ access to https://jenkins.kids-first.io/job/d3b-center-aws-infra-pedcbioportal-import/job/master/ to start cbio load into QA and/or prod
 + Seven bridges credentials file created
 
 ## Starting file inputs
@@ -240,6 +242,7 @@ brain	BS_AQMKA8NC	BS_CTEM6SYF	cnv	7316-2577-T-463571	BS_CTEM6SYF	f9100849-4049-4
 brain	BS_FEPRNEXX	NA	rsem	7316-2577-T-463571	NA	2c98cd42-5c3f-4a7e-8e53-7fce6b317222.rsem.genes.results.gz
 ```
 
+## Prepare mutation data
 ### scripts/4_merge_maf.py
 *Prerequisite: Download all maf files to be merged into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Merges maf files by cbio disease type.  Will remove calls of certain categories as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#mutation-data)
 ```
@@ -264,6 +267,7 @@ Data processing config file is used, with relevant fields:
 + `cpus`: Number of files to process concurrently using `ProcessPoolExecutor`.  8 recommended
 Output created: `merged_mafs` directory with maf files named based on cbio disease type.
 
+## Prepare Copy number data (if avaliable)
 ### scripts/5a_cnv_genome2gene.py
 *Prerequisite: Download all ControlFreeC p value output files to be converted into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Converts copy number genome coordinate calls to gene copy number calls
 ```
@@ -357,6 +361,7 @@ Data processing config file is used, with relevant fields:
 + `threads`: Number of files to process concurrently using `ThreadPoolExecutor`. 40 recommended
 Output created: In `merged_cnvs` directory with merged discrete copy number files named based on cbio disease type. Will have extension `discrete_cnvs.txt`
 
+## Prepare RNA expression and fusion data (if avaliable)
 ### scripts/6_merge_rename_rsem.py
 *Prerequisite: Download all rsem files to be merged into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Merges rsem files into a gene-by-sample matrix.  Repeat HUGO symbols are resolved by taking the row with the highest mean expression and dropping the rest. Also creates a merged z score table.  Z scores are calculated before breaking up into individual cbio disease files; FPKM counts have a pseudocount added, then are log2 transformed before z score is calculated
 ```usage: 6_merge_rename_rsem.py [-h] [-t TABLE] [-r RSEM_DIR] [-j CONFIG_FILE]
@@ -406,3 +411,50 @@ ENTREZ_GENE_ID	HUGO_GENE_SYMBOL
 503538	A1BG-AS1
 ```
 Outputs: `merged_fusion` directory with merged fusion files by cbio disease as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data). Files have extension `fusions.txt`
+
+## Create upload package
+### scripts/8_organize_upload_packages.py
+Create cases lists, meta files, and organize data for cbio upload. It is
+assumed you are at the dir level of all input data files
+```
+usage: 8_organize_upload_packages.py [-h] [-o OUT_DIR] [-d DX_FILE]
+                                     [-c CONFIG_FILE]
+
+Create cases lists, meta files, and organize data for cbio upload. It is
+assumed you are at the dir level of all input data files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OUT_DIR, --output_dir OUT_DIR
+                        output directory name
+  -d DX_FILE, --dx-file DX_FILE
+                        Dx index file with cbio short and long names
+  -c CONFIG_FILE, --config CONFIG_FILE
+                        json config file with meta information; see
+                        REFS/case_meta_config.json example
+```
+Case configuration file is used.  It is best to start with one of the pre-configured case config files in REFS/case_{descriptive text}. 
+### Single study load
+A good example of a *single study load* is in `REFS/case_pbta_combined_meta_config.json`. Likely personalized edits would occur in the following fields:
++ `merged_{data type}`: The `profile_description` key in each is a good place to describe any algorthim or nuances used to generate the data of that type
++ `study`: Here is where you set the overall study description, it's the banner text that people will see in the study overview page that gives them a sense of what the data is.
+  + `description`: This field is set up as an array so that a generic form of "text describing" "disease" "more text describing" can be used. Put another way, element one is whatever you want to say about the disease/study until you are ready to mention the disease/study, element two anythnig you may optionally wish to add
+  + `groups`: These are access groups defined is cBioportal.  Default is `PUBLIC`, but another can be named is restrictions are needed.  Need to work with Devops for custom groups
+  + `cancer_study_identifier`: This is the short name that you create for the study.  It will be the name of the study load folder and will be used by cBioportal to find all relevant information for that study.  *Be sure not to name it the same as an existing study that you do not wish to edit/replace, or it will be overwritten!*
+  + `dir_suffix`: Leave blank for single study.  Only relevant for multi-study mode
+  + `name_append`: Additional descriptice text to add to study name display.  Study name display is obtained from the `dx_index.txt` file, from the `MB cbioportal name` column
+
+### Multi-study load
+A good example of a *multi-study load* is in `REFS/case_pbta_by_dx_meta_config.json`. This is when a large study has multiple studies/diseases within it, that ought to be broken up into seprate studies/disease as determined in the `dx_index.txt` file. Likely personalized edits would occur in the following fields:
++ `merged_{data type}`: The `profile_description` key in each is a good place to describe any algorthim or nuances used to generate the data of that type
++ `study`: Here is where you set the overall study description, it's the banner text that people will see in the study overview page that gives them a sense of what the data is.
+  + `description`: This field is set up as an array so that a generic form of "text describing" "disease" "more text describing" can be used. Put another way, element one is whatever you want to say about the disease/study until you are ready to mention the disease/study, element two anythnig you may optionally wish to add
+  + `groups`: These are access groups defined is cBioportal.  Default is `PUBLIC`, but another can be named is restrictions are needed.  Need to work with Devops for custom groups
+  + `cancer_study_identifier`: Leave this field blank! The `MB cbioportal id` field from the `dx_index.txt` sheet will be used to set the short study name, woth the next field described below used to help differntaite it from other studies of the same disease type.
+  + `dir_suffix`: Add a suffix to the short study name to make it less generic and moreeasily identifiable.  For instance, `plgg` from cbttc has `_cbttc` set for this field, so that the final short study name becomes `plgg_cbttc`
+  + `name_append`: Additional descriptice text to add to study name display.  Study name display is obtained from the `dx_index.txt` file, from the `MB cbioportal name` column
+
+Outputs: Study directories created a subdirectories in the scripyr output directory.  These subdirectories named as the study short names are to be uploaded.
+## Upload the final packages
+Upload all of the directories named as study short names to `s3://kf-cbioportal-studies/public/`. You may need to set and/or copy aws your saml key before uploading. Next, edit the file in that bucket called `importStudies.txt` located at `s3://kf-cbioportal-studies/public/importStudies.txt`, with the names of all of the studies you wish to updated/upload. Lastly, go to https://jenkins.kids-first.io/job/d3b-center-aws-infra-pedcbioportal-import/job/master/, click on build. At the `Promotion kf-aws-infra-pedcbioportal-import-asg to QA` and `Promotion kf-aws-infra-pedcbioportal-import-asg to PRD`, the process will pause, click on the box below it to affirm that you want these changes deployed to QA and/or PROD respectively.  If both, you will have to wait for the QA job to finish first before you get the prompt for PROD.
+# Congratulations, you did it! 
