@@ -24,8 +24,7 @@ def get_tn_pair_data(c_tbl, bs_ids_blacklist):
                 pairs[bs_id] = info[1]
             else:
                 bs_ids_blacklist[bs_id] = 'Double norm'
-                sys.stderr.write(
-                    'WARN: tumor bs id ' + bs_id + ' already associated with a normal sample.  Skipping!\n')
+                sys.stderr.write('WARN: tumor bs id ' + bs_id + ' already associated with a normal sample.  Skipping!\n')
     cav_fh.close()
     return pairs
 
@@ -138,16 +137,22 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
             if pt_id not in master_dict[cur_dx]:
                 master_dict[cur_dx][pt_id] = {}
                 cur_pt = master_dict[cur_dx][pt_id]
-                # set to a crazy number, unlikely to see a 100 year old pediatric patient
+                # set to a crazy number, unlikely to see a 100 year old pediatric patient, will adjust this at the end
                 cur_pt['age'] = 36525
                 cur_pt['gender'] = info[g_idx]
                 cur_pt['ethnicity'] = info[eth_idx]
                 cur_pt['race'] = info[r_idx]
                 cur_pt['external_id'] = info[e_pidx]
                 cur_pt['tumor_site'] = ';'.join(temp_dx[cur_dx]['loc'])
-                # will adjust this at the end
-                cur_pt['os_age_mos'] = info[outcome_age_idx]
-                v_status = 'NULL'
+                cur_pt['os_age_mos'] = ''
+                try:
+                    int(info[outcome_age_idx])
+                    cur_pt['os_age_mos'] = info[outcome_age_idx]
+                except Exception as e:
+                    sys.stderr.write(str(e) + "\nSurvival status age " + info[outcome_age_idx] + " not a number.  Setting blank\n")
+                    cur_pt['os_age_mos'] = ''
+
+                v_status = ''
                 if info[vit_idx] in v_status_dict:
                     v_status = v_status_dict[info[vit_idx]]
                 cur_pt['vital_status'] = v_status
@@ -158,14 +163,12 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
             # will convert age to years at end, after earliest dx age determined
             for age in ages:
                 try:
-                    if age != "NULL" and age != "None":
-                        n_flag = 0
-                        if int(age) < int(cur_pt['age']):
-                            cur_pt['age'] = int(age)
+                    int(age)
+                    n_flag = 0
+                    if int(age) < int(cur_pt['age']):
+                        cur_pt['age'] = int(age)
                 except Exception as e:
-                    sys.stderr.write(str(e) + "\n")
-                    pdb.set_trace()
-                    hold = 1
+                    sys.stderr.write(str(e) + "\nAge could " + age + " not be converted, skipping.\n")
             if samp_id not in cur_pt['samples']:
                 cur_pt['samples'][samp_id] = {}
             cur_samp = master_dict[cur_dx][pt_id]['samples'][samp_id]
@@ -262,7 +265,6 @@ for dx in master_dict:
         f = 0
         cur_pt = master_dict[dx][pt_id]
         for samp_id in sorted(cur_pt['samples']):
-
             f2 = 0
             cur_samp = cur_pt['samples'][samp_id]
             norm_samp = ''
@@ -367,17 +369,19 @@ for dx in master_dict:
             else:
                 age_in_days = cur_pt['age']
                 cur_pt['age'] = str(math.floor(float(age_in_days)/365.25))
-                if cur_pt['os_age_mos'] != 'NULL':
+                try: 
+                    int(cur_pt['os_age_mos'])
                     diff = int(cur_pt['os_age_mos']) - age_in_days
                     if diff < 0:
                         sys.stderr.write('WARN: OS status occurs before patient dx for ' + pt_id + ' skipping outcome age calc\n')
-                        cur_pt['os_age_mos'] = 'NA'
+                        cur_pt['os_age_mos'] = ''
                     elif diff == 0 and cur_pt['vital_status'] == 'LIVING':
-                        cur_pt['os_age_mos'] = 'NA'
+                        cur_pt['os_age_mos'] = ''
                     else:
                         cur_pt['os_age_mos'] = str(math.floor(float(diff) / (365.25/12)))
-                else:
-                    cur_pt['os_age_mos'] = 'NA'
+                except Exception as e:
+                    sys.stderr.write(str(e) + "\nSurvival status age " + cur_pt['os_age_mos'] + " not a number.  Setting blank\n")
+                    cur_pt['os_age_mos'] = ''
             out_pt.write('\t'.join((pt_id, cur_pt['external_id'], cur_pt['gender'], cur_pt['age'], cur_pt['tumor_site'],
                             cur_pt['race'], cur_pt['ethnicity'], cur_pt['vital_status'], cur_pt['os_age_mos'])) + '\n')
         else:
