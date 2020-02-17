@@ -242,6 +242,26 @@ brain	BS_AQMKA8NC	BS_CTEM6SYF	cnv	7316-2577-T-463571	BS_CTEM6SYF	f9100849-4049-4
 brain	BS_FEPRNEXX	NA	rsem	7316-2577-T-463571	NA	2c98cd42-5c3f-4a7e-8e53-7fce6b317222.rsem.genes.results.gz
 ```
 
+## Helper/Patch scripts
+Additional metadata may need to be patched as they may not have existed before as a standard. Skip this section if you have all you need
+### utilities/get_survival_from_ds.py
+This is the most likely helper script needed. This gets survival data from the data service to be patched to the data_clinical_patient.txt sheets.
+```usage: get_survival_from_ds.py [-h] [-u URL] [-p PT_LIST]
+
+Get vital status by PT ID
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -u URL, --kf-url URL  Kids First data service url, i.e. https://kf-api-
+                        dataservice.kidsfirstdrc.org/
+  -p PT_LIST, --pt-list PT_LIST
+                        pt_id list
+```
+Output: Headerless tsv file called `outcomes.txt`. First column PT ID, second column vitality status, third column age in days at last status update
+
+### utilities/patch_survival_to_data_patient.py
+Adds survival data obtained from `outcomes.txt` and calculates overall survival in months using age at diagnosis and age at status with formula 
+
 ## Prepare mutation data
 ### scripts/4_merge_maf.py
 *Prerequisite: Download all maf files to be merged into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Merges maf files by cbio disease type.  Will remove calls of certain categories as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#mutation-data)
@@ -457,4 +477,4 @@ A good example of a *multi-study load* is in `REFS/case_pbta_by_dx_meta_config.j
 Outputs: Study directories created a subdirectories in the scripyr output directory.  These subdirectories named as the study short names are to be uploaded.
 ## Upload the final packages
 Upload all of the directories named as study short names to `s3://kf-cbioportal-studies/public/`. You may need to set and/or copy aws your saml key before uploading. Next, edit the file in that bucket called `importStudies.txt` located at `s3://kf-cbioportal-studies/public/importStudies.txt`, with the names of all of the studies you wish to updated/upload. Lastly, go to https://jenkins.kids-first.io/job/d3b-center-aws-infra-pedcbioportal-import/job/master/, click on build. At the `Promotion kf-aws-infra-pedcbioportal-import-asg to QA` and `Promotion kf-aws-infra-pedcbioportal-import-asg to PRD`, the process will pause, click on the box below it to affirm that you want these changes deployed to QA and/or PROD respectively.  If both, you will have to wait for the QA job to finish first before you get the prompt for PROD.
-# Congratulations, you did it! 
+# Congratulations, you did it!
