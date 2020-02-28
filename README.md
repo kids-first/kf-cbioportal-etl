@@ -1,4 +1,5 @@
-# Outline on ETL for converting data from cavatica and data service to pedcbioportal format.  In general, we are creating upload pckages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats)
+# Outline on ETL for converting data from cavatica and data service to pedcbioportal format
+In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats)
 ## Software Prerequisites
 
 + `python3` v3.5.3+
