@@ -67,7 +67,7 @@ if __name__ == "__main__":
     "Fusion_Type": "Frame", "Cbio_Tumor_Name": "Tumor_Sample_Barcode", "SQ_Value": "Center"}, inplace=True)
     cbio_master['DNA_support'] = "no"
     cbio_master['RNA_support'] = "yes"
-    # create blank entrz ID coumn so that 3' gene names can be searched
+    # create blank entrez ID column so that 3' gene names can be searched
     cbio_master['Entrez_Gene_Id'] = ""
     # Reorder table
     order_list = ['Hugo_Symbol', 'Entrez_Gene_Id', 'Center', 'Tumor_Sample_Barcode', 'Fusion','DNA_support', 'RNA_support', 'Method', 'Frame']
