@@ -12,12 +12,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--fusion-results', action='store', dest='fusion_results', help='openPBTA fusion file OR annoFuse results dir')
     parser.add_argument('-m', '--mode', action='store', dest='mode', help='describe source, pbta or annofuse')
     parser.add_argument('-s', '--center-file', action='store', dest='sq_file', help='File with BS IDs and sequencing centers')
-    parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types '
-                                                                                   'and data locations')
     args = parser.parse_args()
-
-    with open(args.config_file) as f:
-        config_data = json.load(f)
 
     def init_cbio_master(fusion_results, mode, rna_metadata):
         if mode == 'pbta':
@@ -72,11 +67,9 @@ if __name__ == "__main__":
     "Fusion_Type": "Frame", "Cbio_Tumor_Name": "Tumor_Sample_Barcode", "SQ_Value": "Center"}, inplace=True)
     cbio_master['DNA_support'] = "no"
     cbio_master['RNA_support'] = "yes"
-    # cbio_master = pd.merge(cbio_master, no_phospho, on='Hugo_Symbol', how='left')
-    cbio_master = cbio_master.replace(np.nan, '', regex=True)
-    cbio_master.rename(columns={"ENTREZ_GENE_ID": "Entrez_Gene_Id"}, inplace=True)
-    # Reorder table
+    # create blank entrz ID coumn so that 3' gene names can be searched
     cbio_master['Entrez_Gene_Id'] = ""
+    # Reorder table
     order_list = ['Hugo_Symbol', 'Entrez_Gene_Id', 'Center', 'Tumor_Sample_Barcode', 'Fusion','DNA_support', 'RNA_support', 'Method', 'Frame']
     cbio_master = cbio_master[order_list]
     cbio_master.set_index('Hugo_Symbol', inplace=True)

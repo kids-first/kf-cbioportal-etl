@@ -399,39 +399,25 @@ optional arguments:
 ```
 Output created: `merged_rsem` directory with by cbio disease `rsem_merged.txt` and `rsem_merged_zscore.txt` files.
 
-### scripts/7_convert_PBTA_fusion.py
-*Prerequisite: openPBTA fusion file from releases [here](https://s3.console.aws.amazon.com/s3/buckets/kf-openaccess-us-east-1-prd-pbta/data/?region=us-east-1&tab=overview)* Sort of a hack until we make annoFuse part of the workflow, to incorporate merged and filtered fusions from annoFuse created for the openPBTA project
-```usage: 7_convert_PBTA_fusion.py [-h] [-t TABLE] [-f FUSION_FILE] [-s SQ_FILE]
-                                [-j CONFIG_FILE]
+### scripts/7_convert_fusion.py
+*Prerequisite: openPBTA fusion file from releases [here](https://s3.console.aws.amazon.com/s3/buckets/kf-openaccess-us-east-1-prd-pbta/data/?region=us-east-1&tab=overview) OR annoFuse results downloaded into a directory.* Can use openPBTA results or annoFuse results for cbio fusion file table generation.
+``usage: 7_convert_fusion.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-m MODE]
+                           [-s SQ_FILE] [-j CONFIG_FILE]
 
-Convert openPBTA fusion table to cbio format.
+Convert openPBTA fusion table OR list of annofuse files to cbio format.
 
 optional arguments:
   -h, --help            show this help message and exit
   -t TABLE, --table TABLE
                         Table with cbio project, kf bs ids, cbio IDs, and file
                         names
-  -f FUSION_FILE, --fusion-file FUSION_FILE
-                        openPBTA fusion file
+  -f FUSION_RESULTS, --fusion-results FUSION_RESULTS
+                        openPBTA fusion file OR annoFuse results dir
+  -m MODE, --mode MODE  describe source, pbta or annofuse
   -s SQ_FILE, --center-file SQ_FILE
                         File with BS IDs and sequencing centers
-  -j CONFIG_FILE, --config CONFIG_FILE
-                        json config file with data types and data locations
 ```
-Data processing config file is used, with relevant fields:
-+ `entrez_tsv`: tsv file that is basically the revers of th ehugo tsv file.  Should unfiy that...
-Example format:
-```
-ENTREZ_GENE_ID	HUGO_GENE_SYMBOL
-100506173	1060P11.3
-6775087	12S RRNA
-8923213	12S RRNA
-8923219	16S RRNA
-109951028	A-GAMMA3'E
-1	A1BG
-503538	A1BG-AS1
-```
-Outputs: `merged_fusion` directory with merged fusion files by cbio disease as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data). Files have extension `fusions.txt`
+Outputs: `merged_fusion` directory with merged fusion files by cbio disease as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data). Files have extension `fusions.txt`. Entrez ID is left blank to allows for reversible fusion gene searching
 
 ## Create upload package
 ### scripts/8_organize_upload_packages.py
