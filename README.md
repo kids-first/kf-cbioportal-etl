@@ -401,7 +401,7 @@ Output created: `merged_rsem` directory with by cbio disease `rsem_merged.txt` a
 
 ### scripts/7_convert_fusion.py
 *Prerequisite: openPBTA fusion file from releases [here](https://s3.console.aws.amazon.com/s3/buckets/kf-openaccess-us-east-1-prd-pbta/data/?region=us-east-1&tab=overview) OR annoFuse results downloaded into a directory.* Can use openPBTA results or annoFuse results for cbio fusion file table generation.
-``usage: 7_convert_fusion.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-m MODE]
+```usage: 7_convert_fusion.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-m MODE]
                            [-s SQ_FILE] [-j CONFIG_FILE]
 
 Convert openPBTA fusion table OR list of annofuse files to cbio format.
