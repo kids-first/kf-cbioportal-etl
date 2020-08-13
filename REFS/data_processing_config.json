@@ -8,7 +8,8 @@
   "dna_norm_id_style": "cbttc_norm_std",
   "rna_samp_id_style": "cbttc_rna_std",
   "rna_ext_list": {
-    "expression": "rsem.genes.results.gz"
+    "expression": "rsem.genes.results.gz",
+    "fusion": "annoFuse_filter.tsv"
   },
   "dna_ext_list": {
     "mutation": "consensus_somatic.vep.maf", 

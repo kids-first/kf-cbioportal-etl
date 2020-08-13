@@ -66,6 +66,8 @@ for line in manifest:
                 ftype = 'maf'
             else:
                 ftype =  "cnv"
+        elif fname[-3:] == 'tsv':
+            ftype = 'fusion'
         cav_dict[bs_ids][ftype] = fname
 
 flist = subprocess.check_output('find ./datasheets -name data_clinical_sample.txt', shell=True)
