@@ -59,11 +59,14 @@ for line in meta:
     project = info[2]
     if ext in rna_ext_list and skip == 0:
         bs_id = info[ind['rna']]
-        cav_dict[bs_id] = {}
-        cav_dict[bs_id]['atype'] = "RNA"
-        cav_dict[bs_id]['fname'] = fname
-        cav_dict[bs_id]['bs_id'] = bs_id
-        cav_dict[bs_id]['project'] = project
+        if bs_id not in cav_dict:
+            cav_dict[bs_id] = {}
+            cav_dict[bs_id]['atype'] = "RNA"
+            cav_dict[bs_id]['fname'] = []
+            cav_dict[bs_id]['bs_id'] = bs_id
+            cav_dict[bs_id]['project'] = []
+        cav_dict[bs_id]['project'].append(project)
+        cav_dict[bs_id]['fname'].append(fname)
     elif ext in dna_ext_list and skip == 0:
         t_bs_id = info[ind['tum']]
         n_bs_id = info[ind['norm']]
@@ -79,7 +82,7 @@ for line in meta:
         cav_dict[dkey]['fname'].append(fname)
 for tid in cav_dict:
     if cav_dict[tid]['atype'] == 'RNA':
-        old_out.write("\t".join((cav_dict[tid]['bs_id'], "NA","RNA_TASK", tid, "RNA", cav_dict[tid]['fname'], cav_dict[tid]['project'])) + '\n')
+        old_out.write("\t".join((cav_dict[tid]['bs_id'], "NA","RNA_TASK", tid, "RNA", ",".join(cav_dict[tid]['fname']), ",".join(cav_dict[tid]['project']))) + '\n')
     else:
         old_out.write("\t".join((cav_dict[tid]['t_bs_id'], cav_dict[tid]['n_bs_id'],"DNA_TASK", tid, "DNA", ",".join(cav_dict[tid]['fname']), ','.join(cav_dict[tid]['project']))) + '\n')
 old_out.close()

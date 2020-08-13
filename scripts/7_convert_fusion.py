@@ -6,17 +6,32 @@ import pandas as pd
 import numpy as np
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Convert openPBTA fusion table to cbio format.')
+    parser = argparse.ArgumentParser(description='Convert openPBTA fusion table OR list of annofuse files to cbio format.')
     parser.add_argument('-t', '--table', action='store', dest='table',
                     help='Table with cbio project, kf bs ids, cbio IDs, and file names')
-    parser.add_argument('-f', '--fusion-file', action='store', dest='fusion_file', help='openPBTA fusion file')
+    parser.add_argument('-f', '--fusion-results', action='store', dest='fusion_results', help='openPBTA fusion file OR annoFuse results dir')
+    parser.add_argument('-m', '--mode', action='store', dest='mode', help='describe source, pbta or annofuse')
     parser.add_argument('-s', '--center-file', action='store', dest='sq_file', help='File with BS IDs and sequencing centers')
-    parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types '
-                                                                                   'and data locations')
     args = parser.parse_args()
 
-    with open(args.config_file) as f:
-        config_data = json.load(f)
+    def init_cbio_master(fusion_results, mode, rna_metadata):
+        if mode == 'pbta':
+            fusion_data = pd.read_csv(fusion_results, sep="\t")
+            return fusion_data[['Gene1A', 'Sample', 'FusionName', 'CalledBy', 'Fusion_Type']]
+        else:
+            flist = rna_metadata.File_Name
+            frame_list = []
+            for i in range(0, len(flist), 1):
+                ann_file = pd.read_csv(fusion_results + "/" + flist[i], sep="\t")
+                frame_list.append(ann_file)
+            concat_frame = pd.concat(frame_list)
+            del frame_list
+            fusion_data = concat_frame[['Gene1A', 'Sample', 'FusionName', 'CalledBy', 'Fusion_Type']]
+            del concat_frame
+            fusion_data = fusion_data.groupby(['Gene1A', 'Sample', 'FusionName', 'Fusion_Type'])['CalledBy'].apply(', '.join).reset_index()
+            fusion_data['CalledBy'] = fusion_data['CalledBy'].str.upper()
+            return fusion_data
+
 
     out_dir = 'merged_fusion/'
     try:
@@ -25,25 +40,20 @@ if __name__ == "__main__":
         sys.stderr.write('output dir already exists\n')
         sys.stderr.flush()
 
-    fusion_data = pd.read_csv(args.fusion_file, sep="\t")
-    sq_info = pd.read_csv(args.sq_file, sep="\t")
-    all_file_meta = pd.read_csv(args.table, sep="\t")
-    # entrez_data = pd.read_csv(config_data['entrez_tsv'], sep="\t")
-
     # deal only with RNA metadata
-    rna_subset = all_file_meta.loc[all_file_meta['File_Type'] == 'rsem']
+    r_ext = 'rsem' # openPBTA data would cross-reference with expression results otherwise...
+    if args.mode == 'annofuse':
+        r_ext = 'fusion'
+    rna_subset = all_file_meta.loc[all_file_meta['File_Type'] == r_ext]
     rna_subset.rename(columns={"T_CL_BS_ID": "Sample"}, inplace=True)
     rna_subset.set_index('Sample', inplace=True)
+    project_list = rna_subset.Cbio_project.unique()
+    cbio_master = init_cbio_master(args.fusion_results, args.mode, rna_subset)
+    
+    sq_info = pd.read_csv(args.sq_file, sep="\t")
+    all_file_meta = pd.read_csv(args.table, sep="\t")
 
-    # drop phosho entrez IDs
-    # no_phospho = entrez_data[entrez_data['ENTREZ_GENE_ID'] > 0]
-    # Drop duplicates
-    # no_phospho.drop_duplicates(subset ="HUGO_GENE_SYMBOL", keep = False, inplace = True)
-    # no_phospho.rename(columns={"HUGO_GENE_SYMBOL": "Hugo_Symbol"}, inplace=True)
-    # no_phospho.set_index('Hugo_Symbol', inplace=True)
-    # del entrez_data
-    # Get releavent columns
-    cbio_master = fusion_data[['Gene1A', 'Sample', 'FusionName', 'CalledBy', 'Fusion_Type']]
+    # Get relevant columns
     cbio_master.set_index('Sample', inplace=True)
     sq_info.rename(columns={"BS_ID": "Sample"}, inplace=True)
     sq_info.set_index('Sample', inplace=True)
@@ -57,19 +67,12 @@ if __name__ == "__main__":
     "Fusion_Type": "Frame", "Cbio_Tumor_Name": "Tumor_Sample_Barcode", "SQ_Value": "Center"}, inplace=True)
     cbio_master['DNA_support'] = "no"
     cbio_master['RNA_support'] = "yes"
-    # cbio_master = pd.merge(cbio_master, no_phospho, on='Hugo_Symbol', how='left')
-    cbio_master = cbio_master.replace(np.nan, '', regex=True)
-    cbio_master.rename(columns={"ENTREZ_GENE_ID": "Entrez_Gene_Id"}, inplace=True)
-    # Reorder table
+    # create blank entrez ID column so that 3' gene names can be searched
     cbio_master['Entrez_Gene_Id'] = ""
+    # Reorder table
     order_list = ['Hugo_Symbol', 'Entrez_Gene_Id', 'Center', 'Tumor_Sample_Barcode', 'Fusion','DNA_support', 'RNA_support', 'Method', 'Frame']
     cbio_master = cbio_master[order_list]
-    project_list = rna_subset.Cbio_project.unique()
     cbio_master.set_index('Hugo_Symbol', inplace=True)
-    # cbio_master[['Fusion']] = cbio_master[['Fusion']].replace(to_replace=r'--', value='-', regex=True)
-    # remove trailing .0 from entrez ID being treated as number
-    # cbio_master['Entrez_Gene_Id']=cbio_master.Entrez_Gene_Id.apply(lambda x: str(x))
-    # cbio_master['Entrez_Gene_Id'] = cbio_master['Entrez_Gene_Id'].str.replace('.0$', '')
     for project in project_list:
         sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project, 'Cbio_Tumor_Name'])
         fus_fname = out_dir + project + '.fusions.txt'
@@ -87,4 +90,3 @@ if __name__ == "__main__":
                 data[0] = b
                 fus_file.write("\t".join(data) + "\n")
         fus_file.close()
-        # cbio_master[cbio_master.Tumor_Sample_Barcode.isin(sub_sample_list)].to_csv(fus_fname, sep='\t', mode='w', index=True)
