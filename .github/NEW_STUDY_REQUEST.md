@@ -1,5 +1,13 @@
-# New Study Load Request
+---
+name: cbioportal study load request
+about: Use this issue template to create a request for a new study to be loaded into the Kids First cBioportal
+title: 'Load new cBioportal study:'
+labels: pedcbio
+assignees: migbro, zhangb1
 
+---
+
+<!--Hi there! Please take a moment to fill out the template below.-->
 ## Description
 Please provide the following information:
 1. Is this a KF or external study?

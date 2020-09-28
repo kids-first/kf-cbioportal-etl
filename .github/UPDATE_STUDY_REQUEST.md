@@ -1,4 +1,13 @@
-# Update Study Request
+---
+name: cbioportal study update request
+about: Use this issue template to create a request for an update for an existing  loaded in the Kids First cBioportal
+title: 'Update existing study cBioportal:'
+labels: pedcbio
+assignees: migbro, zhangb1
+
+---
+
+<!--Hi there! Please take a moment to fill out the template below.-->
 
 ## Description
 Please provide the following information:
