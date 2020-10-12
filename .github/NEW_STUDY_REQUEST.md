@@ -43,3 +43,20 @@ Is this study `Provisional` - a KF dataset that has been freshly haromonized wit
 
 ## Sample inclusion/exclusion
 Please list any samples that should be excluded and why
+
+## Fields typically loaded
+
+|                             |                                                                     | 
+|-----------------------------|---------------------------------------------------------------------| 
+| #Patient Identifier         | #Patient identifier                                                 | 
+| External Patient Identifier | Patient ID used by generator of data                                | 
+| GENDER                      | Gender or sex of the patient                                        | 
+| AGE                         | Age at which the condition or disease was first diagnosed, in years | 
+| TUMOR_SITE                  | Tumor location                                                      | 
+| RACE                        | racial demographic                                                  | 
+| ETHNICITY                   | ethnic demographic                                                  | 
+| OS_STATUS                   | Overall patient survival status                                     | 
+| OS_MONTHS                   | Overall survival in months since initial diagnosis                  | 
+
+
+**IF ANY OF THE ABOVE SHOULD BE OMITTED, ESPECIALLY IF THE STUDY IS TO BE POSTED IN OUR PUBLIC PROD, PLEASE INDICATE BELOW!!!**
