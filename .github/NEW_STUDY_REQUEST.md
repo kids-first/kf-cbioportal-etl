@@ -39,7 +39,7 @@ Please check off which data types are to be loaded:
 - [ ] RNA fusions
 
 ## Study load status
-Is this study `Provisional` - a KF dataset that has been freshly haromonized with little filtration, or other/`Publication`?
+Is this study `Provisional` - a KF dataset that has been freshly harmonized with little filtration, or other/`Publication`?
 
 ## Sample inclusion/exclusion
 Please list any samples that should be excluded and why

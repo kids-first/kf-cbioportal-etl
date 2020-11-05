@@ -91,11 +91,12 @@ def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_at
     for attr in dx_attrs:
         dx_dict[attr] = []
         for cur_res in dx_obj.json()['results']:
-            for dx_split in cur_res['source_text_diagnosis'].split(','):
-                if attr == 'source_text_diagnosis':
-                    dx_dict[attr].append(dx_split) 
-                else:   
-                    dx_dict[attr].append(str(cur_res[attr]))
+            # for dx_split in cur_res['source_text_diagnosis'].split(','):
+            #     if attr == 'source_text_diagnosis':
+            #         dx_dict[attr].append(dx_split) 
+            #     else:   
+            #         dx_dict[attr].append(str(cur_res[attr]))
+            dx_dict[attr].append(str(cur_res[attr]))
         result.append(';'.join(dx_dict[attr]))
     # default to last outcome in list
     try:
