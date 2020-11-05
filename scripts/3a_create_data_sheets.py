@@ -125,7 +125,7 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
                     temp_dx[cur_dx]['age'].append(age_list[i])
             else:
                 bs_ids_blacklist[bs_id] = 'No dx\n'
-                sys.stderr.write('WARN: biospecimen ' + bs_id + ' with dx ' + cdx_list[i] + ' is invalid, skipping!\n')
+                sys.stderr.write('WARN: biospecimen ' + bs_id + ' with dx\t' + cdx_list[i] + '\tis invalid, skipping!\n')
 
         for cur_dx in temp_dx:
 
