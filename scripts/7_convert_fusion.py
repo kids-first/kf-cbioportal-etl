@@ -10,12 +10,14 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--table', action='store', dest='table',
                     help='Table with cbio project, kf bs ids, cbio IDs, and file names')
     parser.add_argument('-f', '--fusion-results', action='store', dest='fusion_results', help='openPBTA fusion file OR annoFuse results dir')
-    parser.add_argument('-m', '--mode', action='store', dest='mode', help='describe source, pbta or annofuse')
-    parser.add_argument('-s', '--center-file', action='store', dest='sq_file', help='File with BS IDs and sequencing centers. Should have headered columns: BS_ID\SQ_Value')
+    parser.add_argument('-m', '--mode', action='store', dest='mode', help='describe source, pbta or annofuse', required=True)
+    parser.add_argument('-s', '--center-file', action='store', dest='sq_file', help='File with BS IDs and sequencing centers. Should have headered columns: BS_ID\tSQ_Value')
     args = parser.parse_args()
-
+    if args.mode != "pbta" or args.mode != "annofuse":
+        sys.stderr.write("-m mode argument must be one of pbta or annofuse. It is case sensitive. You put " + args.mode + "\n")
+        exit(1)
     def init_cbio_master(fusion_results, mode, rna_metadata):
-        if mode.lower() == 'pbta':
+        if mode == 'pbta':
             fusion_data = pd.read_csv(fusion_results, sep="\t")
             return fusion_data[['Gene1A', 'Sample', 'FusionName', 'CalledBy', 'Fusion_Type']]
         else:
@@ -44,7 +46,7 @@ if __name__ == "__main__":
     r_ext = 'rsem' # openPBTA data would cross-reference with expression results otherwise...
     sq_info = pd.read_csv(args.sq_file, sep="\t")
     all_file_meta = pd.read_csv(args.table, sep="\t")
-    if args.mode.lower() == 'annofuse':
+    if args.mode == 'annofuse':
         r_ext = 'fusion'
     rna_subset = all_file_meta.loc[all_file_meta['File_Type'] == r_ext]
     rna_subset.rename(columns={"T_CL_BS_ID": "Sample"}, inplace=True)
@@ -62,7 +64,7 @@ if __name__ == "__main__":
     # drop bs ids
     cbio_master.reset_index(inplace=True)
     cbio_master.drop('Sample', axis=1, inplace=True)
-    if args.mode.lower() == 'pbta':
+    if args.mode == 'pbta':
         cbio_master.rename(columns={"Gene1A": "Hugo_Symbol", "FusionName": "Fusion", "CalledBy": "Method",
         "Fusion_Type": "Frame", "Cbio_Tumor_Name": "Tumor_Sample_Barcode", "SQ_Value": "Center"}, inplace=True)
     else:
