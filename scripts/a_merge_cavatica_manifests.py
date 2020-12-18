@@ -18,7 +18,6 @@ import math
 import re
 import importlib
 
-
 def get_filtered_resources(resources:List[File], config_data, skip_dict = {}):
 
     rna_ext_dict = config_data['rna_ext_list']
@@ -83,3 +82,35 @@ def get_filtered_resources(resources:List[File], config_data, skip_dict = {}):
         if t_bs_id is not None and t_bs_id not in bs_ids_blacklist:
             filteredResources.append(value)
     return filteredResources
+
+
+def get_resources_from_cavatica_projects(project_ids, config_data, skip_dict = {}) -> List[File]:
+    valid_extensions = []
+    rna_ext_dict = config_data['rna_ext_list']
+    for key in rna_ext_dict:
+        valid_extensions.append(rna_ext_dict[key])
+    dna_ext_dict = config_data['dna_ext_list']
+    for key in dna_ext_dict:
+        valid_extensions.append(dna_ext_dict[key])
+
+    api = sbg.Api(url='https://cavatica-api.sbgenomics.com/v2', token='296f647e655b4ff2acbc06f92a56b733')
+    resources: List[File] =[]
+    for project_id in project_ids:
+        project:Project = api.projects.get(id=project_id)
+        #TODO: multiple project
+        #projects = api.projects.query(owner='zhangb1', name='PNOC003 Cbio Data')
+        folders: List[File] = list(project.get_files())
+        for folder in folders:
+            if folder.is_folder:
+                # TODO: getting only 5 file fore testing purpose
+                response = api.files.bulk_get(folder.list_files())
+                for record in response:
+                    if record.valid:
+                        name = record.resource.name
+                        parts = name.split('.')
+                        ext = ".".join(parts[1:])
+                        if ext in valid_extensions:
+                            resources.append(record.resource)
+                    else:
+                        print(record.error)
+    return get_filtered_resources(resources, config_data, skip_dict)

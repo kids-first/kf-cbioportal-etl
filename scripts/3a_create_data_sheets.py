@@ -7,7 +7,7 @@ import math
 import json
 import re
 import pdb
-from sample_id_builder_helper import build_samp_id
+from .sample_id_builder_helper import build_samp_id
 
 
 def get_tn_pair_data(c_tbl, bs_ids_blacklist):
@@ -17,9 +17,7 @@ def get_tn_pair_data(c_tbl, bs_ids_blacklist):
     for line in cav_fh:
         info = line.rstrip('\n').split('\t')
         bs_id = info[0]
-        if info[4] == 'RNA':
-            rna_data[bs_id] = 0
-        else:
+        if info[4] != 'RNA':
             if bs_id not in pairs:
                 pairs[bs_id] = info[1]
             else:
@@ -81,7 +79,7 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
     eth_idx = t_header.index('ethnicity')
     r_idx = t_header.index('race')
     outcome_age_idx = t_header.index('outcome_age_at_event_days')
-    vit_idx = t_header.index('vital_status')
+    vit_idx = t_header.index('outcome_vital_status')
     # collate tum info with DNA pair info and norm info by dx
     sys.stderr.write('Collating information for data sheet\n')
     for line in tum_fh:
@@ -213,7 +211,6 @@ args = parser.parse_args()
 # config_data dict has most customizable options from json config file
 with open(args.config_file) as f:
     config_data = json.load(f)
-rna_data = {}
 out_dir = 'datasheets/'
 try:
     os.mkdir(out_dir)
@@ -223,7 +220,6 @@ blacklist = {}
 bs_ids_blacklist = {}
 v_status_dict = {'Alive': 'LIVING', 'Deceased': 'DECEASED'}
 # gathering DNA somatic bs id pairs and RNA bs ids run on cavatica
-cav_fn = args.cav
 dna_pairs = get_tn_pair_data(args.cav, bs_ids_blacklist)
 
 # gathering norm sample IDS
@@ -248,8 +244,6 @@ pt_head = '\n'.join(config_data['ds_pt_desc'])
 # IMPORTANT! will use external sample id as sample id, and bs id as a specimen id
 samp_head = '\n'.join(config_data['ds_samp_desc'])
 
-# output RNA key
-pt_RNA = {}
 for dx in master_dict:
     sys.stderr.write('Outputting results for ' + dx + '\n')
     os.mkdir(out_dir + dx)
@@ -261,7 +255,6 @@ for dx in master_dict:
     for pt_id in sorted(master_dict[dx]):
         # track DNA/RNA pairs, adjust sample ID where needed for matched case, unmatched aliquot
         temp = {}
-        # pt_RNA = {}
         f = 0
         cur_pt = master_dict[dx][pt_id]
         for samp_id in sorted(cur_pt['samples']):
@@ -299,10 +292,6 @@ for dx in master_dict:
                 temp[samp_id]['ct'] = f2
                 temp[samp_id]['RNA'] = 1
                 bs_ids.append(cur_samp['RNA']['specimen_id'])
-                pt_RNA[samp_id] = {}
-                pt_RNA[samp_id]['ds'] = samp_id
-                pt_RNA[samp_id]['bs'] = cur_samp['RNA']['specimen_id']
-                pt_RNA[samp_id]['rsem'] = cur_samp['RNA']['rsem']
 
             if f2 > 0:
                 temp[samp_id]['entry'] = '\t'.join((pt_id, samp_id, ';'.join(bs_ids), cdx, cdx, loc, tumor_type, samp_type, norm_samp, norm_spec, samp_id)) + '\n'
@@ -351,8 +340,6 @@ for dx in master_dict:
                         sys.stderr.write('Mismatched aliquots for case ID ' + new_id + ' found, renaming sample\n')
                         d_dict = temp[d_id]['entry'].rstrip('\n').split('\t')
                         r_dict = temp[r_id]['entry'].rstrip('\n').split('\t')
-                        # rna_out.write(r_id + '\t' + new_id + '\t' + pt_RNA[r_id]['bs'] + '\n')
-                        pt_RNA[r_id]['ds'] = new_id
                         new_samp = d_dict
                         new_samp[1] = new_id
                         new_samp[2] = ';'.join((d_dict[2], r_dict[2]))
@@ -388,10 +375,5 @@ for dx in master_dict:
             sys.stderr.write('WARN: ' + pt_id + ' skipped, all samples were in blacklist\n')
     out_samp.close()
     out_pt.close()
-if config_data['rna_flag'] == 1:
-    mappingFile = open('mappingFile.txt', 'w')
-    for samp_id in pt_RNA:
-        mappingFile.write(pt_RNA[samp_id]['ds'] + '\t' + pt_RNA[samp_id]['rsem'] + '\n')
-    mappingFile.close()
 sys.stderr.write('Outputting complete, check files\n')
 

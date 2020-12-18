@@ -49,3 +49,13 @@ def build_samp_id(style, t_header, info):
         samp_id = info[sid_idx].split("-")[2]
         return samp_id
 
+def format_smaple_id(style, sid):
+    if style == 'cbttc_dna_std':
+        # sample ID will consist of kf external_sample_id with .SUFFIX removed
+        samp_id = sid.split('.')[0]
+        return samp_id
+
+    elif style == 'cbttc_norm_std':
+        # sample ID will consist of kf external_sample_id with .SUFFIX removed
+        samp_id = sid.split('.')[:-1][0]
+        return samp_id
