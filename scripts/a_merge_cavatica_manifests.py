@@ -102,15 +102,16 @@ def get_resources_from_cavatica_projects(project_ids, config_data, skip_dict = {
         folders: List[File] = list(project.get_files())
         for folder in folders:
             if folder.is_folder:
-                # TODO: getting only 5 file fore testing purpose
-                response = api.files.bulk_get(folder.list_files())
-                for record in response:
-                    if record.valid:
-                        name = record.resource.name
-                        parts = name.split('.')
-                        ext = ".".join(parts[1:])
-                        if ext in valid_extensions:
-                            resources.append(record.resource)
-                    else:
-                        print(record.error)
+                for x in range(0, folder.list_files().total, 50):
+                    response = api.files.bulk_get(folder.list_files(offset=x))
+                    for record in response:
+                        if record.valid:
+                            name = record.resource.name
+                            parts = name.split('.')
+                            ext = ".".join(parts[1:])
+                            #print(record.resource.__dict__)
+                            if ext in valid_extensions:
+                                resources.append(record.resource)
+                        else:
+                            print(record.error)
     return get_filtered_resources(resources, config_data, skip_dict)

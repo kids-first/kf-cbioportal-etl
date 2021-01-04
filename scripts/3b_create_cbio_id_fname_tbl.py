@@ -13,7 +13,7 @@ def process_ds(dsname, cav_dict, out):
         parts = dsname.split('/')
         cbio_proj = parts[-2]
         # project/disease name should be name of directory hosting datasheet
-        sys.stderr.write('Processing ' + parts[-2] + ' project' + '\n')
+        sys.stderr.write('Processing ' + cbio_proj + ' project' + '\n')
         cur_ds = open(dsname)
         for i in range(0, 4, 1):
             next(cur_ds)
@@ -70,7 +70,7 @@ for line in manifest:
             ftype = 'fusion'
         cav_dict[bs_ids][ftype] = fname
 
-flist = subprocess.check_output('find ./datasheets -name data_clinical_sample.txt', shell=True)
+flist = subprocess.check_output('find /Users/kalletlak/Documents/datasheets -name data_clinical_sample.txt', shell=True)
 
 ds_list = flist.decode().split('\n')
 if ds_list[-1] == '':
