@@ -50,21 +50,26 @@ def get_filtered_resources(resources:List[File], config_data, skip_dict = {}):
                 cav_dict[t_bs_id] = {}
                 cav_dict[t_bs_id]['atype'] = "RNA"
                 cav_dict[t_bs_id]['fname'] = []
+                cav_dict[t_bs_id]['resources'] = []
                 cav_dict[t_bs_id]['t_bs_id'] = t_bs_id
                 cav_dict[t_bs_id]['project'] = []
             cav_dict[t_bs_id]['project'].append(project)
             cav_dict[t_bs_id]['fname'].append(fname)
+            cav_dict[t_bs_id]['resources'].append(resource)
+            
         elif ext in dna_ext_list:
             dkey = t_bs_id + n_bs_id
             if dkey not in cav_dict:
                 cav_dict[dkey] = {}
                 cav_dict[dkey]['atype'] = "DNA"
                 cav_dict[dkey]['fname'] = []
+                cav_dict[dkey]['resources'] = []
                 cav_dict[dkey]['t_bs_id'] = t_bs_id
                 cav_dict[dkey]['n_bs_id'] = n_bs_id
                 cav_dict[dkey]['project'] = []
             cav_dict[dkey]['project'].append(project)
             cav_dict[dkey]['fname'].append(fname)
+            cav_dict[dkey]['resources'].append(resource)
     bs_ids_blacklist = {}
     dna_pairs = {}
     for key, value in cav_dict.items():
@@ -84,7 +89,7 @@ def get_filtered_resources(resources:List[File], config_data, skip_dict = {}):
     return filteredResources
 
 
-def get_resources_from_cavatica_projects(project_ids, config_data, skip_dict = {}) -> List[File]:
+def get_resources_from_cavatica_projects(project_ids, config_data, skip_dict = {}):
     valid_extensions = []
     rna_ext_dict = config_data['rna_ext_list']
     for key in rna_ext_dict:
@@ -102,15 +107,15 @@ def get_resources_from_cavatica_projects(project_ids, config_data, skip_dict = {
         folders: List[File] = list(project.get_files())
         for folder in folders:
             if folder.is_folder:
-                for x in range(0, folder.list_files().total, 50):
-                    response = api.files.bulk_get(folder.list_files(offset=x))
+                for x in range(0, 5, 1):
+                    response = api.files.bulk_get(folder.list_files(offset=x, limit=1))
                     for record in response:
                         if record.valid:
                             name = record.resource.name
                             parts = name.split('.')
                             ext = ".".join(parts[1:])
-                            #print(record.resource.__dict__)
                             if ext in valid_extensions:
+                                
                                 resources.append(record.resource)
                         else:
                             print(record.error)

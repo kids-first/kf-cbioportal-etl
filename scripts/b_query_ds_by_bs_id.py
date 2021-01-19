@@ -124,7 +124,7 @@ def query_dataservice_bs_id(bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_attrs, 
         sys.stderr.write(str(e) + "\n")
     return result
 
-def get_resource_information(resources:List[File], config_data):
+def get_resource_information(resources, config_data):
     x = 1
     m = 100
     norm_out_fh = []

@@ -32,6 +32,8 @@ from .sample_id_builder_helper import format_smaple_id
 from .a_merge_cavatica_manifests import get_resources_from_cavatica_projects
 from .b_query_ds_by_bs_id import get_resource_information
 from .c_create_data_sheets import create_master_dict
+from .create_cbio_id_fname_tbl import process_ds_new
+
 # START: STEP 1
 
 def get_diagnosis_cbio_disease_mapping(url):
@@ -88,8 +90,37 @@ if __name__ == '__main__':
     filteredResources = get_resources_from_cavatica_projects(['zhangb1/pnoc003-cbio-data'], config_data, {})
     dna_pairs = get_tn_pair_data(filteredResources)
 
-    tum_out_fh, norm_out_fh = get_resource_information(filteredResources, config_data)
+    resourceSet = {}
+    # tum_out_fh, norm_out_fh = get_resource_information(filteredResources, config_data)
 
-    dx_dict = get_diagnosis_cbio_disease_mapping(config_data['dx_tbl_fn'])
-    norm_samp_id = get_norm_info(norm_out_fh)
-    create_master_dict(config_data, tum_out_fh, dx_dict, norm_samp_id, dna_pairs)
+    # dx_dict = get_diagnosis_cbio_disease_mapping(config_data['dx_tbl_fn'])
+    # norm_samp_id = get_norm_info(norm_out_fh)
+    # create_master_dict(config_data, tum_out_fh, dx_dict, norm_samp_id, dna_pairs)
+        
+    #print(filteredResources)
+
+    filteredResourceSet = {}
+
+    for filteredResource in filteredResources:
+        if filteredResource['atype'] == 'DNA':
+            key = filteredResource['t_bs_id'] + filteredResource['n_bs_id'];
+            filteredResourceSet[key] = filteredResource
+        elif filteredResource['atype'] == 'RNA':
+            filteredResourceSet[filteredResource['t_bs_id']] = filteredResource
+
+    #download all files
+    # out_dir = '/Users/kalletlak/Documents/temorary/data'
+
+    # try:
+    #     os.makedirs(out_dir)
+    # except:
+    #     sys.stderr.write(out_dir + ' already exists.\n')
+    # for filteredResource in filteredResources:
+    #     resource:File
+    #     for resource in filteredResource['resources']:
+    #         resource.download(path='/Users/kalletlak/Documents/temorary/data/'+resource.name)
+
+    process_ds_new(config_data, filteredResourceSet)
+
+
+

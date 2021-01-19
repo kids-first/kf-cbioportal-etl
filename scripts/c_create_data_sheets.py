@@ -21,7 +21,7 @@ import importlib
 from .sample_id_builder_helper import format_smaple_id
 
 v_status_dict = {'Alive': 'LIVING', 'Deceased': 'DECEASED'}
-out_dir = '/Users/kalletlak/Documents/datasheets/'
+out_dir = '/Users/kalletlak/Documents/temorary/datasets/'
 
 def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pairs, cl_supp = None):
 
