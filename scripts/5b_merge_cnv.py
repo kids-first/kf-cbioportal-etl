@@ -5,6 +5,7 @@ import argparse
 import json
 import subprocess
 import concurrent.futures
+import pandas as pd
 import re
 from get_file_metadata_helper import get_file_metadata
 
@@ -21,6 +22,17 @@ def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
             cur_cnv_dict[gene][samp_id] = value
     return cur_cnv_dict
 
+def get_ploidy(obj):
+    info = obj.resource.content().split('\n')
+    info_dict = {}
+    for datum in info:
+        try:
+            (key, value) = datum.split('\t')
+            info_dict[key] = value
+        except Exception as e:
+            sys.stderr.write("WARN: " + str(e) + " entry could not be split\n")
+    return info_dict['Output_Ploidy']
+
 
 def process_table(cbio_dx, file_meta_dict):
     try:
@@ -33,6 +45,8 @@ def process_table(cbio_dx, file_meta_dict):
 
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             orig_fname = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
+            kf_bs_id = file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id']
+            ploidy = get_ploidy(api.files.get(manifest.loc[kf_bs_id]['id']))
             parts = re.search('^(.*)\.' + orig_suffix, orig_fname)
             gene_fname = parts.group(1) + w_gene_suffix
             sys.stderr.write('Found relevant cnv to process ' + ' ' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + ' '
@@ -47,7 +61,7 @@ def process_table(cbio_dx, file_meta_dict):
                 if samp in cur_cnv_dict[gene]:
                     new_cnv.write('\t' + cur_cnv_dict[gene][samp])
                 else:
-                    new_cnv.write('\t2')
+                    new_cnv.write('\t' + ploidy)
             new_cnv.write('\n')
         new_cnv.close()
     except Exception as e:
@@ -59,8 +73,12 @@ parser = argparse.ArgumentParser(description='Merge cnv files using cavatica tas
 parser.add_argument('-t', '--table', action='store', dest='table',
                     help='Table with cbio project, kf bs ids, cbio IDs, and file names')
 parser.add_argument('-n', '--cnv-dir-gene', action='store', dest='cnv_dir', help='cnv as gene file directory')
+parser.add_argument('-m', '--info_manifest', action='store', dest='manifest', help='cavatica cfree info file manifest')
 parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
                                                                                'data locations')
+parser.add_argument('-p', '--profile', action='store', dest='profile', help='cavatica profile name. requires '
+                                                                            '.sevenbridges/credentials file be present')
+
 
 args = parser.parse_args()
 with open(args.config_file) as f:
@@ -68,6 +86,14 @@ with open(args.config_file) as f:
 cnv_dir = args.cnv_dir
 if cnv_dir[-1] != '/':
     cnv_dir += '/'
+manifest = pd.read_csv(args.manifest)
+manifest.set_index(['Kids First Biospecimen ID Tumor'], inplace=True)
+
+config = sbg.Config(profile=args.profile)
+api = sbg.Api(config=config, error_handlers=[
+                sbg.http.error_handlers.rate_limit_sleeper,
+                sbg.http.error_handlers.maintenance_sleeper])
+
 
 orig_suffix = config_data['dna_ext_list']['copy_number']
 w_gene_suffix = '.CNVs.Genes.copy_number'
