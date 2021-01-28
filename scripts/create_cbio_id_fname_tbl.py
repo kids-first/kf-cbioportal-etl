@@ -8,6 +8,9 @@ from sevenbridges.models.file import File
 import sevenbridges as sbg
 import numpy as np
 import pandas as pd
+import concurrent.futures
+from scipy import stats
+
 # def process_ds(dsname, cav_dict, out):
 #     try:
 #         # last item in find will likely be empty after split
@@ -92,6 +95,7 @@ def process_ds_new(config_data, resourceSet):
         ds_list.pop()
 
     sbg_api_client = sbg.Api(url='https://cavatica-api.sbgenomics.com/v2', token='296f647e655b4ff2acbc06f92a56b733')
+    rsem_files_by_project = {}
 
     for dpath in ds_list:
         try:
@@ -126,9 +130,6 @@ def process_ds_new(config_data, resourceSet):
                         studyResources.append(resource)
                     else:
                         sys.stderr.write('WARNING: ' + key + ' nor ' + bs_id + ' found in data sheet entry\n' + entry + 'Check inputs!\n')
-                        
-                        
-            cnv_extension = config_data['dna_ext_list']['copy_number']
 
             fileSet = {}
             for studyResource in studyResources:
@@ -142,17 +143,22 @@ def process_ds_new(config_data, resourceSet):
                         fileSet[ext].append(resource)
                     else:
                         fileSet[ext] = [resource]
-            
+
             maf_extension = config_data['dna_ext_list']['mutation']
-            
+            cnv_extension = config_data['dna_ext_list']['copy_number']
+            rsem_extension = config_data['rna_ext_list']['expression']
             if maf_extension in fileSet:
                 add_maf_file(cbio_proj, "/".join(parts[:-1]),  fileSet[maf_extension])
             if cnv_extension in fileSet:
                 add_cnv_file(config_data, sbg_api_client, cbio_proj, "/".join(parts[:-1]),  fileSet[cnv_extension])
+            if rsem_extension in fileSet:
+                rsem_files_by_project[cbio_proj] = fileSet[rsem_extension]
 
         except Exception as e:
             print(e)
             sys.exit()
+
+    add_rsem_file(config_data, sbg_api_client, rsem_files_by_project)
 
 def add_maf_file(study_name, study_dir, study_maf_files):
     cur_head = 'Hugo_Symbol	Entrez_Gene_Id	Center	NCBI_Build	Chromosome	Start_Position	End_Position	Strand	Variant_Classification	Variant_Type	Reference_Allele	Tumor_Seq_Allele1	Tumor_Seq_Allele2	dbSNP_RS	dbSNP_Val_Status	Tumor_Sample_Barcode	Matched_Norm_Sample_Barcode	Match_Norm_Seq_Allele1	Match_Norm_Seq_Allele2	Tumor_Validation_Allele1	Tumor_Validation_Allele2	Match_Norm_Validation_Allele1	Match_Norm_Validation_Allele2	Verification_Status	Validation_Status	Mutation_Status	Sequencing_Phase	Sequence_Source	Validation_Method	Score	BAM_File	Sequencer	Tumor_Sample_UUID	Matched_Norm_Sample_UUID	HGVSc	HGVSp	HGVSp_Short	Transcript_ID	Exon_Number	t_depth	t_ref_count	t_alt_count	n_depth	n_ref_count	n_alt_count	all_effects	Allele	Gene	Feature	Feature_type	Consequence	cDNA_position	CDS_position	Protein_position	Amino_acids	Codons	Existing_variation	ALLELE_NUM	DISTANCE	STRAND_VEP	SYMBOL	SYMBOL_SOURCE	HGNC_ID	BIOTYPE	CANONICAL	CCDS	ENSP	SWISSPROT	TREMBL	UNIPARC	RefSeq	SIFT	PolyPhen	EXON	INTRON	DOMAINS	AF	AFR_AF	AMR_AF	ASN_AF	EAS_AF	EUR_AF	SAS_AF	AA_AF	EA_AF	CLIN_SIG	SOMATIC	PUBMED	MOTIF_NAME	MOTIF_POS	HIGH_INF_POS	MOTIF_SCORE_CHANGE	IMPACT	PICK	VARIANT_CLASS	TSL	HGVS_OFFSET	PHENO	MINIMISED	ExAC_AF	ExAC_AF_AFR	ExAC_AF_AMR	ExAC_AF_EAS	ExAC_AF_FIN	ExAC_AF_NFE	ExAC_AF_OTH	ExAC_AF_SAS	GENE_PHENO	FILTER	flanking_bps	vcf_id	vcf_qual	ExAC_AF_Adj	ExAC_AC_AN_Adj	ExAC_AC_AN	ExAC_AC_AN_AFR	ExAC_AC_AN_AMR	ExAC_AC_AN_EAS	ExAC_AC_AN_FIN	ExAC_AC_AN_NFE	ExAC_AC_AN_OTH	ExAC_AC_AN_SAS	ExAC_FILTER	gnomAD_AF	gnomAD_AFR_AF	gnomAD_AMR_AF	gnomAD_ASJ_AF	gnomAD_EAS_AF	gnomAD_FIN_AF	gnomAD_NFE_AF	gnomAD_OTH_AF	gnomAD_SAS_AF	vcf_pos'
@@ -297,3 +303,76 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
     except Exception as e:
         sys.stderr.write(str(e))
         sys.exit(1)
+
+
+def mt_collate_df(resource):
+    sample_id = resource.metadata['sample_id']
+    rsem_file = '/Users/kalletlak/Documents/temorary/data/' + resource.name    
+    current = pd.read_csv(rsem_file, sep="\t", index_col=0)
+    cur_subset = current[['FPKM']]
+    cur_subset.rename(columns={"FPKM": sample_id}, inplace=True)
+    return cur_subset
+
+
+def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
+    
+    seen_list = []
+    df_list = []
+    for project in rsem_resources_by_study:
+        with concurrent.futures.ThreadPoolExecutor(config_data['cpus']) as executor:
+            results = {executor.submit(mt_collate_df, rsem_file): rsem_file for rsem_file in rsem_resources_by_study[project]}
+            for result in concurrent.futures.as_completed(results):
+                df_list.append(result.result())
+    master_tbl = pd.concat(df_list, axis=1)
+    del df_list
+    # remove duplicate columns/sample_ids
+    master_tbl = (master_tbl.loc[:,~master_tbl.columns.duplicated()])
+    master_tbl.reset_index(inplace=True)
+
+    gene_id_sym_list = master_tbl['gene_id'].to_list()
+    gene_sym_list = []
+    for entry in gene_id_sym_list:
+        parts = entry.split('_')
+        gene_sym = '_'.join(parts[1:])
+        gene_sym_list.append(gene_sym)
+    master_tbl['Hugo_Symbol'] = gene_sym_list
+    master_tbl.drop(columns =["gene_id"], inplace = True)
+    dup_hugo_tbl = master_tbl[master_tbl.duplicated(['Hugo_Symbol'])]
+    rpt_sym = dup_hugo_tbl.Hugo_Symbol.unique()
+
+    sample_list = (master_tbl.columns.difference(['Hugo_Symbol']))
+    for sym in rpt_sym:
+        gene_eval = master_tbl.loc[master_tbl['Hugo_Symbol'] == sym]
+        mean_expr = gene_eval[sample_list].mean(axis=1).sort_values(ascending=False)
+        to_drop = list(mean_expr.index)[1:]
+        master_tbl.drop(to_drop, inplace=True)
+    
+    master_tbl.set_index('Hugo_Symbol', inplace=True)
+    gene_sym_list = master_tbl.index
+
+    sys.stderr.flush()
+
+    for project in rsem_resources_by_study:
+        sampleIds = []
+        for resource in rsem_resources_by_study[project]:
+            sampleIds.append(resource.metadata['sample_id'])
+        expr_fname = '/Users/kalletlak/Documents/temorary/datasets/' + project + '/data_rna_seq_v2_mrna.txt'
+        master_tbl[sampleIds].to_csv(expr_fname, sep='\t', mode='w', index=True)
+
+
+    z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis = 1)
+    del master_tbl
+    master_zscore_log = pd.DataFrame(z_scored, index=gene_sym_list, columns=sample_list)
+    # this may be memory-intensive for some insane reson...
+    sys.stderr.write("Replacing NaN with 0\n")
+    sys.stderr.flush()
+    master_zscore_log.fillna(0, inplace=True)
+    sys.stderr.write('Outputing z scored results\n')
+    sys.stderr.flush()
+
+    for project in rsem_resources_by_study:
+        sampleIds = []
+        for resource in rsem_resources_by_study[project]:
+            sampleIds.append(resource.metadata['sample_id'])
+        zscore_fname = '/Users/kalletlak/Documents/temorary/datasets/' + project + '/data_rna_seq_v2_mrna_median_Zscores.txt'
+        master_zscore_log[sampleIds].to_csv(zscore_fname, sep='\t', mode='w', index=True)
