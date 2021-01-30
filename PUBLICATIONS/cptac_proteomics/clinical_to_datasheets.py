@@ -84,9 +84,9 @@ patient_out = open("data_clinical_patient.txt", "w")
 patient_head_list = []
 sample_head_list = []
 for entry in header:
-    if h_dict[entry][1]:
+    if h_dict[entry][1] == '1':
         sample_head_list = build_header(sample_head_list, entry)
-    if h_dict[entry][2]:
+    if h_dict[entry][2] == '1':
         patient_head_list = build_header(patient_head_list, entry)
 # add at end specially calculated age column
 age_header = ["AGE", "Age at which the condition or disease was first diagnosed, in years", "NUMBER", "1", "AGE"]
@@ -123,9 +123,9 @@ for data in clin_data:
                     value = str(math.floor(float(ovr_surv)/30.5))
             else:
                 value = str(math.floor(float(value)/30.5))
-        if h_dict[header[i]][1]:
+        if h_dict[header[i]][1] == '1':
             sample_to_print.append(value)
-        if h_dict[header[i]][2]:
+        if h_dict[header[i]][2] == '1':
             patient_to_print.append(value)
     age = float(age_at_last_known)
     if ovr_surv != -1:
