@@ -2,6 +2,7 @@ import sys
 import argparse
 import json
 import math
+import pdb
 
 
 def format_desc(entry):
@@ -90,29 +91,51 @@ for entry in header:
         patient_head_list = build_header(patient_head_list, entry)
 # add at end specially calculated age column
 age_header = ["AGE", "Age at which the condition or disease was first diagnosed, in years", "NUMBER", "1", "AGE"]
+dfs_status =  ["DFS_STATUS", "Disease free (months) since initial treatment", "STRING", "1", "DFS_STATUS"]
 for i in range(len(age_header)):
     patient_head_list[i].append(age_header[i])
+    patient_head_list[i].append(dfs_status[i])
+# add DFS STATUS
+
 # output headers to files
 for i in range(0, len(age_header)-1, 1):
     sample_out.write("#" + "\t".join(sample_head_list[i]) + "\n")
     patient_out.write("#" + "\t".join(patient_head_list[i]) + "\n")
 sample_out.write("\t".join(sample_head_list[-1]) + "\n")
 patient_out.write("\t".join(patient_head_list[-1]) + "\n")
+# pt dict to track if already seen to avoid duplicate output
+pt_id_dict = {}
+diagnosis_type_dict = {"Initial CNS Tumor": "primary", "Progressive": "progression", "Recurrence": "recurrence" }
 
 # iterate through data, calculate field values in special cases
+
 for data in clin_data:
     info = data.rstrip('\n').split('\t')
-    ovr_surv, age_at_last_known = -1, -1
+    pt_id = info[header.index("Kids.First.ID")]
+    if pt_id in pt_id_dict:
+        pt_id_dict[pt_id] += 1
+    else:
+        pt_id_dict[pt_id] = 1
+
+    ovr_surv, age_at_last_known, d_free_mos = -1, -1, "NA"
     sample_to_print = []
     patient_to_print = []
     for i in range(len(info)):
         value = info[i]
+        if h_dict[header[i]][3] == "NUMBER":
+            try:
+                float(value)
+            except ValueError:
+                value = "NA"
         if header[i] == "Last.Known.Clinical.Status":
             if value.startswith("Deceased"):
                 value = "DECEASED"
             else:
                 value = "LIVING"
-        elif header[i] == "Overall.Survival" and value != "Not Reported":
+        elif header[i] == "diagnosis_type":
+            if value in diagnosis_type_dict:
+                value = diagnosis_type_dict[value]
+        elif header[i] == "Overall.Survival" and value != "NA":
             ovr_surv = int(value)
             value = str(math.floor(float(value)/30.5))
         elif header[i] == "Age.at.Last.Known.Clinical.Status":
@@ -123,16 +146,27 @@ for data in clin_data:
                     value = str(math.floor(float(ovr_surv)/30.5))
             else:
                 value = str(math.floor(float(value)/30.5))
+                d_free_mos = value
         if h_dict[header[i]][1] == '1':
             sample_to_print.append(value)
-        if h_dict[header[i]][2] == '1':
+        if h_dict[header[i]][2] == '1' and pt_id_dict[pt_id] == 1:
             patient_to_print.append(value)
-    age = float(age_at_last_known)
-    if ovr_surv != -1:
-        age -= float(ovr_surv) 
-    age = str(math.floor(age/365.25))
-    patient_to_print.append(age)
+    if pt_id_dict[pt_id] == 1:
+        age = float(age_at_last_known)
+        if ovr_surv != -1:
+            age -= float(ovr_surv) 
+        age = str(math.floor(age/365.25))
+        patient_to_print.append(age)
+        # pdb.set_trace()
+        d_free_status = "DiseaseFree"
+        try:
+            int(d_free_mos)
+            d_free_status = "Recurred/Progressed"
+        except ValueError:
+            pass
+        patient_to_print.append(d_free_status)
+        patient_out.write("\t".join(patient_to_print) + "\n")
     sample_out.write("\t".join(sample_to_print) + "\n")
-    patient_out.write("\t".join(patient_to_print) + "\n")
+    
 sample_out.close()
 patient_out.close()
