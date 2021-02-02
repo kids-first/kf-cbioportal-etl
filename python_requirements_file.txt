@@ -1,0 +1,4 @@
+sevenbridges-python
+numpy
+pandas
+scipy
