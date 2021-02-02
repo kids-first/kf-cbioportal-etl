@@ -26,6 +26,7 @@ def process_meta_study(meta_data, output_dir, study):
         canc_study_id = meta_data["cancer_study_identifier"]
     canc_study_id += meta_data['dir_suffix']
     meta_study.write("cancer_study_identifier: " + canc_study_id + "\n")
+    meta_study.write("reference_genome: " + meta_data["reference_genome"] + "\n")
     name = dx_dict[study]
     if meta_data["name_append"] != "":
         name += " " + meta_data["name_append"]
@@ -109,6 +110,7 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
     muts_list = []
     cna_list = []
     rna_list = []
+    protein_list = []
 
     muts_fname = output_dir + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
     muts_file = open(muts_fname)
@@ -134,6 +136,13 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
         rna_file = open(rna_fname)
         head = next(rna_file)
         rna_list = head.rstrip('\n').split('\t')[1:]
+    if data_dict["merged_protein"] == 1:
+        # assumes header is Hugo_symbols\tsample_name1\tsamplename2 etc, if entrez ID, will need to change!
+        prot_fname = output_dir + config_data["merged_protein"]["dtypes"]["quantification"]["cbio_name"]
+        prot_file = open(prot_fname)
+        head = next(prot_file)
+        prot_list = head.rstrip('\n').split('\t')[1:]
+
         # fusion_list = rna_list
     # muts_plus_fusion = muts_list + fusion_list
     # muts_plus_fusion = [*{*muts_plus_fusion}]
@@ -153,6 +162,10 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
         if len(cna_list) > 0:
             three_way = list(set(muts_list) & set(cna_list) & set(rna_list))
             write_case_list('cases_3way_complete', config_data['cases_3way_complete'], three_way, case_dir)
+    if len(prot_list) > 0:
+        write_case_list('cases_rppa', config_data['cases_rppa'], prot_list, case_dir)
+        all_cases += prot_list
+
     all_cases = [*{*all_cases}]
     write_case_list('cases_all', config_data['cases_all'], all_cases, case_dir)
 
@@ -194,7 +207,7 @@ for dx in dx_dict:
                 sys.stderr.write(cur_dir + ' already exists.\n')
             sys.stderr.write("Creating meta study file for " + dx + "\n")
             canc_study_id = process_meta_study(config_data['study'], cur_dir, dx)
-            data_keys = {"merged_mafs": 0, "merged_cnvs": 0, "merged_rsem": 0}
+            data_keys = {"merged_mafs": 0, "merged_cnvs": 0, "merged_rsem": 0, "merged_protein": 0}
             for key in data_keys:
                 if config_data[key]["dir"] != "":
                     data_keys[key] = 1
@@ -203,8 +216,14 @@ for dx in dx_dict:
                 else:
                     sys.stderr.write("Skipping meta files for " + key + "\n")
             sys.stderr.write("Creating clinical meta sheets and links\n")
-            process_clinical_data(config_data["data_sheets"], cur_dir, canc_study_id, dx)
-            create_case_lists(data_keys, cur_dir, canc_study_id, dx)
+            try:
+                process_clinical_data(config_data["data_sheets"], cur_dir, canc_study_id, dx)
+            except Exception as e:
+                sys.stderr.write(str(e) + "\nerror at process_clinical_data step for " + dx + "!\n")
+            try:
+                create_case_lists(data_keys, cur_dir, canc_study_id, dx)
+            except Exception as e:
+                sys.stderr.write(str(e) + "\nerror at create_case_lists step for " + dx + "!\n")
         else:
             sys.stderr.write("No datasheets for " + dx + ", skipping!\n")
     except Exception as e:
