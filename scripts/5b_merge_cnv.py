@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import sys
+import sevenbridges as sbg
+from sevenbridges.http.error_handlers import rate_limit_sleeper, maintenance_sleeper
 import os
 import argparse
 import json
@@ -23,7 +25,7 @@ def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
     return cur_cnv_dict
 
 def get_ploidy(obj):
-    info = obj.resource.content().split('\n')
+    info = obj.content().split('\n')
     info_dict = {}
     for datum in info:
         try:
@@ -42,17 +44,18 @@ def process_table(cbio_dx, file_meta_dict):
         new_cnv = open(out_dir + cbio_dx + '.predicted_cnv.txt', 'w')
         cur_cnv_dict = {}
         s_list = []
-
+        ploidy_dict = {}
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             orig_fname = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
             kf_bs_id = file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id']
-            ploidy = get_ploidy(api.files.get(manifest.loc[kf_bs_id]['id']))
             parts = re.search('^(.*)\.' + orig_suffix, orig_fname)
             gene_fname = parts.group(1) + w_gene_suffix
             sys.stderr.write('Found relevant cnv to process ' + ' ' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + ' '
             + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + ' ' + gene_fname + '\n')
             sys.stderr.flush()
             s_list.append(cbio_tum_id)
+            ploidy = get_ploidy(api.files.get(manifest.loc[kf_bs_id]['id']))
+            ploidy_dict[cbio_tum_id] = ploidy
             cur_cnv_dict = process_cnv(cnv_dir + gene_fname, cur_cnv_dict, cbio_tum_id)
         new_cnv.write('Hugo_Symbol\t' + '\t'.join(s_list) + '\n')
         for gene in cur_cnv_dict:
@@ -61,7 +64,8 @@ def process_table(cbio_dx, file_meta_dict):
                 if samp in cur_cnv_dict[gene]:
                     new_cnv.write('\t' + cur_cnv_dict[gene][samp])
                 else:
-                    new_cnv.write('\t' + ploidy)
+                    # pdb.set_trace()
+                    new_cnv.write('\t' + ploidy_dict[samp])
             new_cnv.write('\n')
         new_cnv.close()
     except Exception as e:

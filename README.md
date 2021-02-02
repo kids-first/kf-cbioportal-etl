@@ -3,7 +3,7 @@ In general, we are creating upload packages converting our data and metadata to 
 ## Software Prerequisites
 
 + `python3` v3.5.3+
-  + `sevenbridges` package (https://sevenbridges-python.readthedocs.io/en/latest/installation/)
+  + `sevenbridges-python` package (https://sevenbridges-python.readthedocs.io/en/latest/installation/)
   + `numpy`, `pandas`, `scipy`
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
 + `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
