@@ -28,14 +28,15 @@ def mt_adjust_cn(obj):
         bs_id = obj.resource.metadata['Kids First Biospecimen ID Tumor']
         samp_id = bs_cbio_dict[bs_id]
         info = obj.resource.content().split('\n')
-        info_dict = {}
+        ploidy = 2
         for datum in info:
             try:
-                (key, value) = datum.split('\t')
-                info_dict[key] = value
+                if datum.startswith('Output_Ploidy'):
+                    (key, value) = datum.split('\t')
+                    ploidy = int(value)
+                    break
             except Exception as e:
                 sys.stderr.write("WARN: " + str(e) + " entry could not be split\n")
-        ploidy = int(info_dict['Output_Ploidy'])
         data[samp_id] = data[samp_id] - ploidy
         min_cn = ploidy * -1
         # adjust discrete low range only in ploidy > 2
