@@ -26,14 +26,14 @@ def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
 
 def get_ploidy(obj):
     info = obj.content().split('\n')
-    info_dict = {}
     for datum in info:
         try:
-            (key, value) = datum.split('\t')
-            info_dict[key] = value
+            if datum.startswith('Output_Ploidy'):
+                (key, value) = datum.split('\t')
+                return value
         except Exception as e:
             sys.stderr.write("WARN: " + str(e) + " entry could not be split\n")
-    return info_dict['Output_Ploidy']
+    return '2' # default if ploidy can't be found
 
 
 def process_table(cbio_dx, file_meta_dict):
