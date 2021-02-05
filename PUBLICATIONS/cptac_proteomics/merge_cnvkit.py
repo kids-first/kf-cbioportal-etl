@@ -27,8 +27,6 @@ def process_file(samp_id):
         return 0
     except Exception as e:
         sys.stderr.write(str(e) + "\nError processing sample " + samp_id + "\n")
-        # pdb.set_trace()
-        # hold = 1
         exit(1)
 
 
@@ -71,13 +69,6 @@ with concurrent.futures.ThreadPoolExecutor(16) as executor:
             sys.stderr.write('Processed ' + str(x) + ' samples\n')
             sys.stderr.flush()
         x += 1
-
-# for samp_id in short:
-#     process_file(samp_id)
-#     if x % m == 0:
-#         sys.stderr.write('Processed ' + str(x) + ' samples\n')
-#         sys.stderr.flush()
-#     x += 1
 
 out = open(out_dir + project + ".discrete_cnvs.txt", "w")
 out.write("Hugo_Symbol\t" + "\t".join(samp_list) + "\n")
