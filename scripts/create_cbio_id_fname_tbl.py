@@ -11,6 +11,9 @@ import pandas as pd
 import concurrent.futures
 from scipy import stats
 
+from .process_fusion_data import add_fusion_file
+
+
 # def process_ds(dsname, cav_dict, out):
 #     try:
 #         # last item in find will likely be empty after split
@@ -147,12 +150,16 @@ def process_ds_new(config_data, resourceSet):
             maf_extension = config_data['dna_ext_list']['mutation']
             cnv_extension = config_data['dna_ext_list']['copy_number']
             rsem_extension = config_data['rna_ext_list']['expression']
+            fusion_extension = config_data['rna_ext_list']['fusion']
             if maf_extension in fileSet:
                 add_maf_file(cbio_proj, "/".join(parts[:-1]),  fileSet[maf_extension])
             if cnv_extension in fileSet:
                 add_cnv_file(config_data, sbg_api_client, cbio_proj, "/".join(parts[:-1]),  fileSet[cnv_extension])
             if rsem_extension in fileSet:
                 rsem_files_by_project[cbio_proj] = fileSet[rsem_extension]
+            if fusion_extension in fileSet:
+                add_fusion_file(config_data, "/".join(parts[:-1]),  fileSet[fusion_extension])
+                # add_fusion_file(cbio_proj, "/".join(parts[:-1]),  fileSet[fusion_extension])
 
         except Exception as e:
             print(e)
@@ -309,13 +316,13 @@ def mt_collate_df(resource):
     sample_id = resource.metadata['sample_id']
     rsem_file = '/Users/kalletlak/Documents/temorary/data/' + resource.name    
     current = pd.read_csv(rsem_file, sep="\t", index_col=0)
-    cur_subset = current[['FPKM']]
+    cur_subset = current.loc[:, ['FPKM']]
     cur_subset.rename(columns={"FPKM": sample_id}, inplace=True)
     return cur_subset
 
 
 def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
-    
+    print('Processing expression files')
     seen_list = []
     df_list = []
     for project in rsem_resources_by_study:
@@ -376,3 +383,46 @@ def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
             sampleIds.append(resource.metadata['sample_id'])
         zscore_fname = '/Users/kalletlak/Documents/temorary/datasets/' + project + '/data_rna_seq_v2_mrna_median_Zscores.txt'
         master_zscore_log[sampleIds].to_csv(zscore_fname, sep='\t', mode='w', index=True)
+
+
+# def add_fusion_file(study_name, study_dir, study_cnv_resources):
+#     sys.stderr.write('Processing fusion for ' + study_name + ' project' + '\n')
+#     if study_dir[-1] != '/':
+#             study_dir += '/'
+#     frame_list = []
+#     for resource in study_cnv_resources:
+#         file_name = resource.name
+#         ann_file = pd.read_csv('/Users/kalletlak/Documents/temorary/data/'+resource.name, sep="\t")
+#         ann_file['Tumor_Sample_Barcode'] = resource.metadata['sample_id']
+#         frame_list.append(ann_file)
+#     concat_frame = pd.concat(frame_list)
+#     del frame_list
+#     fusion_data = concat_frame[['Gene1A', 'Tumor_Sample_Barcode', 'FusionName', 'Caller', 'Fusion_Type']]
+#     del concat_frame
+#     fusion_data = fusion_data.groupby(['Gene1A', 'Tumor_Sample_Barcode', 'FusionName', 'Fusion_Type'])['Caller'].unique().apply(', '.join).reset_index()
+#     fusion_data['Caller'] = fusion_data['Caller'].str.upper()
+#     fusion_data['Center'] = 'Sequencing center'
+#     fusion_data.rename(columns={"Gene1A": "Hugo_Symbol", "FusionName": "Fusion", "Caller": "Method",
+#     "Fusion_Type": "Frame"}, inplace=True)
+#     fusion_data['DNA_support'] = "no"
+#     fusion_data['RNA_support'] = "yes"
+#     # create blank entrez ID column so that 3' gene names can be searched
+#     fusion_data['Entrez_Gene_Id'] = ""
+#     # Reorder table
+#     order_list = ['Hugo_Symbol', 'Entrez_Gene_Id', 'Center', 'Tumor_Sample_Barcode', 'Fusion','DNA_support', 'RNA_support', 'Method', 'Frame']
+#     fusion_data = fusion_data[order_list]
+#     fusion_data.set_index('Hugo_Symbol', inplace=True)
+
+#     fus_file = open(study_dir + 'data_fusions.txt', 'w')
+#     fusion_data.reset_index(inplace=True)
+#     fus_head = "\t".join(fusion_data.columns) + "\n"
+#     fus_file.write(fus_head)
+#     fus_data = list(fusion_data.values)
+#     # "hack" to allow 3' end of fusion to be searched
+#     for data in fus_data:
+#         fus_file.write("\t".join(data) + "\n")
+#         (a, b) = data[4].split('--')
+#         if a != b:
+#             data[0] = b
+#             fus_file.write("\t".join(data) + "\n")
+#     fus_file.close()

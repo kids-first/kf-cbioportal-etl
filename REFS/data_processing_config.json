@@ -5,6 +5,7 @@
   "bed_genes": "./REFS/GRCh38.84.gtf_genes.bed",
   "hugo_tsv": "./REFS/HUGO_EntrezID.tsv",
   "entrez_tsv": "./REFS/EntrezGeneId_HugoGeneSymbol.tsv",
+  "data_files_directory": "/Users/kalletlak/Documents/temorary/data",
   "dna_samp_id_style": "cbttc_dna_std",
   "dna_norm_id_style": "cbttc_norm_std",
   "rna_samp_id_style": "cbttc_rna_std",
@@ -18,7 +19,7 @@
   },
   "ens_gene_list":"./REFS/gencode27_gene_list.txt",
   "script_dir": "./scripts/",
-  "dx_tbl_fn": "https://gist.githubusercontent.com/kalletlak/16c25c8b6bda5136e5153a1ac25507cc/raw/7254fbe8fb59cccfc919fdc1b94871212437c200/pnoc003_dx_index.txt",
+  "dx_tbl_fn": "https://gist.githubusercontent.com/kalletlak/16c25c8b6bda5136e5153a1ac25507cc/raw/eb375afcbcc2def845c7da358362c2e08d12e519/pnoc003_dx_index.txt",
   "cna_flag": 1,
   "cnv_high_gain": 4,
   "cnv_min_len": 50000,
@@ -34,5 +35,18 @@
     "#Patient identifier\tPatient ID used by generator of data\tGender or sex of the patient\tAge at which the condition or disease was first diagnosed, in years\tTumor location\tracial demographic\tethnic demographic\tOverall patient survival status\tOverall survival in months since initial diagnosis",
     "#STRING\tSTRING\tSTRING\tNUMBER\tSTRING\tSTRING\tSTRING\tSTRING\tNUMBER",
     "#1\t1\t1\t1\t1\t1\t1\t1\t1",
-    "PATIENT_ID\tEXTERNAL_PATIENT_ID\tGENDER\tAGE\tTUMOR_SITE\tRACE\tETHNICITY\tOS_STATUS\tOS_MONTHS\n"]
+    "PATIENT_ID\tEXTERNAL_PATIENT_ID\tGENDER\tAGE\tTUMOR_SITE\tRACE\tETHNICITY\tOS_STATUS\tOS_MONTHS\n"],
+  "metadata": {
+    "fusion": {
+      "meta_information": {
+        "stable_id": "fusion",
+        "profile_name": "Predicted RNA fusions",
+        "profile_description": "Fusion data, from openPBTA using arriba and STAR Fusion, annotated and filtered using annoFuse",
+        "genetic_alteration_type": "FUSION",
+        "datatype": "FUSION",
+        "show_profile_in_analysis_tab": "true",
+        "data_filename": "data_fusions.txt"
+      }
+  }
+  }
 }
