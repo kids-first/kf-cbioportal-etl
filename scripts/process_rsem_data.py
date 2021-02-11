@@ -7,9 +7,9 @@ import numpy as np
 
 from .meta_file_utils import add_meta_file
 
-def mt_collate_df(resource):
+def mt_collate_df(config_data,resource):
     sample_id = resource.metadata['sample_id']
-    rsem_file = '/Users/kalletlak/Documents/temorary/data/' + resource.name    
+    rsem_file = config_data['data_files'] + resource.name    
     current = pd.read_csv(rsem_file, sep="\t", index_col=0)
     cur_subset = current.loc[:, ['FPKM']]
     cur_subset.rename(columns={"FPKM": sample_id}, inplace=True)
@@ -21,7 +21,7 @@ def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
     df_list = []
     for project in rsem_resources_by_study:
         with concurrent.futures.ThreadPoolExecutor(config_data['cpus']) as executor:
-            results = {executor.submit(mt_collate_df, rsem_file): rsem_file for rsem_file in rsem_resources_by_study[project]}
+            results = {executor.submit(mt_collate_df, config_data, rsem_file): rsem_file for rsem_file in rsem_resources_by_study[project]}
             for result in concurrent.futures.as_completed(results):
                 df_list.append(result.result())
     master_tbl = pd.concat(df_list, axis=1)
@@ -57,12 +57,13 @@ def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
         sampleIds = []
         for resource in rsem_resources_by_study[project]:
             sampleIds.append(resource.metadata['sample_id'])
-        expr_fname = '/Users/kalletlak/Documents/temorary/datasets/{}/data_rna_seq_v2_mrna.txt'.format(project)
+        config_data['datasets']
+        expr_fname = '{0}/{1}/data_rna_seq_v2_mrna.txt'.format(config_data['datasets'], project)
         master_tbl[sampleIds].to_csv(expr_fname, sep='\t', mode='w', index=True)
 
         #Add meta file
-        meta_file_path = '/Users/kalletlak/Documents/temorary/datasets/{}/meta_rna_seq_v2_mrna.txt'.format(project)
-        add_meta_file(project, config_data["metadata"]["rsem_counts"]["meta_attr"], meta_file_path)
+        meta_file_path = '{0}/{1}/meta_rna_seq_v2_mrna.txt'.format(config_data['datasets'],project)
+        add_meta_file(project, config_data["metadata"]["rsem"]["counts"]["meta_attr"], meta_file_path)
 
 
     z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis = 1)
@@ -79,9 +80,9 @@ def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
         sampleIds = []
         for resource in rsem_resources_by_study[project]:
             sampleIds.append(resource.metadata['sample_id'])
-        zscore_fname = '/Users/kalletlak/Documents/temorary/datasets/{}/data_rna_seq_v2_mrna_median_Zscores.txt'.format(project)
+        zscore_fname = '{0}/{1}/data_rna_seq_v2_mrna_median_Zscores.txt'.format(config_data['datasets'], project)
         master_zscore_log[sampleIds].to_csv(zscore_fname, sep='\t', mode='w', index=True)
 
         #Add meta file
-        meta_file_path = '/Users/kalletlak/Documents/temorary/datasets/{}/meta_rna_seq_v2_mrna_median_Zscores.txt'.format(project)
-        add_meta_file(project, config_data["metadata"]["rsem_zscore"]["meta_attr"], meta_file_path)
+        meta_file_path = '{0}/{1}/meta_rna_seq_v2_mrna_median_Zscores.txt'.format(config_data['datasets'], project)
+        add_meta_file(project, config_data["metadata"]["rsem"]["zscore"]["meta_attr"], meta_file_path)

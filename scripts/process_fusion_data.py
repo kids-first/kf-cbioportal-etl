@@ -24,14 +24,11 @@ def add_fusion_file(config_data, study_dir, study_resources):
     study_name = study_dir.split('/')[-2]
     
     sys.stderr.write('Processing fusion for ' + study_name + ' project' + '\n')
-    data_files_directory = config_data['data_files_directory']
-    if data_files_directory[-1] != '/':
-        data_files_directory += '/'
+    data_files_directory = config_data['data_files']
     frame_list = []
     for resource in study_resources:
         ann_file = pd.read_csv(data_files_directory+resource.name, sep="\t")
         ann_file['Tumor_Sample_Barcode'] = resource.metadata['sample_id']
-        print(get_sequencing_center_info(config_data, ann_file.at[0, 'Sample']))
         ann_file['Center'] = get_sequencing_center_info(config_data, ann_file.at[0, 'Sample'])
         frame_list.append(ann_file)
     fusion_data = pd.concat(frame_list)

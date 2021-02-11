@@ -74,6 +74,15 @@ if __name__ == '__main__':
     with open(config_file) as f:
         config_data = json.load(f)
 
+    if 'working_directory' not in config_data:
+        parts = os.getcwd().split('/')
+        config_data['working_directory'] = "/".join(parts[:-1])
+    
+    if config_data['working_directory'][-1] != '/':
+        config_data['working_directory'] += '/'
+    config_data['datasets'] = config_data['working_directory'] + 'datasets/'
+    config_data['data_files'] = config_data['working_directory'] + 'data_files/'
+
     valid_extensions = []
     rna_ext_dict = config_data['rna_ext_list']
     for key in rna_ext_dict:

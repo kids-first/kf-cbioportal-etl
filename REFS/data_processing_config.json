@@ -5,7 +5,7 @@
   "bed_genes": "./REFS/GRCh38.84.gtf_genes.bed",
   "hugo_tsv": "./REFS/HUGO_EntrezID.tsv",
   "entrez_tsv": "./REFS/EntrezGeneId_HugoGeneSymbol.tsv",
-  "data_files_directory": "/Users/kalletlak/Documents/temorary/data",
+  "working_directory": "/Users/kalletlak/Documents/temorary",
   "dna_samp_id_style": "cbttc_dna_std",
   "dna_norm_id_style": "cbttc_norm_std",
   "rna_samp_id_style": "cbttc_rna_std",
@@ -48,24 +48,59 @@
         "data_filename": "data_fusions.txt"
       }
     },
-    "rsem_counts": {
-      "meta_attr": {
-        "stable_id": "rna_seq_v2_mrna",
-        "profile_name": "RNA expression",
-        "profile_description": "Expression levels from RNA-Seq (rsem FPKM)",
-        "genetic_alteration_type": "MRNA_EXPRESSION",
-        "datatype": "CONTINUOUS",
-        "show_profile_in_analysis_tab": "false"
+    "rsem": {
+      "counts": {
+        "meta_attr": {
+          "stable_id": "rna_seq_v2_mrna",
+          "profile_name": "RNA expression",
+          "profile_description": "Expression levels from RNA-Seq (rsem FPKM)",
+          "genetic_alteration_type": "MRNA_EXPRESSION",
+          "datatype": "CONTINUOUS",
+          "show_profile_in_analysis_tab": "false"
+        }
+      },
+      "zscore": {
+        "meta_attr": {
+          "stable_id": "rna_seq_v2_mrna_median_Zscores",
+          "profile_name": "RNA expression z-scores",
+          "profile_description": "Expression levels from RNA-Seq, Z scores of log2(FPKM + 1) values",
+          "genetic_alteration_type": "MRNA_EXPRESSION",
+          "datatype": "Z-SCORE",
+          "show_profile_in_analysis_tab": "true"
+        }
       }
     },
-    "rsem_zscore": {
+    "cnv": {
+      "linear": {
+          "meta_attr": {
+              "stable_id": "linear_CNA",
+              "profile_name": "copy-number values",
+              "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls smaller than 50KB",
+              "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+              "datatype": "CONTINUOUS",
+              "show_profile_in_analysis_tab": "false"
+          }
+
+      },
+      "discrete": {
+          "meta_attr": {
+              "stable_id": "cna",
+              "profile_name": "Binned copy-number values",
+              "profile_description": "Predicted copy number values from WGS (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification",
+              "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+              "datatype": "DISCRETE",
+              "show_profile_in_analysis_tab": "true"
+          }
+      }
+    },
+    "mutation": {
       "meta_attr": {
-        "stable_id": "rna_seq_v2_mrna_median_Zscores",
-        "profile_name": "RNA expression z-scores",
-        "profile_description": "Expression levels from RNA-Seq, Z scores of log2(FPKM + 1) values",
-        "genetic_alteration_type": "MRNA_EXPRESSION",
-        "datatype": "Z-SCORE",
-        "show_profile_in_analysis_tab": "true"
+          "stable_id": "mutations",
+          "profile_name": "Mutations",
+          "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass",
+          "genetic_alteration_type": "MUTATION_EXTENDED",
+          "datatype": "MAF",
+          "show_profile_in_analysis_tab": "true"
       }
     }
   }
