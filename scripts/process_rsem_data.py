@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+import concurrent.futures
+import sys
+import pandas as pd
+from scipy import stats
+import numpy as np
+
+from .meta_file_utils import add_meta_file
+
+def mt_collate_df(resource):
+    sample_id = resource.metadata['sample_id']
+    rsem_file = '/Users/kalletlak/Documents/temorary/data/' + resource.name    
+    current = pd.read_csv(rsem_file, sep="\t", index_col=0)
+    cur_subset = current.loc[:, ['FPKM']]
+    cur_subset.rename(columns={"FPKM": sample_id}, inplace=True)
+    return cur_subset
+
+def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
+    print('Processing expression files')
+    seen_list = []
+    df_list = []
+    for project in rsem_resources_by_study:
+        with concurrent.futures.ThreadPoolExecutor(config_data['cpus']) as executor:
+            results = {executor.submit(mt_collate_df, rsem_file): rsem_file for rsem_file in rsem_resources_by_study[project]}
+            for result in concurrent.futures.as_completed(results):
+                df_list.append(result.result())
+    master_tbl = pd.concat(df_list, axis=1)
+    del df_list
+    # remove duplicate columns/sample_ids
+    master_tbl = (master_tbl.loc[:,~master_tbl.columns.duplicated()])
+    master_tbl.reset_index(inplace=True)
+
+    gene_id_sym_list = master_tbl['gene_id'].to_list()
+    gene_sym_list = []
+    for entry in gene_id_sym_list:
+        parts = entry.split('_')
+        gene_sym = '_'.join(parts[1:])
+        gene_sym_list.append(gene_sym)
+    master_tbl['Hugo_Symbol'] = gene_sym_list
+    master_tbl.drop(columns =["gene_id"], inplace = True)
+    dup_hugo_tbl = master_tbl[master_tbl.duplicated(['Hugo_Symbol'])]
+    rpt_sym = dup_hugo_tbl.Hugo_Symbol.unique()
+
+    sample_list = (master_tbl.columns.difference(['Hugo_Symbol']))
+    for sym in rpt_sym:
+        gene_eval = master_tbl.loc[master_tbl['Hugo_Symbol'] == sym]
+        mean_expr = gene_eval[sample_list].mean(axis=1).sort_values(ascending=False)
+        to_drop = list(mean_expr.index)[1:]
+        master_tbl.drop(to_drop, inplace=True)
+    
+    master_tbl.set_index('Hugo_Symbol', inplace=True)
+    gene_sym_list = master_tbl.index
+
+    sys.stderr.flush()
+
+    for project in rsem_resources_by_study:
+        sampleIds = []
+        for resource in rsem_resources_by_study[project]:
+            sampleIds.append(resource.metadata['sample_id'])
+        expr_fname = '/Users/kalletlak/Documents/temorary/datasets/{}/data_rna_seq_v2_mrna.txt'.format(project)
+        master_tbl[sampleIds].to_csv(expr_fname, sep='\t', mode='w', index=True)
+
+        #Add meta file
+        meta_file_path = '/Users/kalletlak/Documents/temorary/datasets/{}/meta_rna_seq_v2_mrna.txt'.format(project)
+        add_meta_file(project, config_data["metadata"]["rsem_counts"]["meta_attr"], meta_file_path)
+
+
+    z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis = 1)
+    del master_tbl
+    master_zscore_log = pd.DataFrame(z_scored, index=gene_sym_list, columns=sample_list)
+    # this may be memory-intensive for some insane reson...
+    sys.stderr.write("Replacing NaN with 0\n")
+    sys.stderr.flush()
+    master_zscore_log.fillna(0, inplace=True)
+    sys.stderr.write('Outputing z scored results\n')
+    sys.stderr.flush()
+
+    for project in rsem_resources_by_study:
+        sampleIds = []
+        for resource in rsem_resources_by_study[project]:
+            sampleIds.append(resource.metadata['sample_id'])
+        zscore_fname = '/Users/kalletlak/Documents/temorary/datasets/{}/data_rna_seq_v2_mrna_median_Zscores.txt'.format(project)
+        master_zscore_log[sampleIds].to_csv(zscore_fname, sep='\t', mode='w', index=True)
+
+        #Add meta file
+        meta_file_path = '/Users/kalletlak/Documents/temorary/datasets/{}/meta_rna_seq_v2_mrna_median_Zscores.txt'.format(project)
+        add_meta_file(project, config_data["metadata"]["rsem_zscore"]["meta_attr"], meta_file_path)

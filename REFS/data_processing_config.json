@@ -38,7 +38,7 @@
     "PATIENT_ID\tEXTERNAL_PATIENT_ID\tGENDER\tAGE\tTUMOR_SITE\tRACE\tETHNICITY\tOS_STATUS\tOS_MONTHS\n"],
   "metadata": {
     "fusion": {
-      "meta_information": {
+      "meta_attr": {
         "stable_id": "fusion",
         "profile_name": "Predicted RNA fusions",
         "profile_description": "Fusion data, from openPBTA using arriba and STAR Fusion, annotated and filtered using annoFuse",
@@ -47,6 +47,26 @@
         "show_profile_in_analysis_tab": "true",
         "data_filename": "data_fusions.txt"
       }
-  }
+    },
+    "rsem_counts": {
+      "meta_attr": {
+        "stable_id": "rna_seq_v2_mrna",
+        "profile_name": "RNA expression",
+        "profile_description": "Expression levels from RNA-Seq (rsem FPKM)",
+        "genetic_alteration_type": "MRNA_EXPRESSION",
+        "datatype": "CONTINUOUS",
+        "show_profile_in_analysis_tab": "false"
+      }
+    },
+    "rsem_zscore": {
+      "meta_attr": {
+        "stable_id": "rna_seq_v2_mrna_median_Zscores",
+        "profile_name": "RNA expression z-scores",
+        "profile_description": "Expression levels from RNA-Seq, Z scores of log2(FPKM + 1) values",
+        "genetic_alteration_type": "MRNA_EXPRESSION",
+        "datatype": "Z-SCORE",
+        "show_profile_in_analysis_tab": "true"
+      }
+    }
   }
 }
