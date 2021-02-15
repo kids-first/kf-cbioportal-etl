@@ -4,16 +4,13 @@ import os
 import subprocess
 import numpy as np
 
-from .meta_file_utils import add_meta_file
+from .file_utils import write_meta_file
 
 def add_cnv_file(config_data, sbg_api_client, study_name, study_dir, study_cnv_resources):
     sys.stderr.write('Processing cnv for ' + study_name + ' project' + '\n')
     cur_cnv_dict = {}
     s_list = []
     high_gain = config_data['cnv_high_gain']
-
-    # TODO: currently if there is a linear cnv data we are adding discrete cna data by default. 
-    # We need to check whether *.controlfreec.info.txt files exist in the project
 
     for resource in study_cnv_resources:
         s_list.append(resource.metadata['sample_id'])
@@ -42,8 +39,8 @@ def add_cnv_file(config_data, sbg_api_client, study_name, study_dir, study_cnv_r
     data_CNA.close()
 
     #Add meta file
-    add_meta_file(study_name, config_data["metadata"]["cnv"]["linear"]["meta_attr"], study_dir + 'meta_linear_CNA.txt')
-    add_meta_file(study_name, config_data["metadata"]["cnv"]["discrete"]["meta_attr"], study_dir + 'meta_CNA.txt')
+    write_meta_file(study_name, config_data["metadata"]["cnv"]["linear"]["meta_attr"], study_dir + 'meta_linear_CNA.txt')
+    write_meta_file(study_name, config_data["metadata"]["cnv"]["discrete"]["meta_attr"], study_dir + 'meta_CNA.txt')
 
 
 def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cur_cnv_dict):
@@ -74,6 +71,7 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
         out_gene_cnv_only = 'perl ' + cnv_cp_only + ' ' + hugo_tsv + ' ' + out_file_1 + ' > ' + out_file
         subprocess.call(out_gene_cnv_only, shell=True)
 
+        # aasuming *.controlfreec.info.txt exists for every *.controlfreec.CNVs.p.value.txt
         info_file_name = file_name.replace("controlfreec.CNVs.p.value.txt", "controlfreec.info.txt")
         response = sbg_api_client.files.query(parent = resource.parent, names=[info_file_name])
         ploidy = None

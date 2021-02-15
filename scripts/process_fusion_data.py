@@ -3,7 +3,7 @@ import sys
 import pandas as pd
 from requests import request
 
-from .meta_file_utils import add_meta_file
+from .file_utils import write_meta_file
 
 def get_sequencing_center_info(config_data, bs_id):
     bs_url =  config_data['kf_url'] + '/biospecimens/' + bs_id
@@ -62,4 +62,4 @@ def add_fusion_file(config_data, study_dir, study_resources):
     fus_file.close()
 
     #Add meta file
-    add_meta_file(study_name, config_data["metadata"]["fusion"]["meta_attr"], study_dir + 'meta_fusions.txt')
+    write_meta_file(study_name, config_data["metadata"]["fusion"]["meta_attr"], study_dir + 'meta_fusions.txt')
