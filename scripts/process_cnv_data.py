@@ -39,8 +39,8 @@ def add_cnv_file(config_data, sbg_api_client, study_name, study_dir, study_cnv_r
     data_CNA.close()
 
     #Add meta file
-    write_meta_file(study_name, config_data["metadata"]["cnv"]["linear"]["meta_attr"], study_dir + 'meta_linear_CNA.txt')
-    write_meta_file(study_name, config_data["metadata"]["cnv"]["discrete"]["meta_attr"], study_dir + 'meta_CNA.txt')
+    write_meta_file(study_name, config_data["metadata"]["cnv"]["linear"]["meta_attr"], study_dir + '/meta_linear_CNA.txt')
+    write_meta_file(study_name, config_data["metadata"]["cnv"]["discrete"]["meta_attr"], study_dir + '/meta_CNA.txt')
 
 
 def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cur_cnv_dict):
@@ -74,7 +74,8 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
         # aasuming *.controlfreec.info.txt exists for every *.controlfreec.CNVs.p.value.txt
         info_file_name = file_name.replace("controlfreec.CNVs.p.value.txt", "controlfreec.info.txt")
         response = sbg_api_client.files.query(parent = resource.parent, names=[info_file_name])
-        ploidy = None
+        # TODO: revert back to None once data files are updated
+        ploidy = config_data['ploidy']
         if len(response):
             info = response[0].content().split('\n')
             for datum in info:

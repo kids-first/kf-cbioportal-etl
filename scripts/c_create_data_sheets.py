@@ -1,39 +1,22 @@
 #!/usr/bin/env python3
 
-import sevenbridges as sbg
-from sevenbridges.models.project import Project
-from sevenbridges.models.file import File
-from typing import List
 import json
 import sys
-from requests import request
-import argparse
-import concurrent.futures
-from time import sleep
-import pdb
 from pathlib import Path
-import urllib.request
-import os
 import math
 import re
-import importlib
 
 from .sample_id_builder_helper import format_smaple_id
 
 v_status_dict = {'Alive': 'LIVING', 'Deceased': 'DECEASED'}
-out_dir = '/Users/kalletlak/Documents/temorary/datasets/'
 
-def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pairs, cl_supp = None):
+
+def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pairs, cl_supp=None):
+    print(json.dumps(tumor_objects))
 
     pt_head = '\n'.join(config_data['ds_pt_desc'])
-
     # IMPORTANT! will use external sample id as sample id, and bs id as a specimen id
     samp_head = '\n'.join(config_data['ds_samp_desc'])
-
-    try:
-        os.makedirs(out_dir)
-    except:
-        sys.stderr.write(out_dir + ' already exists.\n')
 
     blacklist = {}
     master_dict = {}
@@ -52,36 +35,31 @@ def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pa
             samp_id += '-CL'
             if cl_supp is not None and bs_id in cl_supp:
                 samp_id += '-' + cl_supp[bs_id]
-        cdx_list = tumor_object['source_text_diagnosis'].split(';')
-        loc_list = tumor_object['source_text_tumor_location'].split(';')
-        age_list = []
-        if tumor_object.get('age_at_event_days') is not None:
-            age_list =  tumor_object.get('age_at_event_days').split(';')
         temp_dx = {}
-        for i in range(0, len(cdx_list), 1):
-            if cdx_list[i] == "N/A":
-                cdx_list[i] = "Not Reported"
-            if cdx_list[i] != '' and cdx_list[i] in dx_dict:
-                cur_dx = dx_dict[cdx_list[i]]
+        for diagnosis_obj in tumor_object['diagnosis']:
+            source_text_diagnosis = diagnosis_obj['source_text_diagnosis']
+            source_text_tumor_location = diagnosis_obj['source_text_tumor_location']
+            age_at_event_days = diagnosis_obj['age_at_event_days']
+            if source_text_diagnosis == "N/A":
+                source_text_diagnosis = "Not Reported"
+            if source_text_diagnosis != '' and source_text_diagnosis in dx_dict:
+                cur_dx = dx_dict[source_text_diagnosis]
                 if cur_dx not in temp_dx:
                     temp_dx[cur_dx] = {}
                     temp_dx[cur_dx]['dx'] = []
                     temp_dx[cur_dx]['loc'] = []
                     temp_dx[cur_dx]['age'] = []
-                if loc_list[i] == "N/A":
-                    loc_list[i] = "Not Reported"
-                if loc_list[i] not in temp_dx[cur_dx]['loc']:
-                    temp_dx[cur_dx]['loc'].append(loc_list[i])
-                if cdx_list[i] not in temp_dx[cur_dx]['dx']:
-                    temp_dx[cur_dx]['dx'].append(cdx_list[i])
-                # age = 999
-                # if age_list[i] != 'NULL' and age_list[i] != 'None':
-                #     age = math.floor(float(age_list[i]) / 365.25)
-                # pdb.set_trace()
-                if age_list[i] not in temp_dx[cur_dx]['age']:
-                    temp_dx[cur_dx]['age'].append(age_list[i])
+                if source_text_tumor_location == "N/A":
+                    source_text_tumor_location = "Not Reported"
+                if source_text_tumor_location not in temp_dx[cur_dx]['loc']:
+                    temp_dx[cur_dx]['loc'].append(source_text_tumor_location)
+                if source_text_diagnosis not in temp_dx[cur_dx]['dx']:
+                    temp_dx[cur_dx]['dx'].append(source_text_diagnosis)
+                if age_at_event_days not in temp_dx[cur_dx]['age']:
+                    temp_dx[cur_dx]['age'].append(age_at_event_days)
             else:
-                sys.stderr.write('WARN: biospecimen ' + bs_id + ' with dx ' + cdx_list[i] + ' is invalid, skipping!\n')
+                sys.stderr.write(
+                    'WARN: biospecimen ' + bs_id + ' with dx ' + source_text_diagnosis + ' is invalid, skipping!\n')
 
         for cur_dx in temp_dx:
 
@@ -106,7 +84,8 @@ def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pa
                         int(tumor_object['outcome_age_at_event_days'])
                         cur_pt['os_age_mos'] = tumor_object['outcome_age_at_event_days']
                     except Exception as e:
-                        sys.stderr.write(str(e) + "\nSurvival status age " + tumor_object['outcome_age_at_event_days'] + " not a number.  Setting blank\n")
+                        sys.stderr.write(str(e) + "\nSurvival status age " + tumor_object[
+                            'outcome_age_at_event_days'] + " not a number.  Setting blank\n")
                         cur_pt['os_age_mos'] = ''
 
                 v_status = ''
@@ -117,16 +96,8 @@ def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pa
                 cur_pt['samples'] = {}
             cur_pt = master_dict[cur_dx][pt_id]
             # calc min age that is not null
-            n_flag = 1
             # will convert age to years at end, after earliest dx age determined
-            for age in ages:
-                try:
-                    int(age)
-                    n_flag = 0
-                    if int(age) < int(cur_pt['age']):
-                        cur_pt['age'] = int(age)
-                except Exception as e:
-                    sys.stderr.write(str(e) + "\nAge could " + age + " not be converted, skipping.\n")
+            cur_pt['age'] = min(age for age in ages if isinstance(age, int))
             if samp_id not in cur_pt['samples']:
                 cur_pt['samples'][samp_id] = {}
             cur_samp = master_dict[cur_dx][pt_id]['samples'][samp_id]
@@ -152,13 +123,13 @@ def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pa
                     cur_samp[ana_type]['matched_norm_samp'] = norm_samp
                     cur_samp[ana_type]['matched_norm_spec'] = norm_spec
                 else:
-                    cur_samp[ana_type]['rsem'] = bs_id # build_samp_id(rna_samp_def, t_header, info)
+                    cur_samp[ana_type]['rsem'] = bs_id  # build_samp_id(rna_samp_def, t_header, info)
     for dx in master_dict:
         sys.stderr.write('Outputting results for ' + dx + '\n')
-        os.mkdir(out_dir + dx)
-        out_samp = open(out_dir + dx + '/data_clinical_sample.txt', 'w')
-        out_pt = open(out_dir + dx + '/data_clinical_patient.txt', 'w')
-        
+        Path(config_data['datasets'] + dx).mkdir(exist_ok=True)
+        out_samp = open(config_data['datasets'] + dx + '/data_clinical_sample.txt', 'w')
+        out_pt = open(config_data['datasets'] + dx + '/data_clinical_patient.txt', 'w')
+
         out_samp.write(samp_head)
         out_pt.write(pt_head)
         for pt_id in sorted(master_dict[dx]):
@@ -176,7 +147,8 @@ def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pa
                 tumor_type = ''
                 samp_type = ''
                 bs_ids = []
-                if 'DNA' in cur_samp and (samp_id not in blacklist[dx] or (samp_id in blacklist[dx] and blacklist[dx][samp_id] == 'RNA')):
+                if 'DNA' in cur_samp and (
+                        samp_id not in blacklist[dx] or (samp_id in blacklist[dx] and blacklist[dx][samp_id] == 'RNA')):
                     f += 1
                     f2 += 1
                     temp[samp_id] = {}
@@ -189,7 +161,8 @@ def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pa
                     loc = cur_samp['DNA']['tumor_site']
                     tumor_type = cur_samp['DNA']['tumor_type']
                     samp_type = cur_samp['DNA']['sample_type']
-                if 'RNA' in cur_samp and (samp_id not in blacklist[dx] or (samp_id in blacklist[dx] and blacklist[dx][samp_id] == 'DNA')):
+                if 'RNA' in cur_samp and (
+                        samp_id not in blacklist[dx] or (samp_id in blacklist[dx] and blacklist[dx][samp_id] == 'DNA')):
                     if 'DNA' not in cur_samp or (samp_id in blacklist[dx] and blacklist[dx][samp_id] == 'DNA'):
                         cdx = cur_samp['RNA']['cancer_type']
                         loc = cur_samp['RNA']['tumor_site']
@@ -203,7 +176,8 @@ def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pa
                     bs_ids.append(cur_samp['RNA']['specimen_id'])
 
                 if f2 > 0:
-                    temp[samp_id]['entry'] = '\t'.join((pt_id, samp_id, ';'.join(bs_ids), cdx, cdx, loc, tumor_type, samp_type, norm_samp, norm_spec, samp_id)) + '\n'
+                    temp[samp_id]['entry'] = '\t'.join((pt_id, samp_id, ';'.join(bs_ids), cdx, cdx, loc, tumor_type,
+                                                        samp_type, norm_samp, norm_spec, samp_id)) + '\n'
             check = {}
             for samp_id in temp:
                 # if cbttc DNA and RNA is paired, or is not cbttc-related or has no RNA print as-is, if not, check id a
@@ -264,22 +238,26 @@ def create_master_dict(config_data, tumor_objects, dx_dict, norm_samp_id, dna_pa
                     cur_pt['age'] = ''
                 else:
                     age_in_days = cur_pt['age']
-                    cur_pt['age'] = str(math.floor(float(age_in_days)/365.25))
-                    try: 
+                    cur_pt['age'] = str(math.floor(float(age_in_days) / 365.25))
+                    try:
                         int(cur_pt['os_age_mos'])
                         diff = int(cur_pt['os_age_mos']) - age_in_days
                         if diff < 0:
-                            sys.stderr.write('WARN: OS status occurs before patient dx for ' + pt_id + ' skipping outcome age calc\n')
+                            sys.stderr.write(
+                                'WARN: OS status occurs before patient dx for ' + pt_id + ' skipping outcome age calc\n')
                             cur_pt['os_age_mos'] = ''
                         elif diff == 0 and cur_pt['vital_status'] == 'LIVING':
                             cur_pt['os_age_mos'] = ''
                         else:
-                            cur_pt['os_age_mos'] = str(math.floor(float(diff) / (365.25/12)))
+                            cur_pt['os_age_mos'] = str(math.floor(float(diff) / (365.25 / 12)))
                     except Exception as e:
-                        sys.stderr.write(str(e) + "\nSurvival status age " + cur_pt['os_age_mos'] + " not a number.  Setting blank\n")
+                        sys.stderr.write(str(e) + "\nSurvival status age " + cur_pt[
+                            'os_age_mos'] + " not a number.  Setting blank\n")
                         cur_pt['os_age_mos'] = ''
-                out_pt.write('\t'.join((pt_id, cur_pt['external_id'], cur_pt['gender'], cur_pt['age'], cur_pt['tumor_site'],
-                                cur_pt['race'], cur_pt['ethnicity'], cur_pt['vital_status'], cur_pt['os_age_mos'])) + '\n')
+                out_pt.write(
+                    '\t'.join((pt_id, cur_pt['external_id'], cur_pt['gender'], cur_pt['age'], cur_pt['tumor_site'],
+                               cur_pt['race'], cur_pt['ethnicity'], cur_pt['vital_status'],
+                               cur_pt['os_age_mos'])) + '\n')
             else:
                 sys.stderr.write('WARN: ' + pt_id + ' skipped, all samples were in blacklist\n')
         out_samp.close()

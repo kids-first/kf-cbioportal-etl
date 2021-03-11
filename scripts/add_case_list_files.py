@@ -3,6 +3,7 @@ import sys
 import os
 import subprocess
 import pandas as pd
+from pathlib import Path
 
 from .file_utils import write_case_list
 
@@ -20,10 +21,7 @@ def add_case_list_files(config_data):
 def create_case_lists(config_data, dataset_dir):
     cbio_proj = dataset_dir.split('/')[-1]
     case_dir = dataset_dir + "/case_lists/"
-    try:
-        os.mkdir(case_dir)
-    except:
-        sys.stderr.write(case_dir + ' already exists.\n')
+    Path(case_dir).mkdir(exist_ok=True)
 
     muts_list = []
     cna_list = []

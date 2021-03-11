@@ -17,6 +17,7 @@ import os
 import math
 import re
 import importlib
+import base64
 
 if __name__ == "__main__" and (__package__ is None or __package__ == ''):
     # replace the script's location in the Python search path by the main
@@ -29,7 +30,7 @@ if __name__ == "__main__" and (__package__ is None or __package__ == ''):
     importlib.import_module(__package__)
 
 from .sample_id_builder_helper import format_smaple_id
-from .a_merge_cavatica_manifests import get_resources_from_cavatica_projects
+from .a_merge_cavatica_manifests import get_resources_from_cavatica_projects, get_resources_from_kf_studies
 from .b_query_ds_by_bs_id import get_resource_information
 from .c_create_data_sheets import create_master_dict
 from .create_cbio_id_fname_tbl import process_ds_new
@@ -67,6 +68,10 @@ def get_tn_pair_data(resources):
                 bs_ids_blacklist[t_bs_id] = True
     return dna_pairs
 
+def base64encode_study_id(study_id):
+    encodedBytes = base64.b64encode(("StudyNode:" + study_id).encode("utf-8"))
+    return str(encodedBytes, "utf-8")
+
 config_data =   {}
 
 if __name__ == '__main__':
@@ -83,6 +88,9 @@ if __name__ == '__main__':
     config_data['datasets'] = config_data['working_directory'] + 'datasets/'
     config_data['data_files'] = config_data['working_directory'] + 'data_files/'
 
+    Path(config_data['datasets']).mkdir(parents=True, exist_ok=True)
+    Path(config_data['data_files']).mkdir(parents=True, exist_ok=True)
+
     valid_extensions = []
     rna_ext_dict = config_data['rna_ext_list']
     for key in rna_ext_dict:
@@ -91,45 +99,32 @@ if __name__ == '__main__':
     for key in dna_ext_dict:
         valid_extensions.append(dna_ext_dict[key])
 
-    pt_head = '\n'.join(config_data['ds_pt_desc'])
+    queried_study_ids = ['SD_M3DBXD12']
+    encoded_study_ids = list(map(base64encode_study_id, queried_study_ids))
 
-    # IMPORTANT! will use external sample id as sample id, and bs id as a specimen id
-    samp_head = '\n'.join(config_data['ds_samp_desc'])
+    filteredResources = get_resources_from_kf_studies(encoded_study_ids, config_data, {})
 
-    filteredResources = get_resources_from_cavatica_projects(['zhangb1/pnoc003-cbio-data'], config_data, {})
     dna_pairs = get_tn_pair_data(filteredResources)
 
     resourceSet = {}
-    # tum_out_fh, norm_out_fh = get_resource_information(filteredResources, config_data)
+    tum_out_fh, norm_out_fh = get_resource_information(filteredResources, config_data)
 
-    # dx_dict = get_diagnosis_cbio_disease_mapping(config_data['dx_tbl_fn'])
-    # norm_samp_id = get_norm_info(norm_out_fh)
-    # create_master_dict(config_data, tum_out_fh, dx_dict, norm_samp_id, dna_pairs)
-        
-    #print(filteredResources)
+    dx_dict = get_diagnosis_cbio_disease_mapping(config_data['dx_tbl_fn'])
+    norm_samp_id = get_norm_info(norm_out_fh)
+    create_master_dict(config_data, tum_out_fh, dx_dict, norm_samp_id, dna_pairs)
 
-    filteredResourceSet = {}
+    # filteredResourceSet = {}
 
-    for filteredResource in filteredResources:
-        if filteredResource['atype'] == 'DNA':
-            key = filteredResource['t_bs_id'] + filteredResource['n_bs_id'];
-            filteredResourceSet[key] = filteredResource
-        elif filteredResource['atype'] == 'RNA':
-            filteredResourceSet[filteredResource['t_bs_id']] = filteredResource
-
-    #download all files
-    # out_dir = '/Users/kalletlak/Documents/temorary/data'
-
-    # try:
-    #     os.makedirs(out_dir)
-    # except:
-    #     sys.stderr.write(out_dir + ' already exists.\n')
     # for filteredResource in filteredResources:
-    #     resource:File
-    #     for resource in filteredResource['resources']:
-    #         resource.download(path='/Users/kalletlak/Documents/temorary/data/'+resource.name)
+    #     if filteredResource['atype'] == 'DNA':
+    #         key = filteredResource['t_bs_id'] + filteredResource['n_bs_id'];
+    #         filteredResourceSet[key] = filteredResource
+    #     elif filteredResource['atype'] == 'RNA':
+    #         filteredResourceSet[filteredResource['t_bs_id']] = filteredResource
 
-    process_ds_new(config_data, filteredResourceSet)
+    # # download all files
+    # # for filteredResource in filteredResources:
+    # #     for resource in filteredResource['resources']:
+    # #         resource.download(path=config_data['data_files']+resource.name)
 
-
-
+    # process_ds_new(config_data, filteredResourceSet)

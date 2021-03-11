@@ -10,7 +10,7 @@ def add_maf_file(config_data, study_name, study_dir, study_maf_files):
     try:
         sys.stderr.write('Processing for maf ' + study_name + ' project' + '\n')
         for resource in study_maf_files:
-            maf_df = pd.read_csv(config_data['data_files'] + resource.name, sep="\t", skiprows=1)
+            maf_df = pd.read_csv(config_data['data_files'] + resource.name, sep="\t", skiprows=1, low_memory=False,)
             maf_df['Tumor_Sample_Barcode'] = resource.metadata['sample_id']
             maf_df['Matched_Norm_Sample_Barcode'] = resource.metadata['Kids First Biospecimen ID Normal']
             maf_df = maf_df[~maf_df['Variant_Classification'].isin(maf_exc)]
