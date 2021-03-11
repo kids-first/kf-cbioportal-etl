@@ -1,5 +1,7 @@
 {
   "kf_url": "https://kf-api-dataservice.kidsfirstdrc.org",
+  "kf_study_creator_url": "https://kf-api-study-creator.kidsfirstdrc.org/graphql",
+  "kf_temp_bearer_token": "",
   "bedtools": "bedtools",
   "cp_only_script": "./scripts/get_cbio_copy_only_num.pl",
   "bed_genes": "./REFS/GRCh38.84.gtf_genes.bed",
@@ -14,12 +16,13 @@
     "fusion": "annoFuse_filter.tsv"
   },
   "dna_ext_list": {
-    "mutation": "consensus_somatic.vep.maf",
-    "copy_number": "controlfreec.CNVs.p.value.txt"
+    "mutation": "mutect2_somatic.vep.maf",
+    "copy_number": "CNVs.p.value.txt"
   },
+  "ploidy": 2,
   "ens_gene_list":"./REFS/gencode27_gene_list.txt",
   "script_dir": "./scripts/",
-  "dx_tbl_fn": "https://gist.githubusercontent.com/kalletlak/16c25c8b6bda5136e5153a1ac25507cc/raw/eb375afcbcc2def845c7da358362c2e08d12e519/pnoc003_dx_index.txt",
+  "dx_tbl_fn": "https://gist.githubusercontent.com/kalletlak/16c25c8b6bda5136e5153a1ac25507cc/raw/7254fbe8fb59cccfc919fdc1b94871212437c200/pnoc003_dx_index.txt",
   "cna_flag": 1,
   "cnv_high_gain": 4,
   "cnv_min_len": 50000,
