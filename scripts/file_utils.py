@@ -8,6 +8,7 @@ def write_meta_file(cancer_study_identifier, meta_information, meta_file_path):
         meta_file.write(mkey + ": " + meta_information[mkey] + "\n")
     meta_file.close()
 
+
 def write_case_list(case_file, attr_dict, canc_study_id, sample_list):
     case_file = open(case_file, "w")
     case_file.write("cancer_study_identifier: " + canc_study_id + "\n")

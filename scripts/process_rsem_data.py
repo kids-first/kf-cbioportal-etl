@@ -16,7 +16,7 @@ def mt_collate_df(config_data,resource):
     return cur_subset
 
 def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
-    print('Processing expression files')
+    sys.stderr.write('Processing for expression files\n')
     seen_list = []
     df_list = []
     for project in rsem_resources_by_study:
@@ -61,7 +61,7 @@ def add_rsem_file(config_data, sbg_api_client, rsem_resources_by_study):
     sys.stderr.write('Outputing z scored results\n')
     sys.stderr.flush()
 
-    datasets_dir = config_data['datasets'];
+    datasets_dir = config_data['datasets']
 
     for project in rsem_resources_by_study:
         sampleIds = []

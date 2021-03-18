@@ -92,7 +92,7 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
             sample_id = resource.metadata['sample_id']
             if sample_id in cur_cnv_dict[gene]:
                 sys.stderr.write('ERROR: Sample ID ' + sample_id + ' already processed.  Back to the drawing board!')
-                exit(1)
+                sys.exit(1)
             else:
                 cur_cnv_dict[gene][sample_id] = {}
                 if ploidy is not None:
@@ -112,5 +112,5 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
         subprocess.call(rm_tmp, shell=True)
         return cur_cnv_dict
     except Exception as e:
-        sys.stderr.write(str(e))
+        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process cnv file')
         sys.exit(1)

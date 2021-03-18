@@ -24,5 +24,5 @@ def add_maf_file(config_data, study_name, study_dir, study_maf_files):
         write_meta_file(study_name, config_data["metadata"]["mutation"]["meta_attr"], study_dir + '/meta_mutations_extended.txt')
 
     except Exception as e:
-        print(e)
-        sys.exit()
+        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process maf files')
+        sys.exit(1)
