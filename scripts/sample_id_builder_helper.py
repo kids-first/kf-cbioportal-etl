@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import pdb
 
 
 def build_samp_id(style, t_header, info):

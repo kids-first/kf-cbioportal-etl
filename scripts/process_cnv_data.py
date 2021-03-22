@@ -4,7 +4,7 @@ import os
 import subprocess
 import numpy as np
 
-from file_utils import write_meta_file
+from scripts.file_utils import write_meta_file
 
 def add_cnv_file(config_data, sbg_api_client, study_name, study_dir, study_cnv_resources):
     sys.stderr.write('Processing cnv for ' + study_name + ' project' + '\n')

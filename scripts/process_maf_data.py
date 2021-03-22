@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import pandas as pd
-from file_utils import write_meta_file
+from scripts.file_utils import write_meta_file
 
 
 def add_maf_file(config_data, study_name, study_dir, study_maf_files):

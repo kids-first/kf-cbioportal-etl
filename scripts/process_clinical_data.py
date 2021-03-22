@@ -5,8 +5,8 @@ from pathlib import Path
 import math
 import re
 
-from sample_id_builder_helper import format_smaple_id
-from kf_dataservice_resources import get_tumor_resources, query_dataservice_bs_id
+from scripts.sample_id_builder_helper import format_smaple_id
+from scripts.kf_dataservice_resources import get_tumor_resources, query_dataservice_bs_id
 
 v_status_dict = {'Alive': 'LIVING', 'Deceased': 'DECEASED'}
 

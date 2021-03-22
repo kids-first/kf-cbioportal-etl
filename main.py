@@ -9,8 +9,8 @@ import base64
 import pandas as pd
 import argparse
 
-from cavatica_resources import get_resources_from_cavatica_projects
-from cbioportal_resources import process_study_resources
+from scripts.cavatica_resources import get_resources_from_cavatica_projects
+from scripts.cbioportal_resources import process_study_resources
 
 get_study_query = """query Study($id: ID!) {
   study(id: $id) {
@@ -60,7 +60,7 @@ def main():
     parser.add_argument("-k", "--kf_token", type=str, required=True, help='KF bearer token token')
     args = parser.parse_args()
 
-    config_file = Path(__file__).parent / "../REFS/data_processing_config.json"
+    config_file = Path(__file__).parent / "./REFS/data_processing_config.json"
     config_data = {}
     with open(config_file) as f:
         config_data = json.load(f)

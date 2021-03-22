@@ -2,7 +2,7 @@
 import sys
 import pandas as pd
 from requests import request
-from file_utils import write_meta_file
+from scripts.file_utils import write_meta_file
 
 
 def get_sequencing_center_info(config_data, bs_id):

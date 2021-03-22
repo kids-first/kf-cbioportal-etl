@@ -3,15 +3,14 @@ import sys
 import subprocess
 import sevenbridges as sbg
 
-from file_utils import write_meta_file
-from process_fusion_data import add_fusion_file
-from process_rsem_data import add_rsem_file
-from process_cnv_data import add_cnv_file
-from process_maf_data import add_maf_file
-from add_case_list_files import add_case_list_files
 from sevenbridges.errors import LocalFileAlreadyExists
-
-from process_clinical_data import add_clinical_data_files
+from scripts.file_utils import write_meta_file
+from scripts.process_fusion_data import add_fusion_file
+from scripts.process_rsem_data import add_rsem_file
+from scripts.process_cnv_data import add_cnv_file
+from scripts.process_maf_data import add_maf_file
+from scripts.add_case_list_files import add_case_list_files
+from scripts.process_clinical_data import add_clinical_data_files
 
 
 def process_study_resources(config_data, study_info, resources, dx_dict):
