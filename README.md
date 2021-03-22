@@ -3,7 +3,7 @@ In general, we are creating upload packages converting our data and metadata to 
 ## Software Prerequisites
 
 + `python3` v3.5.3+
-  + `sevenbridges` package (https://sevenbridges-python.readthedocs.io/en/latest/installation/)
+  + `sevenbridges-python` package (https://sevenbridges-python.readthedocs.io/en/latest/installation/)
   + `numpy`, `pandas`, `scipy`
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
 + `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
@@ -401,7 +401,9 @@ Output created: `merged_rsem` directory with by cbio disease `rsem_merged.txt` a
 
 ### scripts/7_convert_fusion.py
 *Prerequisite: openPBTA fusion file from releases [here](https://s3.console.aws.amazon.com/s3/buckets/kf-openaccess-us-east-1-prd-pbta/data/?region=us-east-1&tab=overview) OR annoFuse results downloaded into a directory.* Can use openPBTA results or annoFuse results for cbio fusion file table generation.
-```usage: 7_convert_fusion.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-m MODE]
+
+```
+usage: 7_convert_fusion.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-m MODE]
                            [-s SQ_FILE] [-j CONFIG_FILE]
 
 Convert openPBTA fusion table OR list of annofuse files to cbio format.
@@ -415,8 +417,10 @@ optional arguments:
                         openPBTA fusion file OR annoFuse results dir
   -m MODE, --mode MODE  describe source, pbta or annofuse
   -s SQ_FILE, --center-file SQ_FILE
-                        File with BS IDs and sequencing centers
+                        File with BS IDs and sequencing centers. Should have
+                        headered columns: BS_ID\SQ_Value
 ```
+
 Outputs: `merged_fusion` directory with merged fusion files by cbio disease as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data). Files have extension `fusions.txt`. Entrez ID is left blank to allows for reversible fusion gene searching
 
 ## Create upload package
