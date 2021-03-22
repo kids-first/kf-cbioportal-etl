@@ -4,27 +4,13 @@ import json
 import sys
 from pathlib import Path
 import urllib.request
-import os
-import importlib
 import requests
 import base64
 import pandas as pd
+import argparse
 
-if __name__ == "__main__" and (__package__ is None or __package__ == ''):
-    # replace the script's location in the Python search path by the main
-    # scripts/ folder, above it, so that the importer package folder is in
-    # scope and *not* directly in sys.path; see PEP 395
-    sys.path[0] = str(Path(sys.path[0]).resolve().parent)
-    __package__ = 'scripts'
-    # explicitly load the package, which is needed on CPython 3.4 because it
-    # doesn't include https://github.com/python/cpython/pull/2639
-    importlib.import_module(__package__)
-
-from .sample_id_builder_helper import format_smaple_id
-from .a_merge_cavatica_manifests import get_resources_from_cavatica_projects
-from .b_query_ds_by_bs_id import get_tumor_resources, query_dataservice_bs_id
-from .c_create_data_sheets import create_master_dict
-from .create_cbio_id_fname_tbl import process_ds_new
+from cavatica_resources import get_resources_from_cavatica_projects
+from cbioportal_resources import process_study_resources
 
 get_study_query = """query Study($id: ID!) {
   study(id: $id) {
@@ -61,42 +47,29 @@ def get_kf_id_to_cancer_type_mapping():
     return dict(d_dict.values)
 
 
-def get_tumor_bs_mapped_normal_sample(config_data, resources):
-    tumor_bs_mapped_normal = {}
-    for resource in resources:
-        if resource['atype'] == 'DNA':
-            t_bs_id = resource.get('t_bs_id')
-            n_bs_id = resource.get('n_bs_id')
-            bs_data = query_dataservice_bs_id(n_bs_id, config_data['kf_url'], ['external_sample_id'], [], [], [])
-            if bs_data['external_sample_id'] is None:
-                sys.stderr.write('no normal data skip BS_ID: ' + n_bs_id + '\n')
-            else:
-                tumor_bs_mapped_normal[t_bs_id] = {
-                    'specimen_id': n_bs_id,
-                    'sample_id': format_smaple_id(config_data['dna_norm_id_style'], bs_data['external_sample_id'])
-                }
-    return tumor_bs_mapped_normal
-
-
 def base64encode_study_id(study_id):
     encoded_bytes = base64.b64encode(("StudyNode:" + study_id).encode("utf-8"))
     return str(encoded_bytes, "utf-8")
 
 
-if __name__ == '__main__':
+def main():
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("--kf_ids", help='List of kf study ids')
+    parser.add_argument("-i", "--kf_ids", nargs='+', type=str, required=True, help='List of kf study ids')
+    parser.add_argument("-c", "--cavatica_token", type=str, required=True, help='Cavatica token')
+    parser.add_argument("-k", "--kf_token", type=str, required=True, help='KF bearer token token')
+    args = parser.parse_args()
+
     config_file = Path(__file__).parent / "../REFS/data_processing_config.json"
     config_data = {}
     with open(config_file) as f:
         config_data = json.load(f)
 
-    if 'working_directory' not in config_data:
-        parts = os.getcwd().split('/')
-        config_data['working_directory'] = "/".join(parts[:-1])
+    config_data['kf_bearer_token'] = args.kf_token
+    config_data['cavatica_token'] = args.cavatica_token
 
-    if config_data['working_directory'][-1] != '/':
-        config_data['working_directory'] += '/'
-    config_data['datasets'] = config_data['working_directory'] + 'datasets/'
-    config_data['data_files'] = config_data['working_directory'] + 'data_files/'
+    config_data['datasets'] = str(Path.home()) + '/cbioportal/datasets/'
+    config_data['data_files'] = str(Path.home()) + '/cbioportal/data_files/'
 
     Path(config_data['datasets']).mkdir(parents=True, exist_ok=True)
     Path(config_data['data_files']).mkdir(parents=True, exist_ok=True)
@@ -109,13 +82,13 @@ if __name__ == '__main__':
     for key in dna_ext_dict:
         valid_extensions.append(dna_ext_dict[key])
 
-    queried_study_ids = ['SD_M3DBXD12']
-    encoded_study_ids = list(map(base64encode_study_id, queried_study_ids))
+    encoded_study_ids = list(map(base64encode_study_id, args.kf_ids))
 
     kf_id_to_cancer_type_mapping = get_kf_id_to_cancer_type_mapping()
+    dx_dict = get_diagnosis_cbio_disease_mapping(config_data['dx_tbl_fn'])
 
     for i in range(0, len(encoded_study_ids), 1):
-        kf_study_id = queried_study_ids[i]
+        kf_study_id = args.kf_ids[i]
         encoded_study_id = encoded_study_ids[i]
         cancer_study_meta_info = {}
         cavatica_projects = []
@@ -123,7 +96,7 @@ if __name__ == '__main__':
             study_info = requests.post(
                 config_data['kf_study_creator_url'],
                 data=json.dumps({"query": get_study_query, "variables": {"id": encoded_study_id}}),
-                headers={'Authorization': 'Bearer ' + config_data['kf_temp_bearer_token'],
+                headers={'Authorization': 'Bearer ' + config_data['kf_bearer_token'],
                          'content_type': "application/json"}, )
             if study_info.json()['data'] is not None and study_info.json()['data']['study'] is not None:
                 cancer_study_meta_info['cancer_study_identifier'] = kf_study_id
@@ -140,20 +113,14 @@ if __name__ == '__main__':
                     for study_project in study_projects:
                         if cavatica_project_id == study_project['node']['projectId']:
                             cavatica_projects.append(study_project['node']['projectId'])
+                            break
         except Exception as e:
-            sys.stderr.write('Error ' + str(e) + ' occurred while trying to process ')
+            sys.stderr.write('Error ' + str(e) + ' occurred while trying to process\n')
             sys.exit(1)
 
-        filteredResources = get_resources_from_cavatica_projects(cavatica_projects, config_data)
+        resources = get_resources_from_cavatica_projects(cavatica_projects, config_data)
+        process_study_resources(config_data, cancer_study_meta_info, resources, dx_dict)
 
-        tum_out_fh = get_tumor_resources(filteredResources, config_data)
-        tumor_bs_mapped_normal_sample = get_tumor_bs_mapped_normal_sample(filteredResources)
 
-        dx_dict = get_diagnosis_cbio_disease_mapping(config_data['dx_tbl_fn'])
-        create_master_dict(config_data, kf_study_id, tum_out_fh, dx_dict, tumor_bs_mapped_normal_sample)
-
-        # download all files
-        for filteredResource in filteredResources:
-            for resource in filteredResource['resources']:
-                resource.download(path=config_data['data_files']+resource.name)
-        process_ds_new(config_data, cancer_study_meta_info, filteredResources)
+if __name__ == '__main__':
+    main()

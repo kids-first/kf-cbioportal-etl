@@ -4,7 +4,7 @@ import os
 import subprocess
 import numpy as np
 
-from .file_utils import write_meta_file
+from file_utils import write_meta_file
 
 def add_cnv_file(config_data, sbg_api_client, study_name, study_dir, study_cnv_resources):
     sys.stderr.write('Processing cnv for ' + study_name + ' project' + '\n')
@@ -47,11 +47,9 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
     try:
         if study_dir[-1] != '/':
             study_dir += '/'
-        bedtools = config_data['bedtools']
-        cnv_cp_only = config_data['cp_only_script']
-        bed_file = config_data['bed_genes']
-        hugo_tsv = config_data['hugo_tsv']
-        # sys.stderr.write('Processing cna ' + study_name + '\n')
+        cnv_cp_only = './scripts/get_cbio_copy_only_num.pl'
+        bed_file = './REFS/GRCh38.84.gtf_genes.bed'
+        hugo_tsv = './REFS/HUGO_EntrezID.tsv'
         limit = config_data['cnv_min_len']
         file_name = resource.name
         root_name = os.path.basename(file_name).split('.')[0]
@@ -66,7 +64,7 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
         len_fh.close()
         out_file_1 = study_dir + root_name + '.CNVs.Genes'
         out_file = out_file_1 + '.copy_number'
-        to_genes_cmd = bedtools + ' intersect -a ' + filtered_bed_file + ' -b ' + bed_file + ' -wb > ' + out_file_1
+        to_genes_cmd = 'bedtools intersect -a ' + filtered_bed_file + ' -b ' + bed_file + ' -wb > ' + out_file_1
         subprocess.call(to_genes_cmd, shell=True)
         out_gene_cnv_only = 'perl ' + cnv_cp_only + ' ' + hugo_tsv + ' ' + out_file_1 + ' > ' + out_file
         subprocess.call(out_gene_cnv_only, shell=True)
@@ -91,7 +89,7 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
                 cur_cnv_dict[gene] = {}
             sample_id = resource.metadata['sample_id']
             if sample_id in cur_cnv_dict[gene]:
-                sys.stderr.write('ERROR: Sample ID ' + sample_id + ' already processed.  Back to the drawing board!')
+                sys.stderr.write('ERROR: Sample ID ' + sample_id + ' already processed.  Back to the drawing board!\n')
                 sys.exit(1)
             else:
                 cur_cnv_dict[gene][sample_id] = {}
@@ -112,5 +110,5 @@ def process_cnv(config_data, sbg_api_client, study_name, study_dir, resource, cu
         subprocess.call(rm_tmp, shell=True)
         return cur_cnv_dict
     except Exception as e:
-        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process cnv file')
+        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process cnv file\n')
         sys.exit(1)

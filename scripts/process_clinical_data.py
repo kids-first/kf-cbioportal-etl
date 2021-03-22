@@ -5,12 +5,33 @@ from pathlib import Path
 import math
 import re
 
-from .sample_id_builder_helper import format_smaple_id
+from sample_id_builder_helper import format_smaple_id
+from kf_dataservice_resources import get_tumor_resources, query_dataservice_bs_id
 
 v_status_dict = {'Alive': 'LIVING', 'Deceased': 'DECEASED'}
 
 
-def create_master_dict(config_data, study_id, tumor_objects, dx_dict, tumor_bs_mapped_normal_sample, cl_supp=None):
+def get_tumor_bs_mapped_normal_sample(config_data, resources):
+    tumor_bs_mapped_normal = {}
+    for resource in resources:
+        if resource['atype'] == 'DNA':
+            t_bs_id = resource.get('t_bs_id')
+            n_bs_id = resource.get('n_bs_id')
+            bs_data = query_dataservice_bs_id(n_bs_id, config_data['kf_url'], ['external_sample_id'], [], [], [])
+            if bs_data['external_sample_id'] is None:
+                sys.stderr.write('no normal data skip BS_ID: ' + n_bs_id + '\n')
+            else:
+                tumor_bs_mapped_normal[t_bs_id] = {
+                    'specimen_id': n_bs_id,
+                    'sample_id': format_smaple_id(config_data['dna_norm_id_style'], bs_data['external_sample_id'])
+                }
+    return tumor_bs_mapped_normal
+
+
+def add_clinical_data_files(config_data, study_id, resources, dx_dict, cl_supp=None):
+    sys.stderr.write('Processing for clinical data' + study_name + ' project' + '\n')
+    tumor_objects = get_tumor_resources(resources, config_data)
+    tumor_bs_mapped_normal_sample = get_tumor_bs_mapped_normal_sample(config_data, resources)
 
     pt_head = '\n'.join(config_data['ds_pt_desc'])
     # IMPORTANT! will use external sample id as sample id, and bs id as a specimen id
@@ -61,7 +82,8 @@ def create_master_dict(config_data, study_id, tumor_objects, dx_dict, tumor_bs_m
         cur_pt = master_dict[pt_id]
         # calc min age that is not null
         # will convert age to years at end, after earliest dx age determined
-        cur_pt['age'] = min(x['age_at_event_days'] for x in tumor_object['diagnosis'] if isinstance(x['age_at_event_days'], int))
+        cur_pt['age'] = min(
+            x['age_at_event_days'] for x in tumor_object['diagnosis'] if isinstance(x['age_at_event_days'], int))
         if samp_id not in cur_pt['samples']:
             cur_pt['samples'][samp_id] = {}
         cur_samp = master_dict[pt_id]['samples'][samp_id]
@@ -71,12 +93,13 @@ def create_master_dict(config_data, study_id, tumor_objects, dx_dict, tumor_bs_m
             else:
                 blacklist[samp_id] = ana_type
             sys.stderr.write('WARN: Two or more biospecimens of the same analyte type ' + ana_type
-                                + ' share sample ID ' + samp_id + ', seen in analyte types '
-                                + blacklist[samp_id] + ' so far, skipping!\n')
+                             + ' share sample ID ' + samp_id + ', seen in analyte types '
+                             + blacklist[samp_id] + ' so far, skipping!\n')
         else:
             cur_samp[ana_type] = {}
             cur_samp[ana_type]['specimen_id'] = bs_id
-            cur_samp[ana_type]['tumor_site'] = ";".join(x['source_text_tumor_location'] for x in tumor_object['diagnosis'])
+            cur_samp[ana_type]['tumor_site'] = ";".join(
+                x['source_text_tumor_location'] for x in tumor_object['diagnosis'])
             cur_samp[ana_type]['cancer_type'] = ";".join(x['source_text_diagnosis'] for x in tumor_object['diagnosis'])
             cur_samp[ana_type]['tumor_type'] = tumor_object['source_text_tumor_descriptor']
             cur_samp[ana_type]['sample_type'] = samp_type
@@ -85,7 +108,6 @@ def create_master_dict(config_data, study_id, tumor_objects, dx_dict, tumor_bs_m
                 cur_samp[ana_type]['matched_norm_spec'] = tumor_bs_mapped_normal_sample[bs_id]['specimen_id']
             else:
                 cur_samp[ana_type]['rsem'] = bs_id  # build_samp_id(rna_samp_def, t_header, info)
-
 
     Path(config_data['datasets'] + study_id).mkdir(exist_ok=True)
     out_samp = open(config_data['datasets'] + study_id + '/data_clinical_sample.txt', 'w')
@@ -215,8 +237,8 @@ def create_master_dict(config_data, study_id, tumor_objects, dx_dict, tumor_bs_m
                     cur_pt['os_age_mos'] = ''
             out_pt.write(
                 '\t'.join((pt_id, cur_pt['external_id'], cur_pt['gender'], cur_pt['age'], cur_pt['tumor_site'],
-                            cur_pt['race'], cur_pt['ethnicity'], cur_pt['vital_status'],
-                            cur_pt['os_age_mos'])) + '\n')
+                           cur_pt['race'], cur_pt['ethnicity'], cur_pt['vital_status'],
+                           cur_pt['os_age_mos'])) + '\n')
         else:
             sys.stderr.write('WARN: ' + pt_id + ' skipped, all samples were in blacklist\n')
     out_samp.close()

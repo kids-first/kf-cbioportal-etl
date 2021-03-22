@@ -29,7 +29,7 @@ def get_filtered_resources(resources: List[File], config_data, skipped_specimens
         n_bs_id = resource.metadata['Kids First Biospecimen ID Normal']
 
         if t_bs_id in skipped_specimens or n_bs_id in skipped_specimens:
-            sys.stderr.write('BS ID in blacklist.  Skipping ' + t_bs_id)
+            sys.stderr.write('BS ID in blacklist.  Skipping ' + t_bs_id + "\n")
             continue
 
         parts = fname.split('.')
@@ -95,7 +95,7 @@ def get_harmonized_data_files(harmonized_data_directory, client, valid_extension
                         if ext in valid_extensions:
                             resources.append(record.resource)
                     else:
-                        sys.stderr.write('Error ' + record.error + ' while fetching cavatica file')
+                        sys.stderr.write('Error ' + record.error + ' while fetching cavatica file\n')
     return resources
 
 
@@ -108,7 +108,7 @@ def get_resources_from_cavatica_projects(project_ids, config_data):
     for key in dna_ext_dict:
         valid_extensions.append(dna_ext_dict[key])
 
-    api = sbg.Api(url='https://cavatica-api.sbgenomics.com/v2', token='296f647e655b4ff2acbc06f92a56b733')
+    api = sbg.Api(url='https://cavatica-api.sbgenomics.com/v2', token=config_data['cavatica_token'])
     resources: List[File] = []
     for project_id in project_ids:
         project: Project = api.projects.get(id=project_id)
@@ -127,5 +127,5 @@ def get_resources_from_cavatica_projects(project_ids, config_data):
                             if ext in valid_extensions:
                                 resources.append(record.resource)
                         else:
-                            sys.stderr.write('Error ' + record.error + ' while fetching cavatica file')
+                            sys.stderr.write('Error ' + record.error + ' while fetching cavatica file\n')
     return get_filtered_resources(resources, config_data)

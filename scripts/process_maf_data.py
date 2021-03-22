@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import pandas as pd
-from .file_utils import write_meta_file
+from file_utils import write_meta_file
 
 
 def add_maf_file(config_data, study_name, study_dir, study_maf_files):
@@ -20,9 +20,9 @@ def add_maf_file(config_data, study_name, study_dir, study_maf_files):
         del maf_data['Entrez_Gene_Id'] # is this required?
         maf_data.to_csv(study_dir + "/data_mutations_extended.txt", sep="\t", index=False)
 
-        #Add meta file
+        # Add meta file
         write_meta_file(study_name, config_data["metadata"]["mutation"]["meta_attr"], study_dir + '/meta_mutations_extended.txt')
 
     except Exception as e:
-        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process maf files')
+        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process maf files\n')
         sys.exit(1)

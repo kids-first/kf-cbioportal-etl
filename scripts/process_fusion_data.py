@@ -2,7 +2,7 @@
 import sys
 import pandas as pd
 from requests import request
-from .file_utils import write_meta_file
+from file_utils import write_meta_file
 
 
 def get_sequencing_center_info(config_data, bs_id):
@@ -69,5 +69,5 @@ def add_fusion_file(config_data, study_dir, study_resources):
         # Add meta file
         write_meta_file(study_name, config_data["metadata"]["fusion"]["meta_attr"], study_dir + 'meta_fusions.txt')
     except Exception as e:
-        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process fusion file')
+        sys.stderr.write('Error ' + str(e) + ' occurred while trying to process fusion file\n')
         sys.exit(1)

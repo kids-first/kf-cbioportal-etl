@@ -3,15 +3,21 @@ import sys
 import subprocess
 import sevenbridges as sbg
 
-from .file_utils import write_meta_file
-from .process_fusion_data import add_fusion_file
-from .process_rsem_data import add_rsem_file
-from .process_cnv_data import add_cnv_file
-from .process_maf_data import add_maf_file
-from .add_case_list_files import add_case_list_files
+from file_utils import write_meta_file
+from process_fusion_data import add_fusion_file
+from process_rsem_data import add_rsem_file
+from process_cnv_data import add_cnv_file
+from process_maf_data import add_maf_file
+from add_case_list_files import add_case_list_files
+from sevenbridges.errors import LocalFileAlreadyExists
+
+from process_clinical_data import add_clinical_data_files
 
 
-def process_ds_new(config_data, study_info, resources):
+def process_study_resources(config_data, study_info, resources, dx_dict):
+    sys.stderr.write('Started processing resources for '+study_info['cancer_study_identifier']+' study\n')
+    add_clinical_data_files(config_data, study_info['cancer_study_identifier'], resources, dx_dict)
+
     resource_set = {}
     for resource in resources:
         if resource['atype'] == 'DNA':
@@ -20,13 +26,20 @@ def process_ds_new(config_data, study_info, resources):
         elif resource['atype'] == 'RNA':
             resource_set[resource['t_bs_id']] = resource
 
+        # download data files
+        for cavatica_file_object in resource['resources']:
+            try:
+                cavatica_file_object.download(path=config_data['data_files'] + cavatica_file_object.name, overwrite=False)
+            except LocalFileAlreadyExists:
+                pass
+
     flist = subprocess.check_output('find ' + config_data['datasets'] + ' -name data_clinical_sample.txt', shell=True)
 
     ds_list = flist.decode().split('\n')
     if ds_list[-1] == '':
         ds_list.pop()
 
-    sbg_api_client = sbg.Api(url='https://cavatica-api.sbgenomics.com/v2', token='296f647e655b4ff2acbc06f92a56b733')
+    sbg_api_client = sbg.Api(url='https://cavatica-api.sbgenomics.com/v2', token=config_data['cavatica_token'])
     rsem_files_by_project = {}
 
     for dpath in ds_list:
@@ -36,7 +49,6 @@ def process_ds_new(config_data, study_info, resources):
             study_directory = "/".join(parts[:-1])
             cbio_proj = parts[-2]
             # project/disease name should be name of directory hosting datasheet
-            sys.stderr.write('Processing ' + cbio_proj + ' project' + '\n')
             cur_ds = open(dpath)
             for i in range(0, 4, 1):
                 next(cur_ds)
@@ -94,7 +106,7 @@ def process_ds_new(config_data, study_info, resources):
             write_meta_file(cbio_proj, study_info, study_directory + "/meta_study.txt")
 
         except Exception as e:
-            sys.stderr.write('Error ' + str(e) + ' occurred while trying to process data files')
+            sys.stderr.write('Error ' + str(e) + ' occurred while trying to process data files\n')
             sys.exit(1)
 
     if bool(rsem_files_by_project):

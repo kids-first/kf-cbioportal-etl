@@ -5,7 +5,7 @@ import pandas as pd
 from scipy import stats
 import numpy as np
 
-from .file_utils import write_meta_file
+from file_utils import write_meta_file
 
 def mt_collate_df(config_data,resource):
     sample_id = resource.metadata['sample_id']

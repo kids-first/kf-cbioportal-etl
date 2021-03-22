@@ -3,7 +3,7 @@
 import os
 import pandas as pd
 from pathlib import Path
-from .file_utils import write_case_list
+from file_utils import write_case_list
 
 case_lists_meta = {
     "cases_3way_complete": {
