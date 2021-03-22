@@ -29,7 +29,7 @@ def get_tumor_bs_mapped_normal_sample(config_data, resources):
 
 
 def add_clinical_data_files(config_data, study_id, resources, dx_dict, cl_supp=None):
-    sys.stderr.write('Processing for clinical data' + study_name + ' project' + '\n')
+    sys.stderr.write('Processing for clinical data' + study_id + ' project' + '\n')
     tumor_objects = get_tumor_resources(resources, config_data)
     tumor_bs_mapped_normal_sample = get_tumor_bs_mapped_normal_sample(config_data, resources)
 
