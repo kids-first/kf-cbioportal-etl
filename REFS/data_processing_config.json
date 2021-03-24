@@ -13,7 +13,8 @@
   },
   "dna_ext_list": {
     "mutation": "consensus_somatic.vep.maf", 
-    "copy_number": "controlfreec.CNVs.p.value.txt"
+    "copy_number": "controlfreec.CNVs.p.value.txt",
+    "seg": "controlfreec.seg"
   },
   "ens_gene_list":"/home/ubuntu/tools/kfdrc_cbioportal_etl/REFS/gencode27_gene_list.txt",
   "script_dir": "/home/ubuntu/tools/kfdrc_cbioportal_etl/scripts/",
