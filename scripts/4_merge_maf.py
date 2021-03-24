@@ -8,7 +8,7 @@ from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
 
 
-def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id, tid_idx, nid_idx, v_idx, eid_idx, n_idx):
+def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id, tid_idx, nid_idx, v_idx, eid_idx):
     cur_maf = open(maf_fn)
     next(cur_maf)
     next(cur_maf)
@@ -18,12 +18,11 @@ def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id, tid_idx, nid_idx, v_i
             data[tid_idx] = tum_id
             data[nid_idx] = norm_id
             data.pop(eid_idx)
-            data.pop((n_idx-1))
             new_maf.write('\t'.join(data) + '\n')
     cur_maf.close()
 
 
-def process_tbl(cbio_dx, file_meta_dict, tid_idx, nid_idx, v_idx, eid_idx, n_idx, print_head):
+def process_tbl(cbio_dx, file_meta_dict, tid_idx, nid_idx, v_idx, eid_idx, print_head):
     try:
         x = 0
         # project/disease name should be name of directory hosting datasheet
@@ -36,7 +35,7 @@ def process_tbl(cbio_dx, file_meta_dict, tid_idx, nid_idx, v_idx, eid_idx, n_idx
             sys.stderr.write('Found relevant maf to process for ' + ' ' + cbio_tum_id + ' ' + cbio_norm_id + ' '
             + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + ' ' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + ' ' + fname + '\n')
             sys.stderr.flush()
-            process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id, tid_idx, nid_idx, v_idx, eid_idx, n_idx)
+            process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id, tid_idx, nid_idx, v_idx, eid_idx)
             x += 1
         sys.stderr.write('Completed processing ' + str(x) + ' entries in ' + cbio_dx + '\n')
         new_maf.close()
@@ -67,12 +66,10 @@ print_head = next(head_fh)
 cur_head = next(head_fh)
 cur_header = cur_head.rstrip('\n').split('\t')
 eid_idx = cur_header.index('Entrez_Gene_Id')
-n_idx = cur_header.index('NCBI_Build')
 tid_idx = cur_header.index('Tumor_Sample_Barcode')
 nid_idx = cur_header.index('Matched_Norm_Sample_Barcode')
 v_idx = cur_header.index('Variant_Classification')
 cur_header.pop(eid_idx)
-cur_header.pop((n_idx-1))
 
 head_fh.close()
 print_head += '\t'.join(cur_header) + '\n'
@@ -84,6 +81,6 @@ except:
     sys.stderr.write('output dir already exists\n')
 
 with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
-    results = {executor.submit(process_tbl, cbio_dx, file_meta_dict, tid_idx, nid_idx, v_idx, eid_idx, n_idx, print_head): cbio_dx for cbio_dx in file_meta_dict}
+    results = {executor.submit(process_tbl, cbio_dx, file_meta_dict, tid_idx, nid_idx, v_idx, eid_idx, print_head): cbio_dx for cbio_dx in file_meta_dict}
 
 sys.stderr.write('Done, check logs\n')

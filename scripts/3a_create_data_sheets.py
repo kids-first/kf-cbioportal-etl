@@ -93,7 +93,7 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
         ana_type = info[ana_idx]
         samp_id = build_samp_id(dna_samp_def, t_header, info)
         samp_type = info[sty_idx]
-        if samp_type == 'Derived Cell Line':
+        if samp_type == 'Derived Cell Line' or samp_type == 'Tissue Cell Culture':
             samp_id += '-CL'
             if args.cl_supp is not None and bs_id in cl_supp:
                 samp_id += '-' + cl_supp[bs_id]
