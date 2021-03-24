@@ -43,6 +43,19 @@
                     "datatype": "DISCRETE",
                     "show_profile_in_analysis_tab": "true"
                 }
+            },
+            "segment": {
+                "ext": "merged_seg.txt",
+                "cbio_name": "data_cna.seg.txt",
+                "meta_file_attr": {
+                    "stable_id": "cna",
+                    "profile_name": "Segmented copy-number values",
+                    "profile_description": "Somatic CNA data (copy number ratio from tumor samples minus ratio from matched normals)",
+                    "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+                    "datatype": "SEG",
+                    "reference_genome_id": "hg38",
+                    "show_profile_in_analysis_tab": "true"
+                }
             }
         }
       },
@@ -113,7 +126,7 @@
     },
     "study": {
         "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
-        "description": ["Genomic characterization of", "samples provided by the <a href=\"http://CBTTC.org\">Children's Brain Tumor Tissue Consortium</a>, the <a href=\"http://www.pnoc.us/\">Pacific Neuroncology Consortium (PNOC)</a>, and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Updated Februrary 1, 2020 from last load, July 2019."],
+        "description": ["Genomic characterization of", "samples provided by the <a href=\"http://cbtn.org\">Children's Brain Tumor Netowrk</a>, the <a href=\"http://www.pnoc.us/\">Pacific Neuroncology Consortium (PNOC)</a>, and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Updated Februrary 1, 2020 from last load, July 2019."],
         "groups": "PUBLIC",
         "cancer_study_identifier": "pbta_all",
         "dir_suffix": "",

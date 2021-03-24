@@ -2,6 +2,9 @@
 import pdb
 
 
+import sys
+
+
 def build_samp_id(style, t_header, info):
     if style == 'cbttc_dna_std':
         # sample ID will consist of kf external_sample_id with .SUFFIX removed
@@ -12,7 +15,11 @@ def build_samp_id(style, t_header, info):
     elif style == 'cbttc_norm_std':
         # sample ID will consist of kf external_sample_id with .SUFFIX removed
         sid_idx = t_header.index('external_sample_id')
-        samp_id = info[sid_idx].split('.')[:-1][0]
+        try:
+            samp_id = info[sid_idx].split('.')[:-1][0]
+        except Exception as e:
+            sys.stderr.write(str(e) + "; old formula not working, try direct\n")
+            samp_id = info[sid_idx]
         return samp_id
 
     elif style == 'cbttc_rna_std':
