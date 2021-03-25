@@ -320,10 +320,13 @@ for dx in master_dict:
             for key in check:
                 out_samp.write(temp[key]['entry'])
         elif len(check) > 1:
+            # pdb.set_trace()
             new_ids = {}
             for samp_id in check:
-                parts = samp_id.split('-')
-                new_id = '-'.join(parts[0:3])
+                # parts = samp_id.split('-')
+                # new_id = '-'.join(parts[0:2])
+                parts = samp_id.split('_')
+                new_id = parts[0]
                 if re.search('-CL', samp_id):
                     m = re.search('-CL.*', samp_id)
                     new_id += m.group(0)

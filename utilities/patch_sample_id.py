@@ -3,6 +3,7 @@
 import sys
 import argparse
 import os
+import re
 
 parser = argparse.ArgumentParser(description='Quickly patch sample id from step2 with data warehouse entries')
 parser.add_argument('-i', '--info', action='store', dest='info', help='A sample info sheet from step 2')
@@ -36,7 +37,11 @@ for line in info_in:
     if meta[b_idx] in new_samp:
         meta[s_idx] = new_samp[meta[b_idx]]
     else:
-        sys.stderr.write("WARN: Entry for " + meta[b_idx] + " " + meta[s_idx] + " not found, using original\n")
+        # modify original to fit new
+        sys.stderr.write("WARN: Entry for " + meta[b_idx] + " " + meta[s_idx] + " not found, reformatting\n")
+        meta[s_idx] = re.sub(r"-[T|N]-", "_", meta[s_idx])
+        meta[s_idx] = re.sub(r"\..*$", "", meta[s_idx])
+        meta[s_idx] = re.sub(r"-[T|N]$", "", meta[s_idx])
     if meta[a_idx] == "Not Applicable":
         meta[a_idx] = "DNA"
     print("\t".join(meta))
