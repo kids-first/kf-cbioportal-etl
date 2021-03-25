@@ -55,7 +55,7 @@ with open(args.config_file) as f:
 seg_dir = args.seg_dir
 if seg_dir[-1] != '/':
     seg_dir += '/'
-file_meta_dict = get_file_metadata(args.table, 'cnv')
+file_meta_dict = get_file_metadata(args.table, 'seg')
 head_fh = open(args.header)
 
 print_head = next(head_fh)
