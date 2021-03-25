@@ -26,6 +26,8 @@ def process_meta_study(meta_data, output_dir, study):
         canc_study_id = meta_data["cancer_study_identifier"]
     canc_study_id += meta_data['dir_suffix']
     meta_study.write("cancer_study_identifier: " + canc_study_id + "\n")
+    if "reference_genome" in meta_data:
+        meta_study.write("reference_genome: " + meta_data["reference_genome"] + "\n")
     name = dx_dict[study]
     if meta_data["name_append"] != "":
         name += " " + meta_data["name_append"]
