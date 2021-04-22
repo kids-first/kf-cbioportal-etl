@@ -36,8 +36,7 @@ def process_tbl(cbio_dx, file_meta_dict, print_head, limit):
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             cbio_norm_id = file_meta_dict[cbio_dx][cbio_tum_id]['cbio_norm_id']
             fname = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
-            sys.stderr.write('Found relevant seg to process for ' + ' ' + cbio_tum_id + ' ' + cbio_norm_id + ' '
-            + file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'] + ' ' + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + ' ' + fname + '\n')
+            sys.stderr.write("Found relevant seg to process for {} {} {} {} {}\n".format(cbio_tum_id,cbio_norm_id,file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id'],file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'],fname))
             sys.stderr.flush()
             process_seg(seg_dir + fname, new_seg, cbio_tum_id, limit)
             x += 1
