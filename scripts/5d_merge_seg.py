@@ -8,13 +8,7 @@ from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
 import pdb
 
-parser = argparse.ArgumentParser(description='Merge seg files')
-parser.add_argument('-t', '--table', action='store', dest='table',
-                    help='Table with cbio project, kf bs ids, cbio IDs, and file names')
-parser.add_argument('-i', '--header', action='store', dest='header', help='File with seg header only')
-parser.add_argument('-m', '--seg-dir', action='store', dest='seg_dir', help='seg file directory')
-parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
-                                                                               'data locations')
+
 def process_seg(cur_seg, new_seg, cbio_tum_id, limit):
     cur_seg = open(cur_seg)
     next(cur_seg)
@@ -32,7 +26,7 @@ def process_tbl(cbio_dx, file_meta_dict, print_head, limit):
         # project/disease name should be name of directory hosting datasheet
         sys.stderr.write('Processing ' + cbio_dx + ' project' + '\n')
         new_seg = open(out_dir + cbio_dx + ".merged_seg.txt", 'w')
-        new_seg.write(print_head)
+        new_seg.write(seg_file_header)
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             cbio_norm_id = file_meta_dict[cbio_dx][cbio_tum_id]['cbio_norm_id']
             fname = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
@@ -43,31 +37,37 @@ def process_tbl(cbio_dx, file_meta_dict, print_head, limit):
         sys.stderr.write('Completed processing ' + str(x) + ' entries in ' + cbio_dx + '\n')
         new_seg.close()
     except Exception as e:
-        print(e)
+        sys.stderr.write(e)
         sys.exit()
 
 
+parser = argparse.ArgumentParser(description='Merge seg files')
+parser.add_argument('-t', '--table', action='store', dest='table',
+                    help='Table with cbio project, kf bs ids, cbio IDs, and file names')
+parser.add_argument('-m', '--seg-dir', action='store', dest='seg_dir', help='seg file directory')
+parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
+                                                                               'data locations')
+
 args = parser.parse_args()
-with open(args.config_file) as f:
-    config_data = json.load(f)
-# get maf file ext
-seg_dir = args.seg_dir
-if seg_dir[-1] != '/':
-    seg_dir += '/'
-file_meta_dict = get_file_metadata(args.table, 'seg')
-head_fh = open(args.header)
+if __name__ == "__main__":
+    with open(args.config_file) as f:
+        config_data = json.load(f)
+    seg_file_header = "ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\n"
+    # get maf file ext
+    seg_dir = args.seg_dir
+    if seg_dir[-1] != '/':
+        seg_dir += '/'
+    file_meta_dict = get_file_metadata(args.table, 'seg')
+    # not sure about this, seg files might not allow for droppig regions...
+    limit = config_data['cnv_min_len']
 
-print_head = next(head_fh)
-# not sure about this, seg files might not allow for droppig regions...
-limit = config_data['cnv_min_len']
+    out_dir = 'merged_cnvs/'
+    try:
+        os.mkdir(out_dir)
+    except:
+        sys.stderr.write('output dir already exists\n')
 
-out_dir = 'merged_cnvs/'
-try:
-    os.mkdir(out_dir)
-except:
-    sys.stderr.write('output dir already exists\n')
+    with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
+        results = {executor.submit(process_tbl, cbio_dx, file_meta_dict, print_head, limit): cbio_dx for cbio_dx in file_meta_dict}
 
-with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
-    results = {executor.submit(process_tbl, cbio_dx, file_meta_dict, print_head, limit): cbio_dx for cbio_dx in file_meta_dict}
-
-sys.stderr.write('Done, check logs\n')
+    sys.stderr.write('Done, check logs\n')
