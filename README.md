@@ -1,6 +1,6 @@
 # Outline on ETL for converting data from cavatica and data service to pedcbioportal format
 In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
-Further general aloding notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee)
+Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee)
 ## Software Prerequisites
 
 + `python3` v3.5.3+
@@ -351,16 +351,25 @@ DCLK2   166614  3
 ### scripts/5b_merge_cnv.py
 *Prerequisite: A cavatica file manifest of ControlFreeC `info.txt` files* Merge files generated from step 5a into a genes-by-sample raw copy number matrix
 ```python
-parser = argparse.ArgumentParser(description='Merge cnv files using cavatica task info and datasheets.')
-parser.add_argument('-t', '--table', action='store', dest='table',
-                    help='Table with cbio project, kf bs ids, cbio IDs, and file names')
-parser.add_argument('-n', '--cnv-dir-gene', action='store', dest='cnv_dir', help='cnv as gene file directory')
-parser.add_argument('-m', '--info_manifest', action='store', dest='manifest', help='cavatica cfree info file manifest')
-parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
-                                                                               'data locations')
-parser.add_argument('-p', '--profile', action='store', dest='profile', help='cavatica profile name. requires '
-                                                                            '.sevenbridges/credentials file be present')
+usage: 5b_merge_cnv.py [-h] [-t TABLE] [-n CNV_DIR] [-m MANIFEST]
+                       [-j CONFIG_FILE] [-p PROFILE]
 
+Merge cnv files using cavatica task info and datasheets.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file
+                        names
+  -n CNV_DIR, --cnv-dir-gene CNV_DIR
+                        cnv as gene file directory
+  -m MANIFEST, --info_manifest MANIFEST
+                        cavatica cfree info file manifest
+  -j CONFIG_FILE, --config CONFIG_FILE
+                        json config file with data types and data locations
+  -p PROFILE, --profile PROFILE
+                        cavatica profile name. requires
+                        .sevenbridges/credentials file be present
 ```
 Data processing config file is used, with relevant fields:
 + [`dna_ext_list`][`copy_number`]: File extension of inputs (used in 5a) with no leading `.`, i.e. `controlfreec.CNVs.p.value.txt`
