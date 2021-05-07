@@ -20,7 +20,7 @@ def process_seg(cur_seg, new_seg, cbio_tum_id, limit):
         new_seg.write("\t".join(data) + "\n")
 
 
-def process_tbl(cbio_dx, file_meta_dict, print_head, limit):
+def process_tbl(cbio_dx, file_meta_dict, limit):
     try:
         x = 0
         # project/disease name should be name of directory hosting datasheet
@@ -68,6 +68,6 @@ if __name__ == "__main__":
         sys.stderr.write('output dir already exists\n')
 
     with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
-        results = {executor.submit(process_tbl, cbio_dx, file_meta_dict, print_head, limit): cbio_dx for cbio_dx in file_meta_dict}
+        results = {executor.submit(process_tbl, cbio_dx, file_meta_dict, limit): cbio_dx for cbio_dx in file_meta_dict}
 
     sys.stderr.write('Done, check logs\n')
