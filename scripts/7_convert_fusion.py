@@ -13,7 +13,7 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--mode', action='store', dest='mode', help='describe source, pbta or annofuse', required=True)
     parser.add_argument('-s', '--center-file', action='store', dest='sq_file', help='File with BS IDs and sequencing centers. Should have headered columns: BS_ID\tSQ_Value')
     args = parser.parse_args()
-    if args.mode != "pbta" or args.mode != "annofuse":
+    if args.mode != "pbta" and args.mode != "annofuse":
         sys.stderr.write("-m mode argument must be one of pbta or annofuse. It is case sensitive. You put " + args.mode + "\n")
         exit(1)
     def init_cbio_master(fusion_results, mode, rna_metadata):

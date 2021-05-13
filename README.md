@@ -1,5 +1,6 @@
 # Outline on ETL for converting data from cavatica and data service to pedcbioportal format
-In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats)
+In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
+Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee)
 ## Software Prerequisites
 
 + `python3` v3.5.3+
@@ -7,7 +8,7 @@ In general, we are creating upload packages converting our data and metadata to 
   + `numpy`, `pandas`, `scipy`
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
 + `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
-+ access to https://jenkins.kids-first.io/job/d3b-center-aws-infra-pedcbioportal-import/job/master/ to start cbio load into QA and/or prod
++ access to https://aws-infra-jenkins-service.kf-strides.org to start cbio load into QA and/or prod using the `d3b-center-aws-infra-pedcbioportal-import` task
 + Seven bridges credentials file created
 
 ## Starting file inputs
@@ -124,7 +125,7 @@ Here, we parse the cavatica manifests, get clinical info from the data service, 
 
 ### scripts/1a_merge_cavatica_manifests.py
 Run if more than one cavatica file manifest was used/needed
-```
+```python
 usage: 1a_merge_cavatica_manifests.py [-h] [-m MANIFEST]
 
 Get all relevant analyzed file outputs from cavatica manifest.
@@ -137,7 +138,7 @@ optional arguments:
 
 ### scripts/1b_query_file_manifest.py
 This will create a master sheet bs ids, analyte type, project location, and file names.
-```
+```python
 usage: 1b_query_file_manifest.py [-h] [-o OUTPUT] [-m MANIFEST] [-b BLACKLIST]
                                  [-c CONFIG_FILE]
 
@@ -163,7 +164,7 @@ Data processing config file is used, with relevant fields `dna_ext_list` and `rn
 
 ### scripts/2_query_ds_by_bs_id.py
 This must be run on the chop network. It grabs all the clinical data from the data service and creates a table for tumor data (`tum_bs_ds_info.txt`), and one for normal data (`tum_bs_ds_info.txt`).  
-```
+```python
 usage: 2_query_ds_by_bs_id.py [-h] [-u URL] [-c CAV] [-j CONFIG_FILE]
 
 Script to walk through data service and grab all relevant meetadata by bs id.
@@ -193,7 +194,7 @@ Data processing config file is used, with relevant field `threads` as python req
 
 ### scripts/3a_create_data_sheets.py
 This file creates the clinical information files required for cbioportal. A directory called `datasheets` will be created with one sub-directory for each unique value from the `MB cbioportal id` in the `dx index sheet`. It uses a helper script called `scripts/sample_id_builder_helper.py` to for cbioportal-friendly names. Edit that script if a different set of information from the ds_info sheets is needed.
-```
+```python
 usage: 3a_create_data_sheets.py [-h] [-c CAV] [-t TUMOR] [-n NORMAL]
                                 [-j CONFIG_FILE] [-s CL_SUPP]
 
@@ -224,7 +225,7 @@ Data processing config file is used, with relevant fields:
 
 ### scripts/3b_create_cbio_id_fname_tbl.py
 This is another organizing script that collates the cavatica data from step 1b and the datasheets created from step 3a. Outputs dfile with name `cbio_id_fname_table.txt`
-```
+```python
 usage: 3b_create_cbio_id_fname_tbl.py [-h] [-c CAV]
 
 Create temp table with cbio ids, bs ids, and file locations and types for
@@ -245,9 +246,24 @@ brain	BS_FEPRNEXX	NA	rsem	7316-2577-T-463571	NA	2c98cd42-5c3f-4a7e-8e53-7fce6b31
 
 ## Helper/Patch scripts
 Additional metadata may need to be patched as they may not have existed before as a standard. Skip this section if you have all you need
+### utilities/patch_sample_id.py
+Used in the `pbta_all` load in April 2021, it takes data exported from the D3b data warehouse to creat valid sample IDs
+```python
+usage: patch_sample_id.py [-h] [-i INFO] [-d DATA]
+
+Quickly patch sample id from step2 with data warehouse entries
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i INFO, --info INFO  A sample info sheet from step 2
+  -d DATA, --data DATA  Data Warehouse tsv with biospecimen ID, master aliquot
+                        id, and sample id
+```
+Writes to stdout. Output has the sample IDs updated from the sheet inputted from step2. Run for each sheet.
 ### utilities/get_survival_from_ds.py
 This is the most likely helper script needed. This gets survival data from the data service to be patched to the data_clinical_patient.txt sheets.
-```usage: get_survival_from_ds.py [-h] [-u URL] [-p PT_LIST]
+```python
+usage: get_survival_from_ds.py [-h] [-u URL] [-p PT_LIST]
 
 Get vital status by PT ID
 
@@ -266,7 +282,7 @@ Adds survival data obtained from `outcomes.txt` and calculates overall survival 
 ## Prepare mutation data
 ### scripts/4_merge_maf.py
 *Prerequisite: Download all maf files to be merged into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Merges maf files by cbio disease type.  Will remove calls of certain categories as outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#mutation-data)
-```
+```python
 usage: 4_merge_maf.py [-h] [-t TABLE] [-i HEADER] [-m MAF_DIR]
                       [-j CONFIG_FILE]
 
@@ -291,7 +307,7 @@ Output created: `merged_mafs` directory with maf files named based on cbio disea
 ## Prepare Copy number data (if avaliable)
 ### scripts/5a_cnv_genome2gene.py
 *Prerequisite: Download all ControlFreeC p value output files to be converted into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Converts copy number genome coordinate calls to gene copy number calls
-```
+```python
 usage: 5a_cnv_genome2gene.py [-h] [-d CNV_DIR] [-j CONFIG_FILE]
 
 Convert controlFreeC cnv genome coords to gene level
@@ -333,9 +349,10 @@ DCLK2   166614  3
 ```
 
 ### scripts/5b_merge_cnv.py
-Merge files generated from step 5a into a genes-by-sample raw copy number matrix
-```
-usage: 5b_merge_cnv.py [-h] [-t TABLE] [-n CNV_DIR] [-j CONFIG_FILE]
+*Prerequisite: A cavatica file manifest of ControlFreeC `info.txt` files* Merge files generated from step 5a into a genes-by-sample raw copy number matrix
+```python
+usage: 5b_merge_cnv.py [-h] [-t TABLE] [-n CNV_DIR] [-m MANIFEST]
+                       [-j CONFIG_FILE] [-p PROFILE]
 
 Merge cnv files using cavatica task info and datasheets.
 
@@ -346,8 +363,13 @@ optional arguments:
                         names
   -n CNV_DIR, --cnv-dir-gene CNV_DIR
                         cnv as gene file directory
+  -m MANIFEST, --info_manifest MANIFEST
+                        cavatica cfree info file manifest
   -j CONFIG_FILE, --config CONFIG_FILE
                         json config file with data types and data locations
+  -p PROFILE, --profile PROFILE
+                        cavatica profile name. requires
+                        .sevenbridges/credentials file be present
 ```
 Data processing config file is used, with relevant fields:
 + [`dna_ext_list`][`copy_number`]: File extension of inputs (used in 5a) with no leading `.`, i.e. `controlfreec.CNVs.p.value.txt`
@@ -356,7 +378,7 @@ Output created: `merged_cnvs` directory with merged raw copy number files named 
 
 ### scripts/5c_cnv_discrete.py
 *Prerequisite: A cavatica file manifest of ControlFreeC `info.txt` files* Converts raw copy number to gistic-style discrete values. Uses info.txt files to adjust for calculated ploidy
-```
+```python
 usage: 5c_cnv_discrete.py [-h] [-d MERGED_CNV_DIR] [-j CONFIG_FILE]
                           [-m MANIFEST] [-t TABLE] [-p PROFILE]
 
@@ -382,10 +404,33 @@ Data processing config file is used, with relevant fields:
 + `threads`: Number of files to process concurrently using `ThreadPoolExecutor`. 40 recommended
 Output created: In `merged_cnvs` directory with merged discrete copy number files named based on cbio disease type. Will have extension `discrete_cnvs.txt`
 
+### scripts/5d_merge_seg.py
+Simply merges seg files as-is
+```python
+usage: 5d_merge_seg.py [-h] [-t TABLE] [-i HEADER] [-m SEG_DIR]
+                       [-j CONFIG_FILE]
+
+Merge seg files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file
+                        names
+  -i HEADER, --header HEADER
+                        File with seg header only
+  -m SEG_DIR, --seg-dir SEG_DIR
+                        seg file directory
+  -j CONFIG_FILE, --config CONFIG_FILE
+                        json config file with data types and data locations
+```
+Output created: In `merged_cnvs` directory with merged discrete copy number files named based on cbio disease type. Will have extension `merged_seg.txt`
+
 ## Prepare RNA expression and fusion data (if avaliable)
 ### scripts/6_merge_rename_rsem.py
 *Prerequisite: Download all rsem files to be merged into a directory, using the manifest and wget, sbg api, or xargs and sb cli.* Merges rsem files into a gene-by-sample matrix.  Repeat HUGO symbols are resolved by taking the row with the highest mean expression and dropping the rest. Also creates a merged z score table.  Z scores are calculated before breaking up into individual cbio disease files; FPKM counts have a pseudocount added, then are log2 transformed before z score is calculated
-```usage: 6_merge_rename_rsem.py [-h] [-t TABLE] [-r RSEM_DIR] [-j CONFIG_FILE]
+```python
+usage: 6_merge_rename_rsem.py [-h] [-t TABLE] [-r RSEM_DIR] [-j CONFIG_FILE]
 
 Merge rsem files using cavatica file info.
 
@@ -402,7 +447,7 @@ Output created: `merged_rsem` directory with by cbio disease `rsem_merged.txt` a
 ### scripts/7_convert_fusion.py
 *Prerequisite: openPBTA fusion file from releases [here](https://s3.console.aws.amazon.com/s3/buckets/kf-openaccess-us-east-1-prd-pbta/data/?region=us-east-1&tab=overview) OR annoFuse results downloaded into a directory.* Can use openPBTA results or annoFuse results for cbio fusion file table generation.
 
-```
+```python
 usage: 7_convert_fusion.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-m MODE]
                            [-s SQ_FILE] [-j CONFIG_FILE]
 
@@ -427,7 +472,7 @@ Outputs: `merged_fusion` directory with merged fusion files by cbio disease as o
 ### scripts/8_organize_upload_packages.py
 Create cases lists, meta files, and organize data for cbio upload. It is
 assumed you are at the dir level of all input data files
-```
+```python
 usage: 8_organize_upload_packages.py [-h] [-o OUT_DIR] [-d DX_FILE]
                                      [-c CONFIG_FILE]
 

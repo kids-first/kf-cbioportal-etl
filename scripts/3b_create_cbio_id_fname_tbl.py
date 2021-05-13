@@ -64,6 +64,8 @@ for line in manifest:
         if atype == 'DNA':
             if fname[-3:] == 'maf':
                 ftype = 'maf'
+            elif fname[-3:] == 'seg':
+                ftype = 'seg'
             else:
                 ftype =  "cnv"
         elif fname[-3:] == 'tsv':
