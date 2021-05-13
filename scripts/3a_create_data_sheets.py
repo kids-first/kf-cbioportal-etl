@@ -93,7 +93,7 @@ def create_master_dict(t_tbl, dx_dict, norm_samp_id, blacklist, bs_ids_blacklist
         ana_type = info[ana_idx]
         samp_id = build_samp_id(dna_samp_def, t_header, info)
         samp_type = info[sty_idx]
-        if samp_type == 'Derived Cell Line':
+        if samp_type == 'Derived Cell Line' or samp_type == 'Tissue Cell Culture':
             samp_id += '-CL'
             if args.cl_supp is not None and bs_id in cl_supp:
                 samp_id += '-' + cl_supp[bs_id]
@@ -320,10 +320,13 @@ for dx in master_dict:
             for key in check:
                 out_samp.write(temp[key]['entry'])
         elif len(check) > 1:
+            # pdb.set_trace()
             new_ids = {}
             for samp_id in check:
-                parts = samp_id.split('-')
-                new_id = '-'.join(parts[0:3])
+                # parts = samp_id.split('-')
+                # new_id = '-'.join(parts[0:2])
+                parts = samp_id.split('_')
+                new_id = parts[0]
                 if re.search('-CL', samp_id):
                     m = re.search('-CL.*', samp_id)
                     new_id += m.group(0)
