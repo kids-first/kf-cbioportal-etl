@@ -15,7 +15,7 @@
   },
   "ens_gene_list":"/home/ubuntu/tools/kf-cbioportal-etl/REFS/gencode27_gene_list.txt",
   "script_dir": "/home/ubuntu/tools/kf-cbioportal-etl/scripts/",
-  "dx_tbl_fn": "pbta_combined_dx_index.txt",
+  "dx_tbl_fn": "/Users/brownm28/Documents/git_repos/kfdrc_cbioportal_etl/PUBLICATIONS/Ijaz_cole/dx_index.txt",
   "cna_flag": 1,
   "cnv_high_gain": 4,
   "cnv_min_len": 50000,
