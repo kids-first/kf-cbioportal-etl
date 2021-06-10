@@ -16,6 +16,37 @@
             }
         }
       },
+      "merged_cnvs": {
+        "dir": "merged_cnvs",
+        "dtypes": {
+            "linear": {
+                "ext": "predicted_cnv.txt",
+                "cbio_name": "data_linear_CNA.txt",
+                "meta_file_attr": {
+                    "stable_id": "linear_CNA",
+                    "profile_name": "copy-number values",
+                    "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls smaller than 50KB",
+                    "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+                    "datatype": "CONTINUOUS",
+                    "show_profile_in_analysis_tab": "false"
+                }
+
+            },
+            "discrete": {
+                "ext": "discrete_cnvs.txt",
+                "cbio_name": "data_CNA.txt",
+                "meta_file_attr": {
+                    "stable_id": "cna",
+                    "profile_name": "Binned copy-number values",
+                    "profile_description": "Predicted copy number values from WGS (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification",
+                    "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+                    "datatype": "DISCRETE",
+                    "show_profile_in_analysis_tab": "true"
+                }
+            }
+        }
+      },
+
     "merged_rsem": {
         "dir": "merged_rsem",
         "dtypes": {
@@ -73,12 +104,32 @@
         "dir_suffix": "",
         "name_append": "(CHOP, Publication)"
     },
+    "cases_3way_complete": {
+        "stable_id": "3way_complete",
+        "case_list_name": "Tumor samples with mutatation, CNA and mRNA data",
+        "case_list_description": "All tumor samples with mutation, CNA, and mRNA data",
+        "case_list_category": "all_cases_with_mutation_and_cna_and_mrna_data"
+    },
+
     "cases_all": {
         "stable_id": "all",
         "case_list_name": "All Tumors",
         "case_list_description": "All tumor samples",
         "case_list_category": "all_cases_in_study"
     },
+    "cases_cnaseq": {
+        "stable_id": "cnaseq",
+        "case_list_name": "Tumor samples with mutatation and CNA data",
+        "case_list_description": "All tumor samples with mutation and CNA data",
+        "case_list_category": "all_cases_with_mutation_and_cna_data"
+    },
+    "cases_cna": {
+        "stable_id": "cna",
+        "case_list_name": "Tumor Samples with CNA data",
+        "case_list_description": "All tumors with CNA data",
+        "case_list_category": "all_cases_with_cna_data"
+    },
+
     "cases_RNA_Seq_v2_mRNA": {
         "stable_id": "rna_seq_v2_mrna",
         "case_list_name": "Tumor Samples with mRNA data (RNA Seq V2)",
