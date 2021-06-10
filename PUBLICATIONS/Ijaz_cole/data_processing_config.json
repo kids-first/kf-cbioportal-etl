@@ -11,15 +11,16 @@
     "expression": "rsem.genes.results.gz"
   },
   "dna_ext_list": {
-    "mutation": "strelka2.vep.maf"
+    "mutation": "strelka2.vep.maf",
+    "copy_number": "CNVs.p.value.txt"
   },
   "ens_gene_list":"/home/ubuntu/tools/kf-cbioportal-etl/REFS/gencode27_gene_list.txt",
   "script_dir": "/home/ubuntu/tools/kf-cbioportal-etl/scripts/",
   "dx_tbl_fn": "dx_index.txt",
-  "cna_flag": 0,
+  "cna_flag": 1,
   "cnv_high_gain": 4,
   "cnv_min_len": 50000,
-  "rna_flag": 0,
+  "rna_flag": 1,
   "cpus": 8,
   "threads": 40,
   "ds_samp_desc": ["#Patient Identifier\tSample Identifier\tSPECIMEN_ID\tCANCER_TYPE\tCANCER_TYPE_DETAILED\tTUMOR_TISSUE_SITE\tTUMOR_TYPE\tSAMPLE_TYPE\tMATCHED_NORMAL_SAMPLE_ID\tMATCHED_NORMAL_SPECIMEN_ID\tCBTN_PAIRED_IDS",
