@@ -108,7 +108,7 @@ if __name__ == "__main__":
     sys.stderr.write('Calculating z scores\n')
     sys.stderr.flush()
 
-    z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis = 1)
+    z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis = 0)
     del master_tbl
     master_zscore_log = pd.DataFrame(z_scored, index=gene_sym_list, columns=sample_list)
     # this may be memory-intensive for some insane reson...
