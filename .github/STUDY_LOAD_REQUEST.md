@@ -27,6 +27,11 @@ This template is used to start a request to load, whether new or an update, a st
 
 1. Provide an example of a sample ID that can be used to tie together DNA and RNA (if applicable), aka a "somatic event ID":
 
+1. Load/access control:
+   - [ ] Load in QA Only
+   - [ ] Load in Prod
+   - [ ] **DO NOT LOAD AS PUBLIC**. USE GROUP NAME: 
+
 ## Kids First/PBTA
  - [ ] Check if this is a Kids First or PBTA (D3b) study
  - [ ] If creating a subset cohort, please provide a list of `BS_ID`:
