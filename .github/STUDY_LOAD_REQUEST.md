@@ -35,14 +35,20 @@ This template is used to start a request to load, whether new or an update, a st
 Publication is obvious, as `Collaboration` study would be something like OpenPBTA, OpenTargets, or other custom request
  - [ ] Check if publication
  - [ ] Check if collaboration
-### Publication
-Please provide the following:
-1. A link to the paper
+
+### Please provide the following:
+1. A link to the paper (if applicable):
 1. Link(s) or a description of where to find the genomic data to load. Acceptable types of data to load are
- - [Somatic variant calls in maf format](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#mutation-data)
- - Copy number calls as one or more of the following: [discrete copy number data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#discrete-copy-number-data), [continuous copy number data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#continuous-copy-number-data), [segmented data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#segmented-data)
- - [RNAseq expression](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#expression-data) 
- - [RNAseq fusion](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data)
- - [Protein level data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#protein-level-data)
+    - [Somatic variant calls in maf format](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#mutation-data)
+    - Copy number calls as one or more of the following: [discrete copy number data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#discrete-copy-number-data), [continuous copy number data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#continuous-copy-number-data), [segmented data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#segmented-data)
+    - [RNAseq expression](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#expression-data) 
+    - [RNAseq fusion](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data)
+    - [Protein level data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#protein-level-data)
+
+
+
 1. [Patient metadata](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-patient-columns) that is available
-1. [Sample metdata](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-sample-columns) that is available
+
+
+
+1. [Sample metadata](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-sample-columns) that is available
