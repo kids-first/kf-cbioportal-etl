@@ -13,6 +13,7 @@ for line in pt_cid_tbl:
     info = line.rstrip('\n').split('\t')
     id_dict[info[1]] = info[0]
 
+# note this produces one row less than is required
 new_col = ["External Patient Identifier", "Patient ID used by generator of data", "STRING", "1", "EXTERNAL_PATIENT_ID"]
 pt_sheet = open(args.datasheet)
 for col in new_col:
@@ -27,5 +28,5 @@ for line in pt_sheet:
         sys.stdout.write(id_dict[parts[2]] + "\t")
     else:
         sys.stdout.write(info[0] + "\t")
-    sys.stdout.write("\t".join(info[1:]) + "\n")
+    sys.stdout.write(parts[2] + "\t" + "\t".join(info[1:]) + "\n")
 
