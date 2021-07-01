@@ -20,10 +20,10 @@ def init_list(header_list, entry):
     Initialize list of list of header entries
     '''
     header_list.append([])
-    if h_dict[entry][m_dx] == "":
+    if h_dict[entry][m_idx] == "":
         header_list[0].append(entry)
     else:
-        header_list[0].append(h_dict[entry][m_dx])
+        header_list[0].append(h_dict[entry][m_idx])
     header_list.append([])
     if h_dict[entry][d_idx] == "":
         header_list[1].append(format_desc(entry))
@@ -48,20 +48,20 @@ def build_header(header_list, entry):
     if not header_list:
         header_list = init_list(header_list, entry)
     else:
-        if h_dict[entry][m_dx] == "":
+        if h_dict[entry][m_idx] == "":
             header_list[0].append(entry)
         else:
-            header_list[0].append(h_dict[entry][m_dx])
+            header_list[0].append(h_dict[entry][m_idx])
         if h_dict[entry][d_idx] == "":
             header_list[1].append(format_desc(entry))
         else:
             header_list[1].append(h_dict[entry][d_idx])
         header_list[2].append(h_dict[entry][t_idx])
         header_list[3].append(h_dict[entry][o_idx])
-        if h_dict[entry][m_dx] == "":
+        if h_dict[entry][m_idx] == "":
             header_list[4].append(format_colname(entry))
         else:
-            header_list[4].append(h_dict[entry][m_dx])
+            header_list[4].append(h_dict[entry][m_idx])
 
     return header_list
 
