@@ -26,18 +26,38 @@ def mt_query_calls(line):
         exit(1)
 
 
+def get_obj(src_url):
+    """
+    GET requested object from url. It will occassionally fail so pausing, and trying again remedies the situation
+    """
+    try:
+        req_info = request('GET', src_url)
+        return req_info
+    except Exception as e:
+        sys.stderr.write('Got error ' + str(e) + ',could not retrieve info from ' + src_url + ', pausing and retrying\n')
+        sys.stderr.flush()
+        sleep(1)
+        req_info = request('GET', src_url)
+        return req_info
+
+
+def process_attr_dict(attr_dict, info_dict):
+    """
+    Iterate through a requested attribute dictionary and append to an output string (a list that wil be converted to tsv)
+    """
+    temp = []
+    for attr in attr_dict:
+        res = info_dict.json()['results'][attr]
+        if res is None:
+            res = 'NULL'
+        temp.append(res)
+    return temp
+
+
 def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_attrs):
 
     bs_url = url + '/biospecimens/' + bs_id
-    # sys.stderr.write(bs_url + '\n')
-    bs_info = None
-    try:
-        bs_info = request('GET', bs_url)
-    except Exception as e:
-        sys.stderr.write('Got error ' + str(e) + ',could not retrieve info from ' + bs_url + ', pausing and retrying\n')
-        sys.stderr.flush()
-        sleep(1)
-        bs_info = request('GET', bs_url)
+    bs_info = get_obj(bs_url)
     result = []
     if bs_info.json()['_status']['code'] == 404:
         result.append(bs_info.json()['_status']['message'])
@@ -50,34 +70,20 @@ def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_at
         return result
     dx_url = url + bs_info.json()['_links']['diagnoses']
     dx_dict = {}
-    dx_obj = 'NoDX'
-    try:
-        dx_obj = request('GET', dx_url) if len(dx_attrs) > 0 else 'NoDX'
-    except Exception as e:
-        sys.stderr.write('Got error ' + str(e) + ',could not retrieve info from ' + dx_url + ', pausing and retrying\n')
-        sys.stderr.flush()
-        sleep(1)
-        dx_obj = request('GET', dx_url) if len(dx_attrs) > 0 else 'NoDX'
-    # dir(bs_info)
-    pt_url = bs_info.json()['_links']['participant']
-    pt_info = None
-    try:
-        pt_info = request('GET', url + pt_url)
-    except Exception as e:
-        sys.stderr.write('Got error ' + str(e) + ', could not retrieve info from ' + pt_url + ', pausing and retrying\n')
-        sys.stderr.flush()
-        sleep(1)
-        pt_info = request('GET', url + pt_url)
+    # dx can sometimes have multiple values, so dict is used to store them all
+    dx_dict = {}
+    dx_obj = get_obj(dx_url) if len(dx_attrs) > 0 else 'NoDX'
+
+    pt_url = url + bs_info.json()['_links']['participant']
+    pt_info = get_obj(pt_url)
     result.append(pt_info.json()['results']['kf_id'])
-    outcome_url = pt_info.json()['_links']['outcomes']
-    outcome_info = None
-    try:
-        outcome_info = request('GET', url + outcome_url)
-    except Exception as e:
-        sys.stderr.write('Got error ' + str(e) + ', could not retrieve info from ' + outcome_url + ', pausing and retrying\n')
-        sys.stderr.flush()
-        sleep(1)
-        outcome_info = request('GET', url + outcome_url)
+
+    outcome_url = url + pt_info.json()['_links']['outcomes']
+    outcome_info = get_obj(outcome_url)
+    
+    result.extend(process_attr_dict(bs_attrs, bs_info))
+    result.extend(process_attr_dict(pt_attrs, pt_info))
+
     for attr in bs_attrs:
         res = bs_info.json()['results'][attr]
         if res is None:
@@ -91,11 +97,6 @@ def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_at
     for attr in dx_attrs:
         dx_dict[attr] = []
         for cur_res in dx_obj.json()['results']:
-            # for dx_split in cur_res['source_text_diagnosis'].split(','):
-            #     if attr == 'source_text_diagnosis':
-            #         dx_dict[attr].append(dx_split) 
-            #     else:   
-            #         dx_dict[attr].append(str(cur_res[attr]))
             dx_dict[attr].append(str(cur_res[attr]))
         result.append(';'.join(dx_dict[attr]))
     # default to last outcome in list
@@ -116,10 +117,10 @@ def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_at
     return result
 
 
-parser = argparse.ArgumentParser(description='Script to walk through data service and grab all relevant meetadata'
+parser = argparse.ArgumentParser(description='Script to walk through data service and grab all relevant metadata'
                                              ' by bs id.')
 parser.add_argument('-u', '--kf-url', action='store', dest='url',
-                    help='Kids First data service url, i.e. https://kf-api-dataservice.kidsfirstdrc.org/')
+                    help='Kids First data service url', default='https://kf-api-dataservice.kidsfirstdrc.org')
 parser.add_argument('-c', '--cavatica', action='store', dest='cav',
                     help='file with task info from cavatica (see step 1)')
 parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
