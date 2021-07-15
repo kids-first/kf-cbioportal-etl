@@ -136,7 +136,7 @@ patient_out.write("\t".join(patient_head_list[-1]) + "\n")
 # pt dict to track if already seen to avoid duplicate output
 pt_id_dict = {}
 # convert values to those that have function and meaning in cbio
-diagnosis_type_dict = {"Initial CNS Tumor": "primary", "Progressive": "progression", "Recurrence": "recurrence" }
+tumor_descriptor_dict = {"Initial CNS Tumor": "primary", "Progressive": "progression", "Recurrence": "recurrence", "Progressive Disease Post Mortem": "progressed", "Second Malignancy": "metastasis" }
 
 # track some sample info so that somatic events can be collapsed
 samp_dict = {}
@@ -181,9 +181,9 @@ for data in clin_data:
                 elif header[i] == "PFS_days" and value != "NA":
                     value = str(math.floor(float(value)/30.5))
                     # d_free_mos = value
-            elif header[i] == "diagnosis_type":
-                if value in diagnosis_type_dict:
-                    value = diagnosis_type_dict[value]
+            elif header[i] == "tumor_descriptor":
+                if value in tumor_descriptor_dict:
+                    value = tumor_descriptor_dict[value]
             elif header[i] == "parent_aliquot_id":
                 value = re.sub(r"-[T|N]-", "_", value)
                 value = re.sub(r"\..*$", "", value)
