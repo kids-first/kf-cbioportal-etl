@@ -3,8 +3,7 @@ import argparse
 import gzip
 
 parser = argparse.ArgumentParser(description='Script to convert openX cnv table to cBio format')
-parser.add_argument('-m', '--mapping-file', action='store', dest = 'mapping_file', help='tsv file with header and bs_id, sample type, cbio ID mappings'
-                    'names, output sheet flag, and conversion')
+parser.add_argument('-m', '--mapping-file', action='store', dest = 'mapping_file', help='tsv file with header and bs_id, sample type, cbio ID mappings')
 parser.add_argument('-c', '--copy-number', action='store', dest='cnv_tbl',
                     help='openX table')
 

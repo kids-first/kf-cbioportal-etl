@@ -2,9 +2,8 @@ import sys
 import argparse
 import gzip
 
-parser = argparse.ArgumentParser(description='Script to pre-filter entries on usually removed criteria except TERT promotoer, convert BS IDs to cBio names')
-parser.add_argument('-m', '--mapping-file', action='store', dest = 'mapping_file', help='tsv file with header and bs_id, sample type, cbio ID mappings'
-                    'names, output sheet flag, and conversion')
+parser = argparse.ArgumentParser(description='Script to pre-filter entries on usually removed criteria except TERT promoter, convert BS IDs to cBio names')
+parser.add_argument('-m', '--mapping-file', action='store', dest = 'mapping_file', help='tsv file with header and bs_id, sample type, cbio ID mappings')
 parser.add_argument('-v', '--maf-file', action='store', dest='maf_file',
                     help='openX maf file')
 
