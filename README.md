@@ -1,6 +1,7 @@
 # Outline on ETL for converting data from cavatica and data service to pedcbioportal format
 In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
-Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee)
+Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee).
+See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
 ## Software Prerequisites
 
 + `python3` v3.5.3+
@@ -513,4 +514,114 @@ A good example of a *multi-study load* is in `REFS/case_pbta_by_dx_meta_config.j
 Outputs: Study directories created a subdirectories in the scripyr output directory.  These subdirectories named as the study short names are to be uploaded.
 ## Upload the final packages
 Upload all of the directories named as study short names to `s3://kf-cbioportal-studies/public/`. You may need to set and/or copy aws your saml key before uploading. Next, edit the file in that bucket called `importStudies.txt` located at `s3://kf-cbioportal-studies/public/importStudies.txt`, with the names of all of the studies you wish to updated/upload. Lastly, go to https://jenkins.kids-first.io/job/d3b-center-aws-infra-pedcbioportal-import/job/master/, click on build. At the `Promotion kf-aws-infra-pedcbioportal-import-asg to QA` and `Promotion kf-aws-infra-pedcbioportal-import-asg to PRD`, the process will pause, click on the box below it to affirm that you want these changes deployed to QA and/or PROD respectively.  If both, you will have to wait for the QA job to finish first before you get the prompt for PROD.
-# Congratulations, you did it!
+## Congratulations, you did it!
+
+# Collaborative and Publication Workflows
+These are highly specialized cases in which all mor most of data comes froma thrid party, and therefore requires specific case-by-case protocols
+
+## OpenTargets
+This project is organized much like OpenPBTA in which all genomics data for each assay-type are collated into one giant table.
+In general, this fits cBioPortal well.
+See `s3://kf-cbioportal-studies/public/ped_opentargets_2021/` for final load packages, `https://pedcbioportal.kidsfirstdrc.org/study/summary?id=ped_opentargets_2021` for final product.
+
+### Inputs
+Inputs are located in the old Kids First AWS account (`538745987955`) in this general bucket location: `s3://kf-openaccess-us-east-1-prd-pbta/open-targets/pedcbio/`.
+Clinical data are obtained from the `histologies.tsv` file.
+Genomic data generally obtained as such:
+ - Somatic variant calls: merged maf
+ - Copy number: tsv file with copy number, ploidy, and GISTIC-style information in maf-like format (each call is a row)
+ - RNA expression: tpm values from rsem stored an `.rds` object
+ - RNA fusion: annoFuse output
+
+ ### File Transformation
+
+#### 1. COLLABORATIONS/openTARGETS/clinical_to_datasheets.py
+ ```
+usage: clinical_to_datasheets.py [-h] [-f HEAD] [-c CLIN] [-s CL_SUPP]
+
+Script to convert clinical data to cbio clinical data sheets
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -f HEAD, --header-file HEAD
+                        tsv file with input file original sample names, output
+                        sheet flag, and conversion
+  -c CLIN, --clinical-data CLIN
+                        Input clinical data sheet
+  -s CL_SUPP, --cell-line-supplement CL_SUPP
+                        supplemental file with cell line meta data - bs
+                        id<tab>type. optional
+ ```
+ - `-f` Header file example can be found here: `COLLABORATIONS/openTARGETS/header_desc.tsv`
+ - `-s` cell line supplemental file here: `REFS/cell_line_supplemental.txt`
+ - `-c` `histologies.tsv`
+
+ Outputs a `data_clinical_sample.txt` and `data_clinical_patient.txt` for the cBio package, and a `bs_id_sample_map.txt` mapping file to link BS IDs to gnerated cBioPortal IDs based on the rules for creating a proper somatic event using column `parent_aliquot_id`
+
+_NOTE:_ histologies.tsv was subset on `PBTA` for the initial run
+
+Example run:
+`python3 COLLABORATIONS/openTARGETS/clinical_to_datasheets.py -f COLLABORATIONS/openTARGETS/header_desc.tsv -s REFS/cell_line_supplemental.txt -c histologies.tsv`
+
+#### 2. COLLABORATIONS/openTARGETS/rename_filter_maf.py
+Rename IDs in `Tumor_Sample_Barcode`
+```
+usage: rename_filter_maf.py [-h] [-m MAPPING_FILE] [-v MAF_FILE]
+
+Script to pre-filter entries on usually removed criteria except TERT
+promoter, convert BS IDs to cBio names
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m MAPPING_FILE, --mapping-file MAPPING_FILE
+                        tsv file with header and bs_id, sample type, cbio ID mappings
+  -v MAF_FILE, --maf-file MAF_FILE
+                        openX maf file
+```
+
+Example run:
+`python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz`
+
+#### 3. COLLABORATIONS/openTARGETS/cnv_to_tables.py
+Convert cnv table to cBio format - genes as rows, samples as cols, one for absolute CN, another for GISTIC-style
+```
+usage: cnv_to_tables.py [-h] [-m MAPPING_FILE] [-c CNV_TBL]
+
+Script to convert openX cnv table to cBio format
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m MAPPING_FILE, --mapping-file MAPPING_FILE
+                        tsv file with header and bs_id, sample type, cbio ID mappings
+  -c CNV_TBL, --copy-number CNV_TBL
+                        openX table
+```
+
+Example run:
+`python3 COLLABORATIONS/openTARGETS/cnv_to_tables.py -m bs_id_sample_map.txt  -c consensus_seg_annotated_cn_autosomes_xy.tsv.gz`
+
+#### 4. COLLABORATIONS/openTARGETS/rename_export_rsem.R
+This script is more of an outline of how exactly it was run rather than quite able to be run as standalone.
+A future update will include using the existing mapping file and being able to take args
+
+#### 5. COLLABORATIONS/openTARGETS/case_list_from_datasheet.py
+```
+usage: case_list_from_datasheet.py [-h] [-d DATASHEET] [-s STUDY_ID]
+
+Generate extra cases lists based on cBio datasheet
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DATASHEET, --datasheet DATASHEET
+                        cBio sample datasheet
+  -s STUDY_ID, --study-id STUDY_ID
+                        cBio cancer_study_identifier
+```
+
+Example run:
+`python3 COLLABORATIONS/openTARGETS/case_list_from_datasheet.py -d data_clinical_sample.txt -s ped_opentargets_2021`
+
+### TODO
+ - Improve step 4
+ - Automate or store meta data files
+ - Automate standard case list generation
