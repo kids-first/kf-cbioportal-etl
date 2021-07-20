@@ -8,6 +8,7 @@ import gzip
 import pandas as pd
 import numpy as np
 from scipy import stats
+import pdb
 
 
 if __name__ == "__main__":
@@ -21,13 +22,12 @@ if __name__ == "__main__":
     def mt_collate_df(rsem_file):
         try:
             sample = rna_subset.loc[rna_subset['File_Name'] == rsem_file, 'Cbio_Tumor_Name'].iloc[0]
-            if sample not in seen_list:
-                sample_list.append(sample)
+            if sample not in seen_dict:
                 current = pd.read_csv(rsem_dir + rsem_file, sep="\t", index_col=0)
                 cur_subset = current[['FPKM']]
                 cur_subset.rename(columns={"FPKM": sample}, inplace=True)
                 df_list.append(cur_subset)
-                seen_list.append(sample)
+                seen_dict[sample] = 1
             else:
                 sys.stderr.write(sample + " was already seen, likely due to mulitple dx, skipping!\n")
             return 1
@@ -54,7 +54,6 @@ if __name__ == "__main__":
     rsem_list = rna_subset['File_Name'].to_list()
     # init_tbl = pd.read_csv(rsem_dir + rsem_list[0], sep="\t", index_col=0)
     # Get cbio name to rename columns in master table
-    sample_list = []
     # master_tbl = init_tbl[['FPKM']]
     # master_tbl.rename(columns={"FPKM": sample}, inplace=True)
     sys.stderr.write('Creating merged rsem table\n')
@@ -63,7 +62,7 @@ if __name__ == "__main__":
 
     df_list = []
     # some samples have more than one dx, need only process once
-    seen_list = []
+    seen_dict = {}
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
         results = {executor.submit(mt_collate_df, rsem_list[i]): rsem_list[i] for i in range(len(rsem_list))}
         for result in concurrent.futures.as_completed(results):
@@ -86,6 +85,11 @@ if __name__ == "__main__":
         gene_sym_list.append(gene_sym)
     master_tbl['Hugo_Symbol'] = gene_sym_list
     master_tbl.drop(columns =["gene_id"], inplace = True)
+    sample_list=list(master_tbl.columns.values)
+    # remove value with Hugo_Symbol
+    h_idx = sample_list.index('Hugo_Symbol')
+    sample_list.pop(h_idx)
+    # look for repeated instances of gene symbol, use highest average exp as rep value
     dup_hugo_tbl = master_tbl[master_tbl.duplicated(['Hugo_Symbol'])]
     rpt_sym = dup_hugo_tbl.Hugo_Symbol.unique()
     for sym in rpt_sym:
@@ -93,7 +97,6 @@ if __name__ == "__main__":
         mean_expr = gene_eval[sample_list].mean(axis=1).sort_values(ascending=False)
         to_dump = list(mean_expr.index)[1:]
         master_tbl.drop(to_dump, inplace=True)
-    
     master_tbl.set_index('Hugo_Symbol', inplace=True)
     gene_sym_list = master_tbl.index
     project_list = rna_subset.Cbio_project.unique()
@@ -107,15 +110,15 @@ if __name__ == "__main__":
     
     sys.stderr.write('Calculating z scores\n')
     sys.stderr.flush()
-
-    z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis = 0)
+    
+    z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis = 1)
     del master_tbl
     master_zscore_log = pd.DataFrame(z_scored, index=gene_sym_list, columns=sample_list)
-    # this may be memory-intensive for some insane reson...
+    # this may be memory-intensive for some insane reason...
     sys.stderr.write("Replacing NaN with 0\n")
     sys.stderr.flush()
     master_zscore_log.fillna(0, inplace=True)
-    sys.stderr.write('Outputing z scored results\n')
+    sys.stderr.write('Outputting z scored results\n')
     sys.stderr.flush()
     
     for project in project_list:
