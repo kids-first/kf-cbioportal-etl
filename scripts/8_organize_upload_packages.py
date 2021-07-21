@@ -153,7 +153,8 @@ def create_case_lists(data_dict, output_dir, canc_study_id, study):
     if len(rna_list) > 0:
         write_case_list('cases_RNA_Seq_v2_mRNA', config_data['cases_RNA_Seq_v2_mRNA'], rna_list, case_dir)
         all_cases += rna_list
-        write_case_list('cases_sv', config_data['cases_sv'], rna_list, case_dir)
+        if "merged_fusion" in data_keys and data_keys["merged_fusion"] == 1:
+            write_case_list('cases_sv', config_data['cases_sv'], rna_list, case_dir)
 
         # loading mutations is a minimum, so if cna exists...3 way file can be made
         if len(cna_list) > 0:
@@ -202,7 +203,7 @@ for dx in dx_dict:
             canc_study_id = process_meta_study(config_data['study'], cur_dir, dx)
             data_keys = {"merged_mafs": 0, "merged_cnvs": 0, "merged_rsem": 0, "merged_fusion": 0}
             for key in data_keys:
-                if config_data[key]["dir"] != "":
+                if key in config_data and config_data[key]["dir"] != "":
                     data_keys[key] = 1
                     process_meta_data(config_data[key], cur_dir, canc_study_id, dx)
                     sys.stderr.write("Creating meta data files and links for " + key + "\n")
