@@ -29,4 +29,4 @@ if __name__ == "__main__":
     del master_tbl
     master_zscore_log = pd.DataFrame(z_scored, index=gene_sym_list, columns=sample_list)
     master_zscore_log.fillna(0, inplace=True)
-    master_zscore_log.to_csv("data_" + args.out + "_Zscores.txt", sep='\t', mode='w', index=True)
+    master_zscore_log.to_csv("data_" + args.out + "_Zscores.txt", sep='\t', mode='w', index=True, float_format='%.4f')
