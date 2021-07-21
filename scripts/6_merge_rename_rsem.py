@@ -124,4 +124,4 @@ if __name__ == "__main__":
     for project in project_list:
         sub_sample_list = list(rna_subset.loc[rna_subset['Cbio_project'] == project, 'Cbio_Tumor_Name'])
         zscore_fname = out_dir + project + '.rsem_merged_zscore.txt'
-        master_zscore_log[sub_sample_list].to_csv(zscore_fname, sep='\t', mode='w', index=True)
+        master_zscore_log[sub_sample_list].to_csv(zscore_fname, sep='\t', mode='w', index=True, float_format='%.4f')
