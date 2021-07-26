@@ -9,6 +9,7 @@ def format_desc(entry):
     desc = entry.replace(".", " ")
     return desc
 
+ 
 def format_colname(entry):
     col_name = entry.replace(".", "_").upper()
     return col_name
@@ -150,7 +151,7 @@ onco_file = open(args.onco)
 skip = next(onco_file)
 for line in onco_file:
     (code, dx, name) = line.rstrip('\n').split('\t')
-    onco_dict[dx] = [name, code]
+    onco_dict[dx] = [name, code.lower()]
 
 
 # iterate through data, calculate field values in special cases
