@@ -1,6 +1,7 @@
 import sys
 import argparse
 import gzip
+import pdb
 
 parser = argparse.ArgumentParser(description='Script to convert openX cnv table to cBio format')
 parser.add_argument('-m', '--mapping-file', action='store', dest = 'mapping_file', help='tsv file with header and bs_id, sample type, cbio ID mappings')
@@ -47,7 +48,12 @@ def collate_data(cnv_fn):
             gene = data[g_idx]
             ploidy = data[p_idx]
             cn = data[c_idx]
-            gistic = qual_to_gistic[data[s_idx]]
+            try:
+                gistic = qual_to_gistic[data[s_idx]]
+            except Exception as e:
+                sys.stderr.write(str(e) + "\n")
+                pdb.set_trace()
+                hold=1
             if samp_id not in p_dict:
                 p_dict[samp_id] = ploidy
             if gene not in c_dict:
@@ -62,7 +68,7 @@ args = parser.parse_args()
 sys.stderr.write("Getting mapping IDs\n")
 map_dict = populate_id_map(args.mapping_file)
 
-qual_to_gistic = {"deep deletion": "-2", "loss": "-1", "gain": "1", "amplification": "2"}
+qual_to_gistic = {"deep deletion": "-2", "loss": "-1", "neutral": "0", "gain": "1", "amplification": "2", "NA": "0"}
 sys.stderr.write("Collating copy number data\n")
 (cn_dict, gistic_dict, ploidy_dict) = collate_data(args.cnv_tbl)
 
