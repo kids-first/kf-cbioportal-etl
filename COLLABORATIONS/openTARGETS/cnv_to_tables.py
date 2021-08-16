@@ -6,7 +6,7 @@ import pdb
 parser = argparse.ArgumentParser(description='Script to convert openX cnv table to cBio format')
 parser.add_argument('-m', '--mapping-file', action='store', dest = 'mapping_file', help='tsv file with header and bs_id, sample type, cbio ID mappings')
 parser.add_argument('-c', '--copy-number', action='store', dest='cnv_tbl',
-                    help='openX table')
+                    help='openX tables, listed as csv since they tend to seprate autosomes, xy')
 
 
 def populate_id_map(map_fn):
@@ -29,9 +29,9 @@ def populate_id_map(map_fn):
 
 def collate_data(cnv_fn):
     """
-    Read in the cnv table, convert and hash vaules that are in the mapping dict
+    Read in the cnv table, convert and hash values that are in the mapping dict
     """
-    cnv_tbl = gzip.open(args.cnv_tbl)
+    cnv_tbl = gzip.open(cnv_fn)
     head = next(cnv_tbl).decode()
     header = head.rstrip('\n').split('\t')
     b_idx = header.index('biospecimen_id')
@@ -39,7 +39,6 @@ def collate_data(cnv_fn):
     c_idx = header.index('copy_number')
     p_idx = header.index('ploidy')
     g_idx = header.index('gene_symbol')
-    (c_dict, g_dict, p_dict) = ({}, {}, {})
 
     for line in cnv_tbl:
         data = line.decode().rstrip('\n').split('\t')
@@ -54,14 +53,13 @@ def collate_data(cnv_fn):
                 sys.stderr.write(str(e) + "\n")
                 pdb.set_trace()
                 hold=1
-            if samp_id not in p_dict:
-                p_dict[samp_id] = ploidy
-            if gene not in c_dict:
-                c_dict[gene] = {}
-                g_dict[gene] = {}
-            c_dict[gene][samp_id] = cn
-            g_dict[gene][samp_id] = gistic
-    return (c_dict, g_dict, p_dict)
+            if samp_id not in ploidy_dict:
+                ploidy_dict[samp_id] = ploidy
+            if gene not in cn_dict:
+                cn_dict[gene] = {}
+                gistic_dict[gene] = {}
+            cn_dict[gene][samp_id] = cn
+            gistic_dict[gene][samp_id] = gistic
 
 
 args = parser.parse_args()
@@ -70,7 +68,11 @@ map_dict = populate_id_map(args.mapping_file)
 
 qual_to_gistic = {"deep deletion": "-2", "loss": "-1", "neutral": "0", "gain": "1", "amplification": "2", "NA": "0"}
 sys.stderr.write("Collating copy number data\n")
-(cn_dict, gistic_dict, ploidy_dict) = collate_data(args.cnv_tbl)
+file_list = args.cnv_tbl.split(",")
+# init dicts tracking relevant info
+cn_dict, gistic_dict, ploidy_dict = {}, {}, {}
+for cnv_tbl in file_list:
+    collate_data(cnv_tbl)
 
 sys.stderr.write("Printing results\n")
 cnv_cn_out = open("data_linear_CNA.txt", "w")
