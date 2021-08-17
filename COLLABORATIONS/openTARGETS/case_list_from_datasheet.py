@@ -49,8 +49,7 @@ if __name__ == "__main__":
 
             except Exception as e:
                 print(str(e))
-                pdb.set_trace()
-                hold=1
+                sys.stderr.write("Error encountered - likely a blank histology, skipping\n")
         else:
             sys.stderr.write("Skipping " + hist + " less than 5 entries\n")
     #pdb.set_trace()
