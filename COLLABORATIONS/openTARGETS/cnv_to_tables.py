@@ -75,9 +75,9 @@ for cnv_tbl in file_list:
     collate_data(cnv_tbl)
 
 sys.stderr.write("Printing results\n")
-cnv_cn_out = open("data_linear_CNA.txt", "w")
+cnv_cn_out = open("mixed.predicted_cnv.txt", "w")
 cnv_cn_out.write("Hugo_Symbol")
-cnv_gistic_out = open("data_CNA.txt", "w")
+cnv_gistic_out = open("mixed.discrete_cnvs.txt", "w")
 cnv_gistic_out.write("Hugo_Symbol")
 
 sample_list = list(ploidy_dict.keys())

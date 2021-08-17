@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--fusion-results', action='store', dest='fusion_results', help='openPBTA fusion file OR annoFuse results dir')
     parser.add_argument('-m', '--mode', action='store', dest='mode', help='describe source, pbta or annofuse', required=True)
     parser.add_argument('-s', '--center-file', action='store', dest='sq_file', help='File with BS IDs and sequencing centers. Should have headered columns: BS_ID\tSQ_Value')
+    parser.add_argument('-o', '--out-dir', action='store', dest='out_dir', default='merged_fusion/', help='Result output dir. Default is merged_fusion')
     args = parser.parse_args()
     if args.mode != "pbta" and args.mode != "annofuse":
         sys.stderr.write("-m mode argument must be one of pbta or annofuse. It is case sensitive. You put " + args.mode + "\n")
@@ -35,7 +36,7 @@ if __name__ == "__main__":
             return fusion_data
 
 
-    out_dir = 'merged_fusion/'
+    out_dir = args.out_dir
     try:
         os.mkdir(out_dir)
     except:
