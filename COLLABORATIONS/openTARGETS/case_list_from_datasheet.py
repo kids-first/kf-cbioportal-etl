@@ -41,8 +41,8 @@ if __name__ == "__main__":
                         cur.write("cancer_study_identifier: " + args.study_id + "\n" 
                         + "stable_id: " + args.study_id + "_" + cohort_stable +  "_" + suffix + "\n" 
                         + "case_list_name: " + cohort + " " + hist + " samples\n" 
-                        + "case_list_description:  " + cohort + " " + hist + " samples (" + str(len(samp_ids)) + ")\n"
-                        + "case_list_category: other\ncase_list_ids: " + "\t".join(samp_ids) + "\n")
+                        + "case_list_description:  " + cohort + " " + hist + " samples (" + str(len(subset_samp)) + ")\n"
+                        + "case_list_category: other\ncase_list_ids: " + "\t".join(subset_samp) + "\n")
                         cur.close()
                     else:
                         sys.stderr.write("Skipping " + hist + " for cohort " + cohort + ", less than 5 entries\n")
