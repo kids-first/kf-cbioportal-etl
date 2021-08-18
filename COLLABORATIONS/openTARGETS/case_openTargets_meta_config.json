@@ -51,7 +51,7 @@
         "dtypes": {
             "counts": {
                 "ext": "rsem_merged.txt",
-                "cbio_name": "data_rna_seq_v2_mrna.txt",
+                "cbio_name": "data_mrna_seq_v2_rsem.txt",
                 "meta_file_attr": {
                     "stable_id": "rna_seq_v2_mrna",
                     "profile_name": "RNA expression",
@@ -63,7 +63,7 @@
             },
             "zscore": {
                 "ext": "rsem_merged_zscore.txt",
-                "cbio_name": "data_rna_seq_v2_mrna_median_Zscores.txt",
+                "cbio_name": "data_mrna_seq_v2_rsem_zscores_ref_all_samples.txt",
                 "meta_file_attr": {
                     "stable_id": "rna_seq_v2_mrna_median_Zscores",
                     "profile_name": "RNA expression z-scores",
@@ -113,7 +113,7 @@
     },
     "study": {
         "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
-        "description": ["", "Pediatric OpenTargets is a collaborative project between the National Cancer Institute and the Children's Hospital of Philadelphia. Through this project and as part of the NCI's Childhood Cancer Data Initiative, we are utilizing the harmonization work of the KidsFirst Data Resource Center and analytics work of OpenPBTA to build a pediatric preclinical pediatric platform to assist in development and query of the FDA's Relevant Molecular Targets List to identify new therapeutics for children with cancer"],
+        "description": ["", "is a collaborative project between the National Cancer Institute and the Children's Hospital of Philadelphia. Through this project and as part of the NCI's Childhood Cancer Data Initiative, we are utilizing the harmonization work of the KidsFirst Data Resource Center and analytics work of OpenPBTA to build a pediatric preclinical pediatric platform to assist in development and query of the FDA's Relevant Molecular Targets List to identify new therapeutics for children with cancer. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>"],
         "groups": "PUBLIC",
         "cancer_study_identifier": "ped_opentargets_2021",
         "reference_genome": "hg38",
