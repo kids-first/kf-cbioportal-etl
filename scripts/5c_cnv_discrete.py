@@ -25,18 +25,25 @@ parser.add_argument('-p', '--profile', action='store', dest='profile', help='cav
 
 def mt_adjust_cn(obj):
     try:
-        bs_id = obj.resource.metadata['Kids First Biospecimen ID Tumor']
+        # If there is a info file manifest, get ploidy. Else skip and assume ploidy 2
+        checkpoint = obj
+        if manifest is not None:
+            bs_id = obj.resource.metadata['Kids First Biospecimen ID Tumor']
+            info = obj.resource.content().split('\n')
+            checkpoint = obj.resource.id
+        else:
+            bs_id = obj
         samp_id = bs_cbio_dict[bs_id]
-        info = obj.resource.content().split('\n')
         ploidy = 2
-        for datum in info:
-            try:
-                if datum.startswith('Output_Ploidy'):
-                    (key, value) = datum.split('\t')
-                    ploidy = int(value)
-                    break
-            except Exception as e:
-                sys.stderr.write("WARN: " + str(e) + " entry could not be split\n")
+        if manifest is not None:
+            for datum in info:
+                try:
+                    if datum.startswith('Output_Ploidy'):
+                        (key, value) = datum.split('\t')
+                        ploidy = int(value)
+                        break
+                except Exception as e:
+                    sys.stderr.write("WARN: " + str(e) + " entry could not be split\n")
         data[samp_id] = data[samp_id] - ploidy
         min_cn = ploidy * -1
         # adjust discrete low range only in ploidy > 2
@@ -45,12 +52,12 @@ def mt_adjust_cn(obj):
             data[samp_id] = np.where(data[samp_id] == min_cn, -2, data[samp_id])
         data[samp_id] = np.where(data[samp_id].between(2, high_gain), 1, data[samp_id])
         data[samp_id] = np.where(data[samp_id] > high_gain, 2, data[samp_id])
-        return [0, obj.resource.id]
+        return [0, checkpoint]
 
     except Exception as E:
         sys.stderr.write(str(E) + "\n")
-        sys.stderr.write('Error processing sample entry for ' + obj.resource.id + '\n')
-        return [1, obj.resource.id]
+        sys.stderr.write('Error processing sample entry for ' + checkpoint + '\n')
+        return [1, checkpoint]
 
 
 args = parser.parse_args()
@@ -66,9 +73,12 @@ flist = subprocess.check_output('find ' + args.merged_cnv_dir + ' -name *.predic
 
 fname_list = flist.decode().split('\n')
 file_meta_dict = get_file_metadata(args.table, 'cnv')
-manifest = pd.read_csv(args.manifest)
-# Cbio Tumor Name
-manifest.set_index(['Kids First Biospecimen ID Tumor'], inplace=True)
+manifest = None
+if args.manifest is not None:
+    manifest = pd.read_csv(args.manifest)
+    manifest.set_index(['Kids First Biospecimen ID Tumor'], inplace=True)
+else:
+    sys.stderr.write("No info file given, will assume ploidy 2\n")
 if fname_list[-1] == '':
     fname_list.pop()
 for fname in fname_list:
@@ -84,8 +94,8 @@ for fname in fname_list:
     for samp_id in samp_list:
         bs_id = file_meta_dict[cbio_dx][samp_id]['kf_tum_id']
         bs_cbio_dict[bs_id] = samp_id
-        bulk_ids.append(manifest.loc[bs_id]['id'])
-        # fid_dict[samp_id] = manifest.loc[samp_id]['id']
+        if manifest is not None:
+            bulk_ids.append(manifest.loc[bs_id]['id'])
     file_objs = []
     max_j = 100
     total = len(bulk_ids)
@@ -102,7 +112,10 @@ for fname in fname_list:
     x = 1
     m = 50
     with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
-        results = {executor.submit(mt_adjust_cn, obj): obj for obj in file_objs}
+        if manifest is not None:
+            results = {executor.submit(mt_adjust_cn, obj): obj for obj in file_objs}
+        else:
+            results = {executor.submit(mt_adjust_cn, bs_id): bs_id for bs_id in bs_cbio_dict}
         for result in concurrent.futures.as_completed(results):
             if result.result()[0] == 1:
                 'Had trouble processing object ' + result.result([1] + '\n')

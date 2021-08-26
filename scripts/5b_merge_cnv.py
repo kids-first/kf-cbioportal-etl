@@ -54,8 +54,11 @@ def process_table(cbio_dx, file_meta_dict):
             + file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id'] + ' ' + gene_fname + '\n')
             sys.stderr.flush()
             s_list.append(cbio_tum_id)
-            ploidy = get_ploidy(api.files.get(manifest.loc[kf_bs_id]['id']))
-            ploidy_dict[cbio_tum_id] = ploidy
+            if manifest is not None:
+                ploidy = get_ploidy(api.files.get(manifest.loc[kf_bs_id]['id']))
+                ploidy_dict[cbio_tum_id] = ploidy
+            else:
+                ploidy_dict[cbio_tum_id] = '2'
             cur_cnv_dict = process_cnv(cnv_dir + gene_fname, cur_cnv_dict, cbio_tum_id)
         new_cnv.write('Hugo_Symbol\t' + '\t'.join(s_list) + '\n')
         for gene in cur_cnv_dict:
@@ -90,8 +93,12 @@ with open(args.config_file) as f:
 cnv_dir = args.cnv_dir
 if cnv_dir[-1] != '/':
     cnv_dir += '/'
-manifest = pd.read_csv(args.manifest)
-manifest.set_index(['Kids First Biospecimen ID Tumor'], inplace=True)
+manifest = None
+if args.manifest is not None:
+    manifest = pd.read_csv(args.manifest)
+    manifest.set_index(['Kids First Biospecimen ID Tumor'], inplace=True)
+else:
+    sys.stderr.write("No info file given, will assume ploidy 2\n")
 
 config = sbg.Config(profile=args.profile)
 api = sbg.Api(config=config, error_handlers=[
