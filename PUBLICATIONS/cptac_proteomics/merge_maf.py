@@ -17,7 +17,6 @@ def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id, tid_idx, v_idx, eid_i
         if data[v_idx] not in maf_exc and int(data[t_alt_idx]) >= min_alt_ct and int(data[t_depth_index]) >= min_depth_ct:
             data[tid_idx] = tum_id
             data.pop(eid_idx)
-            data.pop((n_idx-1))
             new_maf.write('\t'.join(data) + '\n')
     cur_maf.close()
 
@@ -75,7 +74,6 @@ t_depth_index = cur_header.index('t_depth')
 #nid_idx = cur_header.index('Matched_Norm_Sample_Barcode')
 v_idx = cur_header.index('Variant_Classification')
 cur_header.pop(eid_idx)
-cur_header.pop((n_idx-1))
 
 head_fh.close()
 print_head += '\t'.join(cur_header) + '\n'
