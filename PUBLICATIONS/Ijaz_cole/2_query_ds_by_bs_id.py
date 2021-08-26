@@ -10,6 +10,9 @@ import pdb
 
 
 def mt_query_calls(line):
+    """
+    This function collates information obtained from GET requests to the data service for tumor and normal samples
+    """
     try:
         info = line.rstrip('\n').split('\t')
         (tum_bs_id, norm_bs_id) = (info[0], info[1])
@@ -55,21 +58,23 @@ def process_attr_dict(attr_dict, info_dict):
 
 
 def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_attrs):
-
+    """
+    This function queries various data service endpoints in order to populate patient and sample metadata
+    """
     bs_url = url + '/biospecimens/' + bs_id
     bs_info = get_obj(bs_url)
+
     result = []
     if bs_info.json()['_status']['code'] == 404:
         result.append(bs_info.json()['_status']['message'])
         sys.stderr.write(bs_id + ' not found!\n')
         sys.stderr.flush()
         return result
-    elif not bs_info.json()['results']['visible']:
-        sys.stderr.write(bs_id + ' was set to hide.  skipping!\n')
-        sys.stderr.flush()
-        return result
+    # elif not bs_info.json()['results']['visible']:
+    #     sys.stderr.write(bs_id + ' was set to hide.  skipping!\n')
+    #     sys.stderr.flush()
+    #     return result
     dx_url = url + bs_info.json()['_links']['diagnoses']
-    dx_dict = {}
     # dx can sometimes have multiple values, so dict is used to store them all
     dx_dict = {}
     dx_obj = get_obj(dx_url) if len(dx_attrs) > 0 else 'NoDX'
@@ -84,16 +89,6 @@ def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_at
     result.extend(process_attr_dict(bs_attrs, bs_info))
     result.extend(process_attr_dict(pt_attrs, pt_info))
 
-    for attr in bs_attrs:
-        res = bs_info.json()['results'][attr]
-        if res is None:
-            res = 'NULL'
-        result.append(str(res))
-    for attr in pt_attrs:
-        res = pt_info.json()['results'][attr]
-        if res is None:
-            res = 'NULL'
-        result.append(res)
     for attr in dx_attrs:
         dx_dict[attr] = []
         for cur_res in dx_obj.json()['results']:
@@ -120,7 +115,7 @@ def query_dataservice_bs_id(url, bs_id, bs_attrs, pt_attrs, dx_attrs, outcome_at
 parser = argparse.ArgumentParser(description='Script to walk through data service and grab all relevant metadata'
                                              ' by bs id.')
 parser.add_argument('-u', '--kf-url', action='store', dest='url',
-                    help='Kids First data service url', default='https://kf-api-dataservice.kidsfirstdrc.org')
+                    help='Kids First data service url', default='https://kf-api-dataservice.kidsfirstdrc.org/')
 parser.add_argument('-c', '--cavatica', action='store', dest='cav',
                     help='file with task info from cavatica (see step 1)')
 parser.add_argument('-j', '--config', action='store', dest='config_file', help='json config file with data types and '
@@ -165,9 +160,11 @@ with concurrent.futures.ThreadPoolExecutor(config_data['threads']) as executor:
         if norm_info != '':
             norm_out_fh.write(norm_info)
         x += 1
+
 # debug mode
 # for entry in task_fh:
 #     mt_query_calls(entry)
+
 norm_out_fh.close()
 tum_out_fh.close()
 sys.stderr.write('Done!')
