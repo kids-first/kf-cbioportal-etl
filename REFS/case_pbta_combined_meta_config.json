@@ -8,7 +8,7 @@
                 "meta_file_attr": {
                     "stable_id": "mutations",
                     "profile_name": "Mutations",
-                    "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass",
+                    "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass. DGD custom filtered calls",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
                     "datatype": "MAF",
                     "show_profile_in_analysis_tab": "true"
@@ -94,7 +94,7 @@
                 "meta_file_attr": {
                     "stable_id": "fusion",
                     "profile_name": "Predicted RNA fusions",
-                    "profile_description": "Fusion data, from openPBTA using arriba and STAR Fusion, annotated and filtered using annoFuse",
+                    "profile_description": "Fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse",
                     "genetic_alteration_type": "FUSION",
                     "datatype": "FUSION",
                     "show_profile_in_analysis_tab": "true"
@@ -123,7 +123,7 @@
     },
     "study": {
         "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
-        "description": ["Genomic characterization of", "samples provided by the <a href=\"http://cbtn.org\">Children's Brain Tumor Network</a>, the <a href=\"http://www.pnoc.us/\">Pacific Neuro-Oncology Consortium (PNOC)</a>, and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Updated April 16, 2021 from last update: February 1, 2020. This update fixes a bug for CNV data for samples with ploidy > 2, number of losses were inflated"],
+        "description": ["Genomic characterization of", "samples provided by the <a href=\"http://cbtn.org\">Children's Brain Tumor Network</a>, the <a href=\"http://www.pnoc.us/\">Pacific Neuro-Oncology Consortium (PNOC)</a>, and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>"],
         "groups": "PUBLIC",
         "cancer_study_identifier": "pbta_all",
         "reference_genome": "hg38",
