@@ -11,6 +11,7 @@
                     "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass. DGD custom filtered calls",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
                     "datatype": "MAF",
+                    "variant_classification_filter": "Silent,Intron,3'UTR,3'Flank,5'UTR,IGR,RNA",
                     "show_profile_in_analysis_tab": "true"
                 }
             }
