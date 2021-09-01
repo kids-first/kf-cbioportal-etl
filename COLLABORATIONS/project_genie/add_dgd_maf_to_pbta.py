@@ -1,7 +1,7 @@
 import sys
 import os
 import argparse
-import pdb
+from get_file_metadata_helper import get_file_metadata
 
 parser = argparse.ArgumentParser(description='Output fields from maf file based on header - meant to be appended to an existing file!')
 parser.add_argument('-i', '--header', action='store', dest='header', help='File with maf header only')
@@ -18,12 +18,14 @@ head = next(header_file)
 # store header fields as list, will use to get position in new file, if exists
 # will output blank if not in new file
 header = head.rstrip('\n').split('\t')
+eid_idx = header.index('Entrez_Gene_Id')
+header.pop(eid_idx)
 h_dict = {}
 for item in header:
     h_dict[item] = None
 for cbio_dx in file_meta_dict:
     for cbio_tum_id in file_meta_dict[cbio_dx]:
-        maf_fn = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
+        maf = file_meta_dict[cbio_dx][cbio_tum_id]['fname']
         sys.stderr.write("Processing " + maf + "\n")
         cur = open(args.maf_dir + "/" + maf)
         skip = next(cur)

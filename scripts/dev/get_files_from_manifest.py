@@ -16,7 +16,7 @@ def mt_type_download(file_type):
     """
     sys.stderr.write("Downloading " + file_type + " files\n")
     sys.stderr.flush()
-    sub_file_list = list(selected.loc[selected['File_type'] == file_type, 'S3_path'])
+    sub_file_list = list(selected.loc[selected['file_type'] == file_type, 's3_path'])
     try:
         os.mkdir(file_type)
     except Exception as e:
@@ -46,7 +46,7 @@ manifest_list = args.manifest.split(",")
 manifest_concat = pd.DataFrame()
 for manifest in manifest_list:
     sys.stderr.write("Processing " + manifest + "\n")
-    current = pd.read_csv(manifest)
+    current = pd.read_csv(manifest, sep=None)
     if manifest_concat.empty:
         manifest_concat = current.copy()
     else:
@@ -56,10 +56,12 @@ file_types = args.fts.split(",")
 # subset concatenated manifests
 sys.stderr.write("Subsetting concatenated manifest\n")
 sys.stderr.flush()
-selected = manifest_concat[manifest_concat['File_type'].isin(file_types)]
+# change col names to lower case for input compatibility
+manifest_concat.columns= manifest_concat.columns.str.lower()
+selected = manifest_concat[manifest_concat['file_type'].isin(file_types)]
 # remove vcfs as we only want mafs
 pattern_del = ".vcf.gz"
-filter = selected['File_name'].str.contains(pattern_del)
+filter = selected['file_name'].str.contains(pattern_del)
 selected = selected[~filter]
 
 out_file = "manifest_subset.tsv"
