@@ -4,9 +4,6 @@
   "bed_genes": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/GRCh38.84.gtf_genes.bed",
   "hugo_tsv": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/HUGO_EntrezID.tsv",
   "entrez_tsv": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/EntrezGeneId_HugoGeneSymbol.tsv",
-  "dna_samp_id_style": "cbttc_dna_std",
-  "dna_norm_id_style": "cbttc_norm_std",
-  "rna_samp_id_style": "cbttc_rna_std",
   "rna_ext_list": {
     "expression": "rsem.genes.results.gz",
     "fusion": "annoFuse_filter.tsv"
@@ -18,7 +15,6 @@
   },
   "ens_gene_list":"/home/ubuntu/tools/kf-cbioportal-etl/REFS/gencode27_gene_list.txt",
   "script_dir": "/home/ubuntu/tools/kf-cbioportal-etl/scripts/",
-  "dx_tbl_fn": "pbta_combined_dx_index.txt",
   "cna_flag": 1,
   "cnv_high_gain": 4,
   "cnv_min_len": 50000,
