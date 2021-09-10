@@ -517,15 +517,23 @@ Upload all of the directories named as study short names to `s3://kf-cbioportal-
 ## Congratulations, you did it!
 
 # Collaborative and Publication Workflows
-These are highly specialized cases in which all mor most of data comes froma thrid party, and therefore requires specific case-by-case protocols
+These are highly specialized cases in which all mor most of data comes froma third party, and therefore requires specific case-by-case protocols
 
 ## OpenTargets
 This project is organized much like OpenPBTA in which all genomics data for each assay-type are collated into one giant table.
 In general, this fits cBioPortal well.
-See `s3://kf-cbioportal-studies/public/ped_opentargets_2021/` for final load packages, `https://pedcbioportal.kidsfirstdrc.org/study/summary?id=ped_opentargets_2021` for final product.
+Input files mostly come from a "subdirectory" from within `s3://kf-openaccess-us-east-1-prd-pbta/public/`, consisting of:
+ - `histologies.tsv`
+ - `snv-consensus-plus-hotspots.maf.tsv.gz`
+ - `consensus_wgs_plus_cnvkit_wxs_x_and_y.tsv.gz`
+ - `consensus_wgs_plus_cnvkit_wxs_autosomes.tsv.gz`
+ - `gene-expression-rsem-tpm-collapsed.rds`
+ - `fusion-putative-oncogenic.tsv`
+
+See `https://pedcbioportal.kidsfirstdrc.org/study/summary?id=ped_opentargets_2021` for final product.
 
 ### Inputs
-Inputs are located in the old Kids First AWS account (`538745987955`) in this general bucket location: `s3://kf-openaccess-us-east-1-prd-pbta/open-targets/pedcbio/`.
+Inputs are located in the old Kids First AWS account (`538745987955`) in this general bucket location: `s3://kf-openaccess-us-east-1-prd-pbta/open-targets/`.
 Clinical data are obtained from the `histologies.tsv` file.
 Genomic data generally obtained as such:
  - Somatic variant calls: merged maf

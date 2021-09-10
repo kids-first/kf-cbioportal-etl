@@ -31,7 +31,6 @@
                     "datatype": "CONTINUOUS",
                     "show_profile_in_analysis_tab": "false"
                 }
-
             },
             "discrete": {
                 "ext": "discrete_cnvs.txt",
