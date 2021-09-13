@@ -19,8 +19,9 @@ args = parser.parse_args()
 def process_meta_study(meta_data, output_dir):
     study = meta_data["cancer_study_identifier"]
     meta_study = open(output_dir + "meta_study.txt", "w")
-    meta_study.write("type_of_cancer: " + study + "\n")
+    meta_study.write("type_of_cancer: " + meta_data["type_of_cancer"] + "\n")
     meta_study.write("cancer_study_identifier: " + study + "\n")
+    meta_study.write("short_name: " + meta_data["short_name"] + "\n")
     if "reference_genome" in meta_data:
         meta_study.write("reference_genome: " + meta_data["reference_genome"] + "\n")
     meta_study.write("name: " + meta_data["display_name"] + "\n")
