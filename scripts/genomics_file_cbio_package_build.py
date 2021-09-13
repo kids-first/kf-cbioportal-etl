@@ -103,6 +103,29 @@ def process_dgd_fusion():
 
 with open(args.cbio_config) as f:
     config_meta_case = json.load(f)
+# iterate through config file - file should only have keys related to data to be loaded
 for key in config_meta_case:
-    if key.starts_with('meta_'):
-        
+    if key.startswith('meta_'):
+        data_type = key.split('_')[1:].join('_')
+        if data_type == 'mafs':
+            if args.dgd_status == 'dgd':
+                process_dgd_maf()
+            else:
+                process_kf_maf()
+        if data_type == 'cnvs':
+            process_cnv()
+        if data_type == 'rsem':
+            process_rsem()
+        if data_type == 'fusion':
+            if args.dgd_status == 'dgd':
+                process_dgd_fusion()
+            else:
+                process_kf_fusion()
+
+# Run final package builder script
+pck_cmd = config_data['script_dir'] + 'organize_upload_packages.py -o processed -c ' + args.cbio_config
+subprocess.call(pck_cmd, shell=True)
+
+# Run cbioportal data validator
+validate = config_data['cbioportal_validator'] + ' -s processed/' + args.cbio_config["study"]["cancer_study_identifier"] + ' -n -v '
+subprocess.call(validate, shell=True)
