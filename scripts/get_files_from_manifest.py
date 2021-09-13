@@ -57,7 +57,7 @@ file_types = args.fts.split(",")
 sys.stderr.write("Subsetting concatenated manifest\n")
 sys.stderr.flush()
 # change col names to lower case for input compatibility
-manifest_concat.columns= manifest_concat.columns.str.lower()
+manifest_concat.columns = manifest_concat.columns.str.lower()
 selected = manifest_concat[manifest_concat['file_type'].isin(file_types)]
 # remove vcfs as we only want mafs
 pattern_del = ".vcf.gz"
