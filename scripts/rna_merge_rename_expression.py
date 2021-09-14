@@ -48,14 +48,10 @@ if __name__ == "__main__":
         sys.stderr.write('output dir already exists\n')
         sys.stderr.flush()
     
-    # Use cbio table to create master table to choose represntative gene symbol, calc z scores, output both
+    # Use cbio table to create master table to choose representative gene symbol, calc z scores, output both
     all_file_meta = pd.read_csv(args.table, sep="\t")
     rna_subset = all_file_meta.loc[all_file_meta['File_Type'] == 'rsem']
     rsem_list = rna_subset['File_Name'].to_list()
-    # init_tbl = pd.read_csv(rsem_dir + rsem_list[0], sep="\t", index_col=0)
-    # Get cbio name to rename columns in master table
-    # master_tbl = init_tbl[['FPKM']]
-    # master_tbl.rename(columns={"FPKM": sample}, inplace=True)
     sys.stderr.write('Creating merged rsem table\n')
     x = 1
     m = 50
