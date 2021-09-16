@@ -8,7 +8,7 @@ from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
 
 
-def filter_entry(entry):
+def filter_entry(entry, tum_id, norm_id, tid_idx,nid_idx, v_idx, eid_idx):
     """
     Only output entries not in exclusion list while dropping ENTREZ ID, but keeping TERT promoter hits
     """
@@ -39,7 +39,7 @@ def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id, tid_idx, h_idx, nid_i
     #         data.pop(eid_idx)
     #         new_maf.write('\t'.join(data) + '\n')
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
-        results = {executor.submit(filter_entry, entry) for entry in cur_maf}
+        results = {executor.submit(filter_entry, entry, tum_id, norm_id, tid_idx,nid_idx, v_idx, eid_idx) for entry in cur_maf}
         for result in concurrent.futures.as_completed(results):
             if result.result() != None:
                 new_maf.write('\t'.join(result.result()) + '\n') 

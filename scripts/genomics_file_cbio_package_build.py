@@ -50,7 +50,7 @@ def process_append_dgd_maf():
     """
     maf_header = config_data['file_loc_defs']['header']
     in_maf_dir = config_data['file_loc_defs']['mafs']['dgd']
-    append_maf = cbio_study_id + "/" + config_data['file_loc_defs']['mafs']['kf'] + '.maf'
+    append_maf = config_data['file_loc_defs']['mafs']['kf'] + cbio_study_id + '.maf'
     append_cmd = script_dir + 'add_dgd_maf_to_pbta.py -i ' + maf_header + ' -m ' + in_maf_dir + ' -t ' + args.table + ' >> ' + append_maf + ' 2> dgd_append_maf.log'
     status = subprocess.call(append_cmd, shell=True)
     return status
@@ -113,19 +113,17 @@ def process_kf_fusion():
     return status
 
 
-def append_dgd_fusion():
-    """
-    Append dgd fusions fo kf collated output
-    """
-    status = 0
-    return status
-
-
 def process_dgd_fusion():
     """
-    Collated process DGD fusion output
+    Collate process DGD fusion output
     """
-    status = 0
+    fusion_dir = config_data['file_loc_defs']['dgd_fusion']
+    dgd_fusion_cmd = script_dir + 'add_dgd_fusion.py -t ' + args.table + ' -f ' + fusion_dir
+    if args.status == 'both':
+        append_fusion = config_data['file_loc_defs']['fusion'] + cbio_study_id + '.fusions.txt'
+        dgd_fusion_cmd += ' -a >> ' + append_fusion
+    dgd_fusion_cmd += ' 2> add_dgd_fusion.log'
+    status = subprocess.call(dgd_fusion_cmd, shell=True)
     return status
 
 # This part is commented out for now as there is no good solution yet for files stored in different account - need to be able to run chopaws to get key
@@ -150,10 +148,11 @@ for key in config_meta_case:
         if data_type == 'rsem':
             process_rsem()
         if data_type == 'fusion':
-            if args.dgd_status == 'dgd':
-                process_dgd_fusion()
-            else:
+            # Status both works for...both, only when one is specificaly picked should one not be run
+            if args.dgd_status != 'dgd':
                 process_kf_fusion()
+            elif args.dgd_status != 'kf':
+                process_dgd_fusion()
 
 # Run final package builder script
 pck_cmd = config_data['script_dir'] + 'organize_upload_packages.py -o processed -c ' + args.cbio_config
