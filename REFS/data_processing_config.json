@@ -27,6 +27,7 @@
     },
     "rsem": "RSEM_gene",
     "fusion": "annofuse_filtered_fusions_tsv",
+    "dgd_fusion": "DGD_FUSION",
     "fusion_sq_file": ""
   },
   "dl_file_type_list": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs",

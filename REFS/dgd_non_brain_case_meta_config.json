@@ -40,7 +40,7 @@
         "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
         "description": "CHOP Division for Genomic Diagnostics Solid and Liquid Tumors. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
-        "cancer_study_identifier": "pbta_all",
+        "cancer_study_identifier": "dgd_chop",
         "type_of_cancer": "mixed",
         "short_name": "pbta_all",
         "reference_genome": "hg38",
