@@ -13,7 +13,7 @@ import argparse
 import json
 import subprocess
 
-parser = argparse.ArgumentParser(description='Download files (if needed), collate geomic files, organize load package.')
+parser = argparse.ArgumentParser(description='Download files (if needed), collate genomic files, organize load package.')
 parser.add_argument('-t', '--table', action='store', dest='table',
                     help='Table with cbio project, kf bs ids, cbio IDs, and file names')
 parser.add_argument('-m', '--manifest', action='store', dest='manifest', help='Download file manifest, if needed')
@@ -159,5 +159,5 @@ pck_cmd = config_data['script_dir'] + 'organize_upload_packages.py -o processed 
 subprocess.call(pck_cmd, shell=True)
 
 # Run cbioportal data validator
-validate = config_data['cbioportal_validator'] + ' -s processed/' + cbio_study_id + ' -n -v '
+validate = config_data['cbioportal_validator'] + ' -s processed/' + cbio_study_id + ' -n -v 2> validator.errs > validator.out'
 subprocess.call(validate, shell=True)

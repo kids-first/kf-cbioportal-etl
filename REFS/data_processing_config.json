@@ -14,7 +14,7 @@
     "seg": "controlfreec.seg"
   },
   "file_loc_defs": {
-    "_comment": "edit the values based on existing/anticipated source file locations",
+    "_comment": "edit the values based on existing/anticipated source file locations, relative to working directory of the script being run",
     "mafs": {
       "kf": "annotated_public_outputs",
       "dgd": "DGD_MAF",
