@@ -8,7 +8,7 @@
                 "meta_file_attr": {
                     "stable_id": "mutations",
                     "profile_name": "Mutations",
-                    "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass. DGD custom filtered calls",
+                    "profile_description": "PBTA consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass. Also contains DGD custom filtered calls",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
                     "datatype": "MAF",
                     "variant_classification_filter": "Silent,Intron,3'UTR,3'Flank,5'UTR,IGR,RNA",
@@ -94,7 +94,7 @@
                 "meta_file_attr": {
                     "stable_id": "fusion",
                     "profile_name": "Predicted RNA fusions",
-                    "profile_description": "Fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse",
+                    "profile_description": "PBTA fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse. Also contains DGD custom filtered fusions",
                     "genetic_alteration_type": "FUSION",
                     "datatype": "FUSION",
                     "show_profile_in_analysis_tab": "true"

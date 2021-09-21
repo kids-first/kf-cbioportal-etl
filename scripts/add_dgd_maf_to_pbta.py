@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+"""
+Helper script to append DGD data to an existing merged maf file
+"""
 import sys
 import os
 import argparse

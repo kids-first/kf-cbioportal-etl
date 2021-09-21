@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 This is a genomics file + clinical data file to cBio package conversion workflow script.
 It is designed to work with standard KF somatic workflow outputs as well as DGD outputs.
@@ -5,13 +6,14 @@ Clinical files should have been produced ahead of time, while supporting sample 
 If there are fusion files, they also need s table outlining sequencing center location.
 See README for prequisite details.
 """
-#!/usr/bin/env python3
 from re import sub
 import sys
 import os
 import argparse
 import json
 import subprocess
+import pdb
+
 
 parser = argparse.ArgumentParser(description='Download files (if needed), collate genomic files, organize load package.')
 parser.add_argument('-t', '--table', action='store', dest='table',
@@ -34,13 +36,14 @@ def process_maf():
     Collate and process pbta/kf style mafs. Call append if also adding dgd data
     """
     maf_dir = config_data['file_loc_defs']['mafs']['kf']
-    if args.status == 'dgd':
+    if args.dgd_status == 'dgd':
         config_data['file_loc_defs']['mafs']['dgd']
-    maf_header = config_data['file_loc_defs']['header']
+    maf_header = config_data['file_loc_defs']['mafs']['header']
     maf_cmd = script_dir + 'maf_merge.py -t ' + args.table + ' -i ' + maf_header + ' -m ' + maf_dir + ' -j ' + args.data_config + ' -f ' + args.dgd_status + ' 2> collate_mafs.log'
+    status = 0
     status = subprocess.call(maf_cmd, shell=True)
     if args.dgd_status == 'both':
-        process_append_dgd_maf()
+        status += process_append_dgd_maf()
     return status
 
 
@@ -48,10 +51,11 @@ def process_append_dgd_maf():
     """
     Append DGD mafs to existing collated kf maf
     """
-    maf_header = config_data['file_loc_defs']['header']
+    maf_header = config_data['file_loc_defs']['mafs']['header']
     in_maf_dir = config_data['file_loc_defs']['mafs']['dgd']
-    append_maf = config_data['file_loc_defs']['mafs']['kf'] + cbio_study_id + '.maf'
+    append_maf = 'merged_mafs/' + cbio_study_id + '.maf'
     append_cmd = script_dir + 'add_dgd_maf_to_pbta.py -i ' + maf_header + ' -m ' + in_maf_dir + ' -t ' + args.table + ' >> ' + append_maf + ' 2> dgd_append_maf.log'
+    status = 0
     status = subprocess.call(append_cmd, shell=True)
     return status
 
@@ -108,7 +112,7 @@ def process_kf_fusion():
     """
     fusion_dir = config_data['file_loc_defs']['fusion']
     sq_file = config_data['file_loc_defs']['fusion_sq_file']
-    fusion_cmd = script_dir + 'rna_merge_rename_expression.py -t ' + args.table + ' -f ' + fusion_dir + ' -m annofuse -s ' + sq_file + ' 2> rna_merge_rename_expression.log'
+    fusion_cmd = script_dir + 'rna_convert_fusion.py -t ' + args.table + ' -f ' + fusion_dir + ' -m annofuse -s ' + sq_file + ' 2> rna_convert_fusion.log'
     status = subprocess.call(fusion_cmd, shell=True)
     return status
 
@@ -119,8 +123,8 @@ def process_dgd_fusion():
     """
     fusion_dir = config_data['file_loc_defs']['dgd_fusion']
     dgd_fusion_cmd = script_dir + 'add_dgd_fusion.py -t ' + args.table + ' -f ' + fusion_dir
-    if args.status == 'both':
-        append_fusion = config_data['file_loc_defs']['fusion'] + cbio_study_id + '.fusions.txt'
+    if args.dgd_status == 'both':
+        append_fusion = 'merged_fusion/' + cbio_study_id + '.fusions.txt'
         dgd_fusion_cmd += ' -a >> ' + append_fusion
     dgd_fusion_cmd += ' 2> add_dgd_fusion.log'
     status = subprocess.call(dgd_fusion_cmd, shell=True)
@@ -139,25 +143,45 @@ cbio_study_id = config_meta_case["study"]["cancer_study_identifier"]
 # iterate through config file - file should only have keys related to data to be loaded
 script_dir = config_data['script_dir']
 for key in config_meta_case:
-    if key.startswith('meta_'):
-        data_type = key.split('_')[1:].join('_')
+    if key.startswith('merged_'):
+        data_type = '_'.join(key.split('_')[1:])
         if data_type == 'mafs':
-            process_maf()
-        if data_type == 'cnvs':
-            process_cnv(config_meta_case[config_data['file_loc_defs']['cnvs']])
-        if data_type == 'rsem':
-            process_rsem()
-        if data_type == 'fusion':
+            exit_status = process_maf()
+            if exit_status:
+                sys.stderr.write('Something whent wrong while processing the mafs! \
+                and/or dgd_append_maf Check collate_mafs.log for more info\n')
+                exit(1)
+        elif data_type == 'cnvs':
+            exit_status =process_cnv(config_data['file_loc_defs']['cnvs'])
+            if exit_status:
+                sys.stderr.write('Something whent wrong while processing the cnv data! Check cnv_* logs for more info\n')
+                exit(1)
+        elif data_type == 'rsem':
+            exit_status = process_rsem()
+            if exit_status:
+                sys.stderr.write('Something whent wrong while processing the rna expression! Check rna_merge_rename_expression.log for more info\n')
+                exit(1)
+        elif data_type == 'fusion':
             # Status both works for...both, only when one is specificaly picked should one not be run
             if args.dgd_status != 'dgd':
-                process_kf_fusion()
-            elif args.dgd_status != 'kf':
-                process_dgd_fusion()
+                exit_status = process_kf_fusion()
+                if exit_status:
+                    sys.stderr.write('Something whent wrong while processing the kf fusions! Check rna_convert_fusion.log for more info\n')
+                    exit(1)
+            if args.dgd_status != 'kf':
+                exit_status = process_dgd_fusion()
+                if exit_status:
+                    sys.stderr.write('Something whent wrong while processing the dgd fusions! Check add_dgd_fusion.log for more info\n')
+                    exit(1)
 
 # Run final package builder script
-pck_cmd = config_data['script_dir'] + 'organize_upload_packages.py -o processed -c ' + args.cbio_config
-subprocess.call(pck_cmd, shell=True)
+pck_cmd = config_data['script_dir'] + 'organize_upload_packages.py -o processed -c ' + args.cbio_config + ' 2> load_package_create.log'
+exit_status = subprocess.call(pck_cmd, shell=True)
+if exit_status:
+    sys.stderr.write('Something went wrong while creating the load package. Check load_package_create.log for more info\n')
 
 # Run cbioportal data validator
 validate = config_data['cbioportal_validator'] + ' -s processed/' + cbio_study_id + ' -n -v 2> validator.errs > validator.out'
-subprocess.call(validate, shell=True)
+exit_status = subprocess.call(validate, shell=True)
+if exit_status:
+    sys.stderr.write('Validator quit with status ' + str(exit_status) + '. Check validator.errs for more info\n')
