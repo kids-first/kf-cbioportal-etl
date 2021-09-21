@@ -1,9 +1,12 @@
+#!/usr/bin/env python3
+
 import sys
 import argparse
 import json
 import os
 import pandas as pd
 import numpy as np
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert openPBTA fusion table OR list of annofuse files to cbio format.')
@@ -86,6 +89,7 @@ if __name__ == "__main__":
         fus_file = open(fus_fname, 'w')
         fus_tbl = cbio_master[cbio_master.Tumor_Sample_Barcode.isin(sub_sample_list)]
         fus_tbl.reset_index(inplace=True)
+        fus_tbl.fillna("NA", inplace=True)
         fus_head = "\t".join(fus_tbl.columns) + "\n"
         fus_file.write(fus_head)
         fus_data = list(fus_tbl.values)

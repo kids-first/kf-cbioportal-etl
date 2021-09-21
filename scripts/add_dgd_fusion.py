@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 Script to append dgd fusion results to pbta using STDOUT or collate if standalone
 """
@@ -12,7 +14,7 @@ parser.add_argument('-t', '--table', action='store', dest='table',
                     help='Table with cbio project, kf bs ids, cbio IDs, and file names')
 parser.add_argument('-a', '--append', action='store_true', dest='append',
                     help='Optional - if given will output to stdout to append, else will create new merged file')
-    parser.add_argument('-o', '--out-dir', action='store', dest='out_dir', default='merged_fusion/', help='Result output dir. Default is merged_fusion')
+parser.add_argument('-o', '--out-dir', action='store', dest='out_dir', default='merged_fusion/', help='Result output dir. Default is merged_fusion')
 
 
 
@@ -39,9 +41,6 @@ for cbio_dx in file_meta_dict:
         f_head = next(cur)
         f_header = f_head.rstrip('\n').split('\t')
         mid_idx = f_header.index('Method')
-        for i in range(len(f_header)):
-            if f_header[i] in h_dict:
-                h_dict[f_header[i]] = i
         for data in cur:
             datum = data.rstrip('\n').split('\t')
             # Set method
