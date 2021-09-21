@@ -61,7 +61,7 @@ def process_cnv(cnv_loc_dict):
     Add gene info to CNV calls, merge into table, and create GISTIC-style output
     """
     cnv_dir = cnv_loc_dict['pval']
-    gene_annot_cmd = script_dir + + 'cnv_1_genome2gene.py -d ' + cnv_dir + ' -j ' +  args.data_config + ' 2> cnv_gene_annot.log'
+    gene_annot_cmd = script_dir + 'cnv_1_genome2gene.py -d ' + cnv_dir + ' -j ' +  args.data_config + ' 2> cnv_gene_annot.log'
     status = subprocess.call(gene_annot_cmd, shell=True)
     info_dir = cnv_loc_dict['info']
     merge_gene_cmd = script_dir + 'cnv_2_merge.py -t ' + args.table + ' -n converted_cnvs -j ' + args.data_config
