@@ -28,10 +28,11 @@ if not args.append:
     except:
         sys.stderr.write('output dir already exists\n')
         sys.stderr.flush()
-
+mid_idx = header.index('Method')
+t_idx = header.index('Tumor_Sample_Barcode')
 for cbio_dx in file_meta_dict:
     if not args.append:
-        out_file = open(out_dir + cbio_dx + '.fusions.txt')
+        out_file = open(args.out_dir + cbio_dx + '.fusions.txt')
     else:
         out_file = sys.stdout
     for cbio_tum_id in file_meta_dict[cbio_dx]:
@@ -39,12 +40,11 @@ for cbio_dx in file_meta_dict:
         sys.stderr.write("Processing " + fusion + "\n")
         cur = open(args.fusion_dir + "/" + fusion)
         f_head = next(cur)
-        f_header = f_head.rstrip('\n').split('\t')
-        mid_idx = f_header.index('Method')
         for data in cur:
             datum = data.rstrip('\n').split('\t')
             # Set method
             datum[mid_idx] = 'DGD_curated'
+            datum[t_idx] = cbio_tum_id
             out_file.write("\t".join(datum) + "\n")
         sys.stderr.write("Processed " + fusion + "\n")
     out_file.close()
