@@ -85,8 +85,18 @@ Will likely need the most editing existing based on your input, and should only 
 This is a json config file with file descriptions and case lists required by the cbioportal.
 An example is given in `REFS/pbta_all_case_meta_config.json`.
 Be sure to review all data types to be loaded by review all `meta_*` to see if they match incoming data.
+Likely personalized edits would occur in the following fields:
++ `merged_{data type}`: The `profile_description` key in each is a good place to describe any algorthim or nuances used to generate the data of that type. Also be sure to remove any data types not being loaded, as that determines what genomic file collation steps are run.
++ `study`: Here is where you set the overall study description, it's the banner text that people will see in the study overview page that gives them a sense of what the data is.
+  + `description`: This field is set up as an array so that a generic form of "text describing" "disease" "more text describing" can be used. Put another way, element one is whatever you want to say about the disease/study until you are ready to mention the disease/study, element two anythnig you may optionally wish to add
+  + `groups`: These are access groups defined is cBioportal.  Default is `PUBLIC`, but another can be named is restrictions are needed.  Need to work with Devops for custom groups
+  + `cancer_study_identifier`: This is the short name that you create for the study.  It will be the name of the study load folder and will be used by cBioportal to find all relevant information for that study.
+  + `type_of_cancer`: This is the oncotree code used to categorize the study to a disease type that best summarizes all samples in the study. These are the default codes: http://oncotree.mskcc.org/#/home. Internally, we have added `phgg` and `plgg`. If your study doesn't fit, propose a new one to be added
+  + `display_name`: This is what will show as a long form title on the site home page
+  + `short_name`: This is the short version. By default, should be the same as `cancer_study_identifier`
 
-## Pipline script
+
+## Pipeline script
 After downloading the genomic files and files above as needed, and properly editing config files as needed, this script should generate and validate the cBioportal load package
 
 ### scripts/genomics_file_cbio_package_build.py
@@ -112,19 +122,7 @@ optional arguments:
 + `-c` would be the [Metadata processing config file](#metadata-processing-config-file)
 + `-d` would be the [Data processing config file](#data-processing-config-file)
 
-## Create upload package
-
-Case configuration file is used.  It is best to start with one of the pre-configured case config files in REFS/case_{descriptive text}. 
-### Single study load
-A good example of a config is  `REFS/pbta_all_case_meta_config.json`. Likely personalized edits would occur in the following fields:
-+ `merged_{data type}`: The `profile_description` key in each is a good place to describe any algorthim or nuances used to generate the data of that type. Also be sure to remove any data types not being loaded, as that determines what genomic file collation steps are run.
-+ `study`: Here is where you set the overall study description, it's the banner text that people will see in the study overview page that gives them a sense of what the data is.
-  + `description`: This field is set up as an array so that a generic form of "text describing" "disease" "more text describing" can be used. Put another way, element one is whatever you want to say about the disease/study until you are ready to mention the disease/study, element two anythnig you may optionally wish to add
-  + `groups`: These are access groups defined is cBioportal.  Default is `PUBLIC`, but another can be named is restrictions are needed.  Need to work with Devops for custom groups
-  + `cancer_study_identifier`: This is the short name that you create for the study.  It will be the name of the study load folder and will be used by cBioportal to find all relevant information for that study.
-  + `type_of_cancer`: This is the oncotree code used to categorize the study to a disease type that best summarizes all samples in the study. These are the default codes: http://oncotree.mskcc.org/#/home. Internally, we have added `phgg` and `plgg`. If your study doesn't fit, propose a new one to be added
-  + `display_name`: This is what will show as a long form title on the sire home page
-  + `short_name`: This is the short version. By default, should be the same as `cancer_study_identifier`
+Check the pipeline log output for any errors that might have occurred.
 
 ## Upload the final packages
 Upload all of the directories named as study short names to `s3://kf-cbioportal-studies/public/`. You may need to set and/or copy aws your saml key before uploading. Next, edit the file in that bucket called `importStudies.txt` located at `s3://kf-cbioportal-studies/public/importStudies.txt`, with the names of all of the studies you wish to updated/upload. Lastly, go to https://jenkins.kids-first.io/job/d3b-center-aws-infra-pedcbioportal-import/job/master/, click on build. At the `Promotion kf-aws-infra-pedcbioportal-import-asg to QA` and `Promotion kf-aws-infra-pedcbioportal-import-asg to PRD`, the process will pause, click on the box below it to affirm that you want these changes deployed to QA and/or PROD respectively.  If both, you will have to wait for the QA job to finish first before you get the prompt for PROD.
