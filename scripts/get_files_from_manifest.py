@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import pdb
 import sys
 import boto3
 import concurrent.futures

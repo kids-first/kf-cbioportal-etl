@@ -4,11 +4,9 @@ import sys
 import argparse
 import os
 import concurrent.futures
-import gzip
 import pandas as pd
 import numpy as np
 from scipy import stats
-import pdb
 
 
 if __name__ == "__main__":

@@ -3,10 +3,8 @@ import sys
 import os
 import argparse
 import json
-import subprocess
 from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
-import pdb
 
 
 def process_seg(cur_seg, new_seg, cbio_tum_id, limit):

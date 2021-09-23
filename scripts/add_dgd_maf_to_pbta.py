@@ -3,7 +3,6 @@
 Helper script to append DGD data to an existing merged maf file
 """
 import sys
-import os
 import argparse
 from get_file_metadata_helper import get_file_metadata
 

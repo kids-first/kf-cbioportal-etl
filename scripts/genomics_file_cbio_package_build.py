@@ -6,13 +6,10 @@ Clinical files should have been produced ahead of time, while supporting sample 
 If there are fusion files, they also need s table outlining sequencing center location.
 See README for prequisite details.
 """
-from re import sub
 import sys
-import os
 import argparse
 import json
 import subprocess
-import pdb
 
 
 parser = argparse.ArgumentParser(description='Download files (if needed), collate genomic files, organize load package.')

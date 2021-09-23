@@ -3,7 +3,6 @@ import sys
 import os
 import argparse
 import json
-import subprocess
 from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
 
@@ -13,7 +12,7 @@ def filter_entry(entry, tum_id, norm_id, tid_idx,nid_idx, v_idx, eid_idx):
     Only output entries not in exclusion list while dropping ENTREZ ID, but keeping TERT promoter hits
     """
     data = entry.rstrip('\n').split('\t')
-    # Want to allow TERT promoter as exception to exlcusion rules
+    # Want to allow TERT promoter as exception to exclusion rules
     if data[v_idx] not in maf_exc or (data[h_idx] == "TERT" and data[v_idx] == "5'Flank"):
         data[tid_idx] = tum_id
         data[nid_idx] = norm_id
@@ -30,14 +29,6 @@ def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id, tid_idx, h_idx, nid_i
     cur_maf = open(maf_fn)
     next(cur_maf)
     next(cur_maf)
-    # for entry in cur_maf:
-    #     data = entry.rstrip('\n').split('\t')
-    #     # Want to allow TERT promoter as exception to exclusion rules
-    #     if data[v_idx] not in maf_exc or (data[h_idx] == "TERT" and data[v_idx] == "5'Flank"):
-    #         data[tid_idx] = tum_id
-    #         data[nid_idx] = norm_id
-    #         data.pop(eid_idx)
-    #         new_maf.write('\t'.join(data) + '\n')
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
         results = {executor.submit(filter_entry, entry, tum_id, norm_id, tid_idx,nid_idx, v_idx, eid_idx) for entry in cur_maf}
         for result in concurrent.futures.as_completed(results):
@@ -114,8 +105,6 @@ try:
 except:
     sys.stderr.write('output dir already exists\n')
 
-# with concurrent.futures.ProcessPoolExecutor(config_data['cpus']) as executor:
-#     results = {executor.submit(process_tbl, cbio_dx, file_meta_dict, tid_idx, h_idx, nid_idx, v_idx, eid_idx, print_head): cbio_dx for cbio_dx in file_meta_dict}
 for cbio_dx in file_meta_dict:
     process_tbl(cbio_dx, file_meta_dict, tid_idx, h_idx, nid_idx, v_idx, eid_idx, print_head)
 
