@@ -17,6 +17,23 @@
             }
         }
       },
+      "merged_fusion": {
+        "dir": "merged_fusion",
+        "dtypes": {
+            "fusion": {
+                "ext": "fusions.txt",
+                "cbio_name": "data_fusions.txt",
+                "meta_file_attr": {
+                    "stable_id": "fusion",
+                    "profile_name": "Predicted RNA fusions",
+                    "profile_description": "DGD custom filtered fusions",
+                    "genetic_alteration_type": "FUSION",
+                    "datatype": "FUSION",
+                    "show_profile_in_analysis_tab": "true"
+                }
+            }
+        }
+    },
     "data_sheets": {
         "dir": "datasheets",
         "dtypes": {
@@ -33,6 +50,14 @@
                     "genetic_alteration_type": "CLINICAL",
                     "datatype": "SAMPLE_ATTRIBUTES"
                 }
+            },
+            "genes": {
+                "cbio_name": "data_gene_matrix_CHOP.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "GENE_PANEL_MATRIX",
+                    "datatype": "GENE_PANEL_MATRIX",
+                    "data_filename": "data_gene_matrix_CHOP.txt"
+                }
             }
         }
     },
@@ -42,7 +67,7 @@
         "groups": "PUBLIC",
         "cancer_study_identifier": "dgd_chop",
         "type_of_cancer": "mixed",
-        "short_name": "pbta_all",
+        "short_name": "dgd_chop",
         "reference_genome": "hg38",
         "display_name": "CHOP Division for Genomic Diagnostics Solid and Liquid Tumors"
     },
@@ -57,5 +82,11 @@
         "case_list_name": "Tumor samples with mutations",
         "case_list_description": "All tumor samples with mutation data",
         "case_list_category": "all_cases_with_mutation_data"
+    },
+    "cases_sv": {
+        "stable_id": "sv",
+        "case_list_name": "Tumor samples with fusions",
+        "case_list_description": "All tumor samples with fusion data",
+        "case_list_category": "all_cases_with_sv_data"
     }
 }
