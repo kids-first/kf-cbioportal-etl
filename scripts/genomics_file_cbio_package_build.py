@@ -32,9 +32,10 @@ def process_maf():
     """
     Collate and process pbta/kf style mafs. Call append if also adding dgd data
     """
+    sys.stderr.write('Processing maf files\n')
     maf_dir = config_data['file_loc_defs']['mafs']['kf']
     if args.dgd_status == 'dgd':
-        config_data['file_loc_defs']['mafs']['dgd']
+        maf_dir = config_data['file_loc_defs']['mafs']['dgd']
     maf_header = config_data['file_loc_defs']['mafs']['header']
     maf_cmd = script_dir + 'maf_merge.py -t ' + args.table + ' -i ' + maf_header + ' -m ' + maf_dir + ' -j ' + args.data_config + ' -f ' + args.dgd_status + ' 2> collate_mafs.log'
     status = 0
@@ -48,6 +49,7 @@ def process_append_dgd_maf():
     """
     Append DGD mafs to existing collated kf maf
     """
+    sys.stderr.write('Appending DGD to exsting KF maf\n')
     maf_header = config_data['file_loc_defs']['mafs']['header']
     in_maf_dir = config_data['file_loc_defs']['mafs']['dgd']
     append_maf = 'merged_mafs/' + cbio_study_id + '.maf'
@@ -61,6 +63,7 @@ def process_cnv(cnv_loc_dict):
     """
     Add gene info to CNV calls, merge into table, and create GISTIC-style output
     """
+    sys.stderr.write('Prceossing CNV calls\n')
     cnv_dir = cnv_loc_dict['pval']
     gene_annot_cmd = script_dir + 'cnv_1_genome2gene.py -d ' + cnv_dir + ' -j ' +  args.data_config + ' 2> cnv_gene_annot.log'
     status = subprocess.call(gene_annot_cmd, shell=True)
@@ -87,6 +90,7 @@ def process_seg(cnv_loc_dict):
     """
     Collate and process CNV seg files
     """
+    sys.stderr.write('Prceossing CNV seg calls\n')
     seg_dir = cnv_loc_dict['seg']
     merge_seg_cmd = script_dir + 'cnv_merge_seg.py -t ' + args.table + ' -m ' + seg_dir + ' -j ' + args.data_config + ' 2> cnv_merge_seg.log'
     status = subprocess.call(merge_seg_cmd, shell=True)
@@ -97,6 +101,7 @@ def process_rsem():
     """
     Merge rsem results by FPKM, calculate z-scores
     """
+    sys.stderr.write('Prceossing RNA expression data\n')
     rsem_dir = config_data['file_loc_defs']['rsem']
     merge_rsem_cmd = script_dir + 'rna_merge_rename_expression.py -t ' + args.table + ' -r ' + rsem_dir + ' 2> rna_merge_rename_expression.log'
     status = subprocess.call(merge_rsem_cmd, shell=True)
@@ -107,6 +112,7 @@ def process_kf_fusion():
     """
     Collate and process annoFuse output
     """
+    sys.stderr.write('Prceossing KF fusion calls\n')
     fusion_dir = config_data['file_loc_defs']['fusion']
     sq_file = config_data['file_loc_defs']['fusion_sq_file']
     fusion_cmd = script_dir + 'rna_convert_fusion.py -t ' + args.table + ' -f ' + fusion_dir + ' -m annofuse -s ' + sq_file + ' 2> rna_convert_fusion.log'
@@ -121,8 +127,11 @@ def process_dgd_fusion():
     fusion_dir = config_data['file_loc_defs']['dgd_fusion']
     dgd_fusion_cmd = script_dir + 'add_dgd_fusion.py -t ' + args.table + ' -f ' + fusion_dir
     if args.dgd_status == 'both':
+        sys.stderr.write('Appending DGD fusion calls\n')
         append_fusion = 'merged_fusion/' + cbio_study_id + '.fusions.txt'
         dgd_fusion_cmd += ' -a >> ' + append_fusion
+    else:
+        sys.stderr.write('Processing DGD fusion calls\n')
     dgd_fusion_cmd += ' 2> add_dgd_fusion.log'
     status = subprocess.call(dgd_fusion_cmd, shell=True)
     return status
@@ -172,12 +181,14 @@ for key in config_meta_case:
                     exit(1)
 
 # Run final package builder script
+sys.stderr.write('Creating load packages\n')
 pck_cmd = config_data['script_dir'] + 'organize_upload_packages.py -o processed -c ' + args.cbio_config + ' 2> load_package_create.log'
 exit_status = subprocess.call(pck_cmd, shell=True)
 if exit_status:
     sys.stderr.write('Something went wrong while creating the load package. Check load_package_create.log for more info\n')
 
 # Run cbioportal data validator
+sys.stderr.write('Validating load packages\n')
 validate = config_data['cbioportal_validator'] + ' -s processed/' + cbio_study_id + ' -n -v 2> validator.errs > validator.out'
 exit_status = subprocess.call(validate, shell=True)
 if exit_status:
