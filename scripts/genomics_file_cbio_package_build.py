@@ -113,7 +113,7 @@ def process_rsem(rsem_dir, cbio_id_table):
     """
     sys.stderr.write("Processing RNA expression data\n")
     merge_rsem_cmd = "{}rna_merge_rename_expression.py -t {} -r {} 2> rna_merge_rename_expression.log".format(
-        cbio_id_table, rsem_dir
+        script_dir, cbio_id_table, rsem_dir
     )
     status = subprocess.call(merge_rsem_cmd, shell=True)
     return status
@@ -124,18 +124,8 @@ def process_kf_fusion(fusion_dir, cbio_id_table, sq_file):
     Collate and process annoFuse output
     """
     sys.stderr.write("Processing KF fusion calls\n")
-    fusion_cmd = (
-        script_dir
-        + "rna_convert_fusion.py -t "
-        + cbio_id_table
-        + " -f "
-        + fusion_dir
-        + " -m annofuse -s "
-        + sq_file
-        + " 2> rna_convert_fusion.log"
-    )
     fusion_cmd = "{}rna_convert_fusion.py -t {} -f {} -m annofuse -s {} 2> rna_convert_fusion.log".format(
-        cbio_id_table, fusion_dir, sq_file
+        script_dir, cbio_id_table, fusion_dir, sq_file
     )
     status = subprocess.call(fusion_cmd, shell=True)
     return status
@@ -145,9 +135,6 @@ def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
     """
     Collate process DGD fusion output
     """
-    dgd_fusion_cmd = (
-        script_dir + "add_dgd_fusion.py -t " + cbio_id_table + " -f " + fusion_dir
-    )
     dgd_fusion_cmd = "{}add_dgd_fusion.py -t {} -f {}".format(
         script_dir, cbio_id_table, fusion_dir
     )
@@ -238,7 +225,9 @@ for key in config_meta_case:
                 "collate_mafs.log and/or dgd_append_maf.log",
             )
         elif data_type == "cnvs":
-            exit_status = process_cnv(config_data["file_loc_defs"]["cnvs"])
+            exit_status = process_cnv(
+                config_data["file_loc_defs"]["cnvs"], args.data_config, args.table
+            )
             check_status(exit_status, "cnv data", "cnv_* logs")
         elif data_type == "rsem":
             exit_status = process_rsem(config_data["file_loc_defs"]["rsem"], args.table)
