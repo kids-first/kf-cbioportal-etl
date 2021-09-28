@@ -3,7 +3,7 @@
 This is a genomics file + clinical data file to cBio package conversion workflow script.
 It is designed to work with standard KF somatic workflow outputs as well as DGD outputs.
 Clinical files should have been produced ahead of time, while supporting sample ID file manifest, case_meta config json file, and data json config.
-If there are fusion files, they also need s table outlining sequencing center location.
+If there are fusion files, they also need a table outlining sequencing center location.
 See README for prequisite details.
 """
 import sys

@@ -129,7 +129,7 @@ Upload all of the directories named as study short names to `s3://kf-cbioportal-
 ## Congratulations, you did it!
 
 # Collaborative and Publication Workflows
-These are highly specialized cases in which all mor most of data comes from a third party, and therefore requires specific case-by-case protocols
+These are highly specialized cases in which all or most of the data come from a third party, and therefore requires specific case-by-case protocols.
 
 ## OpenTargets
 This project is organized much like OpenPBTA in which all genomics data for each assay-type are collated into one giant table.
