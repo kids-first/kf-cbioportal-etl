@@ -44,7 +44,7 @@ maf_exc = {"Silent": 0, "Intron": 0, "IGR": 0, "3'UTR": 0, "5'UTR": 0, "3'Flank"
 
 # process header, track key indices and drop entrez ID
 maf_file = gzip.open(args.maf_file)
-maf_out = open("data_mutations_extended.txt", "w")
+maf_out = open("mixed.maf", "w")
 head = next(maf_file).decode()
 maf_out.write(head)
 head = next(maf_file).decode()
