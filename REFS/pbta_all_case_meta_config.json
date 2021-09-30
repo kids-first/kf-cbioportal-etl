@@ -1,0 +1,184 @@
+{
+    "merged_mafs": {
+        "dir": "merged_mafs",
+        "dtypes": {
+            "mutation": {
+                "ext": "maf",
+                "cbio_name": "data_mutations_extended.txt",
+                "meta_file_attr": {
+                    "stable_id": "mutations",
+                    "profile_name": "Mutations",
+                    "profile_description": "PBTA consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass. Also contains DGD custom filtered calls",
+                    "genetic_alteration_type": "MUTATION_EXTENDED",
+                    "datatype": "MAF",
+                    "variant_classification_filter": "Silent,Intron,3'UTR,3'Flank,5'UTR,IGR,RNA",
+                    "show_profile_in_analysis_tab": "true"
+                }
+            }
+        }
+      },
+    "merged_cnvs": {
+        "dir": "merged_cnvs",
+        "dtypes": {
+            "linear": {
+                "ext": "predicted_cnv.txt",
+                "cbio_name": "data_linear_CNA.txt",
+                "meta_file_attr": {
+                    "stable_id": "linear_CNA",
+                    "profile_name": "copy-number values",
+                    "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls smaller than 50KB",
+                    "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+                    "datatype": "CONTINUOUS",
+                    "show_profile_in_analysis_tab": "false"
+                }
+            },
+            "discrete": {
+                "ext": "discrete_cnvs.txt",
+                "cbio_name": "data_CNA.txt",
+                "meta_file_attr": {
+                    "stable_id": "cna",
+                    "profile_name": "Binned copy-number values",
+                    "profile_description": "Predicted copy number values from WGS (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification",
+                    "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+                    "datatype": "DISCRETE",
+                    "show_profile_in_analysis_tab": "true"
+                }
+            },
+            "segment": {
+                "ext": "merged_seg.txt",
+                "cbio_name": "data_cna.seg.txt",
+                "meta_file_attr": {
+                    "description": "Somatic CNA data (copy number ratio from tumor samples minus ratio from matched normals)",
+                    "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+                    "datatype": "SEG",
+                    "reference_genome_id": "hg38"
+                }
+            }
+        }
+      },
+    "merged_rsem": {
+        "dir": "merged_rsem",
+        "dtypes": {
+            "counts": {
+                "ext": "rsem_merged.txt",
+                "cbio_name": "data_rna_seq_v2_mrna.txt",
+                "meta_file_attr": {
+                    "stable_id": "rna_seq_v2_mrna",
+                    "profile_name": "RNA expression",
+                    "profile_description": "Expression levels from RNA-Seq (rsem FPKM)",
+                    "genetic_alteration_type": "MRNA_EXPRESSION",
+                    "datatype": "CONTINUOUS",
+                    "show_profile_in_analysis_tab": "false"
+                }
+            },
+            "zscore": {
+                "ext": "rsem_merged_zscore.txt",
+                "cbio_name": "data_rna_seq_v2_mrna_median_Zscores.txt",
+                "meta_file_attr": {
+                    "stable_id": "rna_seq_v2_mrna_median_Zscores",
+                    "profile_name": "RNA expression z-scores",
+                    "profile_description": "Expression levels from RNA-Seq, Z scores of log2(FPKM + 1) values",
+                    "genetic_alteration_type": "MRNA_EXPRESSION",
+                    "datatype": "Z-SCORE",
+                    "show_profile_in_analysis_tab": "true"
+                }
+            }
+        }
+    },
+    "merged_fusion": {
+        "dir": "merged_fusion",
+        "dtypes": {
+            "fusion": {
+                "ext": "fusions.txt",
+                "cbio_name": "data_fusions.txt",
+                "meta_file_attr": {
+                    "stable_id": "fusion",
+                    "profile_name": "Predicted RNA fusions",
+                    "profile_description": "PBTA fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse. Also contains DGD custom filtered fusions",
+                    "genetic_alteration_type": "FUSION",
+                    "datatype": "FUSION",
+                    "show_profile_in_analysis_tab": "true"
+                }
+            }
+        }
+    },
+    "data_sheets": {
+        "dir": "datasheets",
+        "dtypes": {
+            "patient": {
+                "cbio_name": "data_clinical_patient.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "CLINICAL",
+                    "datatype": "PATIENT_ATTRIBUTES"
+                }
+            },
+            "sample": {
+                "cbio_name": "data_clinical_sample.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "CLINICAL",
+                    "datatype": "SAMPLE_ATTRIBUTES"
+                }
+            },
+            "genes": {
+                "cbio_name": "data_gene_matrix_CHOP.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "GENE_PANEL_MATRIX",
+                    "datatype": "GENE_PANEL_MATRIX",
+                    "data_filename": "data_gene_matrix_CHOP.txt"
+                }
+            }
+        }
+    },
+    "study": {
+        "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
+        "description": "Genomic characterization of Pediatric Brain Tumor Atlas samples provided by the <a href=\"http://cbtn.org\">Children's Brain Tumor Network</a>, the <a href=\"http://www.pnoc.us/\">Pacific Neuro-Oncology Consortium (PNOC)</a>, and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
+        "groups": "PUBLIC",
+        "cancer_study_identifier": "pbta_all",
+        "type_of_cancer": "brain",
+        "short_name": "pbta_all",
+        "reference_genome": "hg38",
+        "display_name": "Pediatric Brain Tumor Atlas (PBTA, Provisional)"
+    },
+    "cases_3way_complete": {
+        "stable_id": "3way_complete",
+        "case_list_name": "Tumor samples with mutatation, CNA and mRNA data",
+        "case_list_description": "All tumor samples with mutation, CNA, and mRNA data",
+        "case_list_category": "all_cases_with_mutation_and_cna_and_mrna_data"
+    },
+    "cases_all": {
+        "stable_id": "all",
+        "case_list_name": "All Tumors",
+        "case_list_description": "All tumor samples",
+        "case_list_category": "all_cases_in_study"
+    },
+    "cases_cnaseq": {
+        "stable_id": "cnaseq",
+        "case_list_name": "Tumor samples with mutatation and CNA data",
+        "case_list_description": "All tumor samples with mutation and CNA data",
+        "case_list_category": "all_cases_with_mutation_and_cna_data"
+    },
+    "cases_cna": {
+        "stable_id": "cna",
+        "case_list_name": "Tumor Samples with CNA data",
+        "case_list_description": "All tumors with CNA data",
+        "case_list_category": "all_cases_with_cna_data"
+    },
+    "cases_RNA_Seq_v2_mRNA": {
+        "stable_id": "rna_seq_v2_mrna",
+        "case_list_name": "Tumor Samples with mRNA data (RNA Seq V2)",
+        "case_list_description": "All samples with mRNA expression data",
+        "case_list_category": "all_cases_with_mrna_rnaseq_data"
+    },
+    "cases_sequenced": {
+        "stable_id": "sequenced",
+        "case_list_name": "Tumor samples with mutations",
+        "case_list_description": "All tumor samples with mutation data",
+        "case_list_category": "all_cases_with_mutation_data"
+    },
+    "cases_sv": {
+        "stable_id": "sv",
+        "case_list_name": "Tumor samples with fusions",
+        "case_list_description": "All tumor samples with fusion data",
+        "case_list_category": "all_cases_with_sv_data"
+    }
+}

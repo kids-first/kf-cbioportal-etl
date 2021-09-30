@@ -1,6 +1,6 @@
 {
     "merged_mafs": {
-        "dir": "merged_mafs",
+        "dir": "study_build",
         "dtypes": {
             "mutation": {
                 "ext": "maf",
@@ -8,7 +8,7 @@
                 "meta_file_attr": {
                     "stable_id": "mutations",
                     "profile_name": "Mutations",
-                    "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass",
+                    "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass, < 0.001 frequeney in gnomAD, and min read depth 8 in normal sample",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
                     "datatype": "MAF",
                     "show_profile_in_analysis_tab": "true"
@@ -17,7 +17,7 @@
         }
       },
     "merged_cnvs": {
-        "dir": "merged_cnvs",
+        "dir": "study_build",
         "dtypes": {
             "linear": {
                 "ext": "predicted_cnv.txt",
@@ -25,7 +25,7 @@
                 "meta_file_attr": {
                     "stable_id": "linear_CNA",
                     "profile_name": "copy-number values",
-                    "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls smaller than 50KB",
+                    "profile_description": "Predicted copy number values from WGS and WXS (Continuous). openPBTA consensus method used",
                     "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
                     "datatype": "CONTINUOUS",
                     "show_profile_in_analysis_tab": "false"
@@ -38,34 +38,24 @@
                 "meta_file_attr": {
                     "stable_id": "cna",
                     "profile_name": "Binned copy-number values",
-                    "profile_description": "Predicted copy number values from WGS (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification",
+                    "profile_description": "Predicted copy number values from WGS and WXS sequencing (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification. openPBTA consensus method used",
                     "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
                     "datatype": "DISCRETE",
                     "show_profile_in_analysis_tab": "true"
-                }
-            },
-            "segment": {
-                "ext": "merged_seg.txt",
-                "cbio_name": "data_cna.seg.txt",
-                "meta_file_attr": {
-                    "description": "Somatic CNA data (copy number ratio from tumor samples minus ratio from matched normals)",
-                    "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
-                    "datatype": "SEG",
-                    "reference_genome_id": "hg38"
                 }
             }
         }
       },
     "merged_rsem": {
-        "dir": "merged_rsem",
+        "dir": "study_build",
         "dtypes": {
             "counts": {
                 "ext": "rsem_merged.txt",
-                "cbio_name": "data_rna_seq_v2_mrna.txt",
+                "cbio_name": "data_mrna_seq_v2_rsem.txt",
                 "meta_file_attr": {
                     "stable_id": "rna_seq_v2_mrna",
                     "profile_name": "RNA expression",
-                    "profile_description": "Expression levels from RNA-Seq (rsem FPKM)",
+                    "profile_description": "Expression levels from RNA-Seq (rsem TPM)",
                     "genetic_alteration_type": "MRNA_EXPRESSION",
                     "datatype": "CONTINUOUS",
                     "show_profile_in_analysis_tab": "false"
@@ -73,11 +63,11 @@
             },
             "zscore": {
                 "ext": "rsem_merged_zscore.txt",
-                "cbio_name": "data_rna_seq_v2_mrna_median_Zscores.txt",
+                "cbio_name": "data_mrna_seq_v2_rsem_zscores_ref_all_samples.txt",
                 "meta_file_attr": {
                     "stable_id": "rna_seq_v2_mrna_median_Zscores",
                     "profile_name": "RNA expression z-scores",
-                    "profile_description": "Expression levels from RNA-Seq, Z scores of log2(FPKM + 1) values",
+                    "profile_description": "Expression levels from RNA-Seq, Z scores of log2(TPM + 1) values",
                     "genetic_alteration_type": "MRNA_EXPRESSION",
                     "datatype": "Z-SCORE",
                     "show_profile_in_analysis_tab": "true"
@@ -86,7 +76,7 @@
         }
     },
     "merged_fusion": {
-        "dir": "merged_fusion",
+        "dir": "study_build",
         "dtypes": {
             "fusion": {
                 "ext": "fusions.txt",
@@ -123,12 +113,12 @@
     },
     "study": {
         "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
-        "description": ["Genomic characterization of", "samples provided by the <a href=\"http://cbtn.org\">Children's Brain Tumor Network</a>, the <a href=\"http://www.pnoc.us/\">Pacific Neuro-Oncology Consortium (PNOC)</a>, and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Updated April 16, 2021 from last update: February 1, 2020. This update fixes a bug for CNV data for samples with ploidy > 2, number of losses were inflated"],
+        "description": ["", "is a collaborative project between the National Cancer Institute and the Children's Hospital of Philadelphia. Through this project and as part of the NCI's Childhood Cancer Data Initiative, we are utilizing the harmonization work of the KidsFirst Data Resource Center and analytics work of OpenPBTA to build a pediatric preclinical pediatric platform to assist in development and query of the FDA's Relevant Molecular Targets List to identify new therapeutics for children with cancer. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>"],
         "groups": "PUBLIC",
-        "cancer_study_identifier": "pbta_all",
+        "cancer_study_identifier": "ped_opentargets_2021",
         "reference_genome": "hg38",
         "dir_suffix": "",
-        "name_append": "(PBTA, Provisional)"
+        "name_append": ""
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",
