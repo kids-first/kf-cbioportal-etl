@@ -7,7 +7,7 @@ import pandas as pd
 
 
 parser = argparse.ArgumentParser(description='Subset a hisologies file.')
-parser.add_argument('-f', '--histologies-file', action='store', dest='hist', help='histoligies file to subset')
+parser.add_argument('-f', '--histologies-file', action='store', dest='hist', help='histologies file to subset')
 
 args = parser.parse_args()
 
