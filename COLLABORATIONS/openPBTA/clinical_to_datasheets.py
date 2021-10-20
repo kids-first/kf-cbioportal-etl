@@ -168,6 +168,9 @@ for data in clin_data:
     sample_to_print = []
     patient_to_print = []
     samp_id = ""
+    # track position in samp_id
+    samp_i = 0
+    exp_j = 0
     for i in range(len(info)):
         if header[i] in h_dict:
             value = info[i]
@@ -193,8 +196,12 @@ for data in clin_data:
                     sys.stderr.write(str(e) + "\nCould not find that bs id in " + args.pbta_ds + ". Will use existing sample ID\n")
                     value = info[sa_id]
                 samp_id = value
+
             if h_dict[header[i]][s_idx] == '1':
                 sample_to_print.append(value)
+                if header[i] == "experimental_strategy":
+                    exp_j = samp_i
+                samp_i += 1
             if h_dict[header[i]][p_idx] == '1' and pt_id_dict[pt_id] == 1:
                 patient_to_print.append(value)
     if pt_id_dict[pt_id] == 1:
@@ -203,6 +210,9 @@ for data in clin_data:
     if samp_id not in samp_dict:
         samp_dict[samp_id] = sample_to_print
         id_mapping[samp_id] = []
+    else:
+        # appaned to existing exp strategy
+        samp_dict[samp_id][exp_j] += ";" + sample_to_print[exp_j]
     id_mapping[samp_id].append(info[bs_id])
     if info[exp] == "RNA-Seq":
         bs_type[info[bs_id]] = "RNA"
