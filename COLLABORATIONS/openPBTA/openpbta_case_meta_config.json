@@ -8,7 +8,7 @@
                 "meta_file_attr": {
                     "stable_id": "mutations",
                     "profile_name": "Mutations",
-                    "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass, < 0.001 frequeney in gnomAD, and min read depth 8 in normal sample",
+                    "profile_description": "Consensus calls from strelka2, mutect2, lancet.  All three callers must agree unless the variant falls in a TERT promoter or hotspot region (see https://www.cancerhotspots.org)",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
                     "datatype": "MAF",
                     "show_profile_in_analysis_tab": "true"
