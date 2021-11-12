@@ -8,8 +8,8 @@ Below assumes you have already created the necessary tables from dbt
 1. Copy over the approriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
-   python3 ~/tools/kf-cbioportal-etl/scripts/dev/get_files_from_manifest.py -m genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg -p saml 2> pbta_dl.log &
-   python3 ~/tools/kf-cbioportal-etl/scripts/dev/get_files_from_manifest.py -m dgd_genomics_file_manifest.txt -f DGD_MAF,DGD_FUSION -p d3b 2> dgd_dl.log &
+   python3 ~/tools/kf-cbioportal-etl/scripts/get_files_from_manifest.py -m genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg -p saml 2> pbta_dl.log &
+   python3 ~/tools/kf-cbioportal-etl/scripts/get_files_from_manifest.py -m dgd_genomics_file_manifest.txt -f DGD_MAF,DGD_FUSION -p d3b 2> dgd_dl.log &
    ```
 
 1. Copy and edit `REFS/data_processing_config.json` and `REFS/pbta_all_case_meta_config.json` as needed
