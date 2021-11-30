@@ -25,7 +25,7 @@
                 "meta_file_attr": {
                     "stable_id": "linear_CNA",
                     "profile_name": "copy-number values",
-                    "profile_description": "Predicted copy number values from WGS and WXS (Continuous). openPBTA consensus method used",
+                    "profile_description": "Predicted copy number values from WGS (Continuous). openPBTA consensus method used",
                     "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
                     "datatype": "CONTINUOUS",
                     "show_profile_in_analysis_tab": "false"
@@ -38,7 +38,7 @@
                 "meta_file_attr": {
                     "stable_id": "cna",
                     "profile_name": "Binned copy-number values",
-                    "profile_description": "Predicted copy number values from WGS and WXS sequencing (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification. openPBTA consensus method used",
+                    "profile_description": "Predicted copy number values from WGS (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification. openPBTA consensus method used",
                     "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
                     "datatype": "DISCRETE",
                     "show_profile_in_analysis_tab": "true"
