@@ -11,6 +11,7 @@
                     "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
                     "datatype": "MAF",
+                    "variant_classification_filter": "Silent,Intron,3'UTR,3'Flank,5'UTR,IGR,RNA",
                     "show_profile_in_analysis_tab": "true"
                 }
             }
@@ -43,7 +44,18 @@
                     "datatype": "DISCRETE",
                     "show_profile_in_analysis_tab": "true"
                 }
+            },
+            "segment": {
+                "ext": "merged_seg.txt",
+                "cbio_name": "data_cna.seg.txt",
+                "meta_file_attr": {
+                    "description": "Somatic CNA data (copy number ratio from tumor samples minus ratio from matched normals)",
+                    "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
+                    "datatype": "SEG",
+                    "reference_genome_id": "hg38"
+                }
             }
+
         }
       },
     "merged_rsem": {
@@ -84,7 +96,7 @@
                 "meta_file_attr": {
                     "stable_id": "fusion",
                     "profile_name": "Predicted RNA fusions",
-                    "profile_description": "Fusion data, from openPBTA using arriba and STAR Fusion, annotated and filtered using annoFuse",
+                    "profile_description": "Fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse.",
                     "genetic_alteration_type": "FUSION",
                     "datatype": "FUSION",
                     "show_profile_in_analysis_tab": "true"
@@ -112,12 +124,14 @@
         }
     },
     "study": {
-        "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
-        "description": ["GMKF X01: Genetic basis of", "initiation and progression. Samples, provided by the <a href=\"http://CBTTC.org\">Children's Brain Tumor Tissue Consortium</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Children with disseminated neuroblastoma have a very high risk of treatment failure and death despite receiving intensified chemotherapy, radiation therapy and immunotherapy. The long-term goal of our research program is to ultimately improve neuroblastoma cure rates by first comprehensively defining the genetic basis of the disease. The central hypothesis to be tested here is that neuroblastoma arises largely due to the epistatic interaction of common and rare heritable DNA variation. Here we performed whole genome sequencing of 563 quartets of neuroblastoma patient germline and diagnostic tumor DNAs and germline DNAs from both parents."],
+        "description": "GMKF X01: Genetic basis of neuroblastoma initiation and progression. Samples, provided by the <a href=\"http://CBTTC.org\">Children's Brain Tumor Tissue Consortium</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Children with disseminated neuroblastoma have a very high risk of treatment failure and death despite receiving intensified chemotherapy, radiation therapy and immunotherapy. The long-term goal of our research program is to ultimately improve neuroblastoma cure rates by first comprehensively defining the genetic basis of the disease. The central hypothesis to be tested here is that neuroblastoma arises largely due to the epistatic interaction of common and rare heritable DNA variation. Here we performed whole genome sequencing of 563 quartets of neuroblastoma patient germline and diagnostic tumor DNAs and germline DNAs from both parents.",
         "groups": "PUBLIC",
         "cancer_study_identifier": "x01_fy16_nbl_maris",
-        "dir_suffix": "",
-        "name_append": "(x01_fy16_nbl, provisional)"
+        "short_name": "x01_fy16_nbl_maris",
+        "display_name": "Discovering the Genetic Basis of Human Neuroblastoma (Maris/GMKF dbGaP phs001436.v1.p1, Provisional)",
+        "name_append": "(x01_fy16_nbl, provisional)",
+        "type_of_cancer": "nbl",
+        "reference_genome": "hg38"
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",
