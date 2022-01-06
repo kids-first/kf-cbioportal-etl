@@ -27,7 +27,7 @@
                 },
                 "x_head": "Special header file table for data_clinical(sample/patient). cBio data_clinical headers have 5 header rows, and which columns are used are determined by the x_file table",
                 "x_file": "sample or patient tables with corresponding metadata at the sample and patient levels",
-                "genomics_etl": "a helper file with relevant cBio sample names and indvidual genomic files names for ETL merging",
+                "genomics_etl": "a helper file with relevant cBio sample names and individual genomic files names for ETL merging",
                 "seq_center": "only if project has RNA data, a helper file to fill in missing sequencing center information for genomics etl",
                 "gene_file": "Only if study has panel data, the source information for gene matrix in the data_sheets section"
 
