@@ -142,7 +142,7 @@ An example is given in `REFS/pbta_all_case_meta_config.json`.
 Within this file is a `_doc` section with a decent explanation of the file format and layout.
 Be sure to review all data types to be loaded by review all `meta_*` to see if they match incoming data.
 Likely personalized edits would occur in the following fields:
-+ `merged_{data type}`: The `profile_description` key in each is a good place to describe any algorthm or nuances used to generate the data of that type. Also be sure to remove any data types not being loaded, as that determines what genomic file collation steps are run.
++ `merged_{data type}`: The `profile_description` key in each is a good place to describe any algorithm or nuances used to generate the data of that type. Also be sure to remove any data types not being loaded, as that determines what genomic file collation steps are run.
 + `study`: Here is where you set the overall study description, it's the banner text that people will see in the study overview page that gives them a sense of what the data is.
   + `description`: This field is set up as an array so that a generic form of "text describing" "disease" "more text describing" can be used. Put another way, element one is whatever you want to say about the disease/study until you are ready to mention the disease/study, element two anything you may optionally wish to add
   + `groups`: These are access groups defined is cBioportal.  Default is `PUBLIC`, but another can be named is restrictions are needed.  Need to work with Devops for custom groups
