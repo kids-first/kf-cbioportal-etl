@@ -156,7 +156,7 @@ Likely personalized edits would occur in the following fields:
 After downloading the genomic files and files above as needed, and properly editing config files as needed, this script should generate and validate the cBioportal load package
 
 ### scripts/genomics_file_cbio_package_build.py
-```python
+```
 usage: genomics_file_cbio_package_build.py [-h] [-t TABLE] [-m MANIFEST] [-c CBIO_CONFIG] [-d DATA_CONFIG] [-f [{both,kf,dgd}]]
 
 Download files (if needed), collate genomic files, organize load package.
