@@ -1,6 +1,6 @@
 {
     "_doc":{
-        "_description": "This section of the document is meant to help understand the organization of key-value pairs to what is being supported as part of the cBioportal ETL See https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats for comprehensive details",
+        "_description": "This section of the document is meant to help understand the organization of key-value pairs and how it supports the creation of files from  https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats as part of the cBioportal ETL",
         "sections": {
             "merged_x": {
                 "_description": "Support information for merged genomic data and supporting meta files. ",
