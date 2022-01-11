@@ -73,7 +73,7 @@ Most starting files are exported from the D3b Warehouse. An example of file expo
 However, a python wrapper script that leverages the `x_case_meta_config.json` is recommended to use for each study.
 
 ### scripts/get_study_metadata.py
-```python
+```
 usage: get_study_metadata.py [-h] [-d DB_INI] [-p PROFILE] [-c CONFIG_FILE]
 
 Pull clinical data and genomics file etl support from D3b data warehouse.
