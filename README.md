@@ -19,6 +19,43 @@ Below assumes you have already created the necessary tables from dbt
    scripts/genomics_file_cbio_package_build.py -t cbio_file_name_id.txt -c pbta_all_case_meta_config.json -d data_processing_config.json -f both
    ```
 1. Check logs and outputs for errors, especially `validator.errs` and `validator.out`, assuming everything else went fine, to see if any `ERROR` popped up that would prevent the pakcage from loading properly once pushed to the bucket and Jenkins import job is run
+
+### Final output example
+
+In the end, if you named your output dir `processed`, you'll end up with this example output from `pbta_all` study:
+```sh
+processed
+└── pbta_all
+    ├── case_lists
+    │   ├── cases_3way_complete.txt
+    │   ├── cases_RNA_Seq_v2_mRNA.txt
+    │   ├── cases_all.txt
+    │   ├── cases_cna.txt
+    │   ├── cases_cnaseq.txt
+    │   ├── cases_sequenced.txt
+    │   └── cases_sv.txt
+    ├── data_CNA.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.discrete_cnvs.txt
+    ├── data_clinical_patient.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_clinical_patient.txt
+    ├── data_clinical_sample.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_clinical_sample.txt
+    ├── data_cna.seg.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.merged_seg.txt
+    ├── data_fusions.txt -> /home/ubuntu/mount/pbta_all/merged_fusion/pbta_all.fusions.txt
+    ├── data_gene_matrix_CHOP.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_gene_matrix_CHOP.txt
+    ├── data_linear_CNA.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.predicted_cnv.txt
+    ├── data_mutations_extended.txt -> /home/ubuntu/mount/pbta_all/merged_mafs/pbta_all.maf
+    ├── data_rna_seq_v2_mrna.txt -> /home/ubuntu/mount/pbta_all/merged_rsem/pbta_all.rsem_merged.txt
+    ├── data_rna_seq_v2_mrna_median_Zscores.txt -> /home/ubuntu/mount/pbta_all/merged_rsem/pbta_all.rsem_merged_zscore.txt
+    ├── meta_CNA.txt
+    ├── meta_FUSION.txt
+    ├── meta_clinical_patient.txt
+    ├── meta_clinical_sample.txt
+    ├── meta_cna.seg.txt
+    ├── meta_gene_matrix_CHOP.txt
+    ├── meta_linear_CNA.txt
+    ├── meta_mutations_extended.txt
+    ├── meta_rna_seq_v2_mrna.txt
+    ├── meta_rna_seq_v2_mrna_median_Zscores.txt
+    └── meta_study.txt
+```
 ## Details
 Use this section as a reference in case your overconfidence got the best of you.
 ## Software Prerequisites
@@ -33,6 +70,24 @@ Use this section as a reference in case your overconfidence got the best of you.
 
 ## Starting file inputs
 Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `scripts/export_clinical.sh`.
+However, a python wrapper script that leverages the `x_case_meta_config.json` is recommended to use for each study.
+
+### scripts/get_study_metadata.py
+```
+usage: get_study_metadata.py [-h] [-d DB_INI] [-p PROFILE] [-c CONFIG_FILE]
+
+Pull clinical data and genomics file etl support from D3b data warehouse.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DB_INI, --db-ini DB_INI
+                        Database config file - formatting like aws or sbg creds
+  -p PROFILE, --profile PROFILE
+                        ini profile name
+  -c CONFIG_FILE, --config CONFIG_FILE
+                        json config file with meta information; see REFS/pbta_all_case_meta_config.json example
+```
+
 ### From D3b Warehouse
 #### - Genomic files manifest
 This is a s3 manifest of all files to loaded onto the portal.
@@ -84,11 +139,12 @@ Will likely need the most editing existing based on your input, and should only 
 
 This is a json config file with file descriptions and case lists required by the cbioportal.
 An example is given in `REFS/pbta_all_case_meta_config.json`.
+Within this file is a `_doc` section with a decent explanation of the file format and layout.
 Be sure to review all data types to be loaded by review all `meta_*` to see if they match incoming data.
 Likely personalized edits would occur in the following fields:
-+ `merged_{data type}`: The `profile_description` key in each is a good place to describe any algorthim or nuances used to generate the data of that type. Also be sure to remove any data types not being loaded, as that determines what genomic file collation steps are run.
++ `merged_{data type}`: The `profile_description` key in each is a good place to describe any algorithm or nuances used to generate the data of that type. Also be sure to remove any data types not being loaded, as that determines what genomic file collation steps are run.
 + `study`: Here is where you set the overall study description, it's the banner text that people will see in the study overview page that gives them a sense of what the data is.
-  + `description`: This field is set up as an array so that a generic form of "text describing" "disease" "more text describing" can be used. Put another way, element one is whatever you want to say about the disease/study until you are ready to mention the disease/study, element two anythnig you may optionally wish to add
+  + `description`: This field is set up as an array so that a generic form of "text describing" "disease" "more text describing" can be used. Put another way, element one is whatever you want to say about the disease/study until you are ready to mention the disease/study, element two anything you may optionally wish to add
   + `groups`: These are access groups defined is cBioportal.  Default is `PUBLIC`, but another can be named is restrictions are needed.  Need to work with Devops for custom groups
   + `cancer_study_identifier`: This is the short name that you create for the study.  It will be the name of the study load folder and will be used by cBioportal to find all relevant information for that study.
   + `type_of_cancer`: This is the oncotree code used to categorize the study to a disease type that best summarizes all samples in the study. These are the default codes: http://oncotree.mskcc.org/#/home. Internally, we have added `phgg` and `plgg`. If your study doesn't fit, propose a new one to be added
@@ -100,7 +156,7 @@ Likely personalized edits would occur in the following fields:
 After downloading the genomic files and files above as needed, and properly editing config files as needed, this script should generate and validate the cBioportal load package
 
 ### scripts/genomics_file_cbio_package_build.py
-```python
+```
 usage: genomics_file_cbio_package_build.py [-h] [-t TABLE] [-m MANIFEST] [-c CBIO_CONFIG] [-d DATA_CONFIG] [-f [{both,kf,dgd}]]
 
 Download files (if needed), collate genomic files, organize load package.
