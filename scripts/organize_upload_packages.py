@@ -120,19 +120,21 @@ def create_case_lists(data_dict, output_dir):
     cna_list = []
     rna_list = []
 
-    muts_fname = (
-        output_dir + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
-    )
-    muts_file = open(muts_fname)
-    head = next(muts_file)
-    head = next(muts_file)
-    header = head.rstrip("\n").split("\t")
-    s_idx = header.index("Tumor_Sample_Barcode")
-    for line in muts_file:
-        data = line.rstrip("\n").split("\t")
-        muts_list.append(data[s_idx])
-    muts_file.close()
-    muts_list = [*{*muts_list}]
+    if data_dict["merged_mafs"]:
+        muts_fname = (
+            output_dir + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
+        )
+        muts_file = open(muts_fname)
+        head = next(muts_file)
+        head = next(muts_file)
+        header = head.rstrip("\n").split("\t")
+        s_idx = header.index("Tumor_Sample_Barcode")
+        for line in muts_file:
+            data = line.rstrip("\n").split("\t")
+            muts_list.append(data[s_idx])
+        muts_file.close()
+        muts_list = [*{*muts_list}]
+        write_case_list("cases_sequenced", config_data["cases_sequenced"], muts_list, case_dir)
     if data_dict["merged_cnvs"] == 1:
         cna_fname = (
             output_dir + config_data["merged_cnvs"]["dtypes"]["linear"]["cbio_name"]
@@ -152,9 +154,7 @@ def create_case_lists(data_dict, output_dir):
         rna_list = head.rstrip("\n").split("\t")[1:]
         fusion_list = rna_list
     all_cases = muts_list
-    write_case_list(
-        "cases_sequenced", config_data["cases_sequenced"], muts_list, case_dir
-    )
+
     if len(cna_list) > 0:
         write_case_list("cases_cna", config_data["cases_cna"], cna_list, case_dir)
         all_cases += cna_list
