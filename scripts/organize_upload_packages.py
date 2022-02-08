@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-
+"""
+This is an organization script to organize data in final upload format.
+This includes creating soft links to all data files as well as meta files to describe data files and case lists to describe number of samples of each data type
+"""
 import sys
 import argparse
 import os
 import json
 import subprocess
-import pdb
 
 
 def process_meta_study(meta_data, output_dir):
@@ -94,6 +96,9 @@ def process_clinical_data(meta_data, output_dir, canc_study_id):
 
 
 def write_case_list(case_key, attr_dict, sample_list, case_dir):
+    """
+    Simple helper function to write case lists based on data type being described
+    """
     case_file = open(case_dir + case_key + ".txt", "w")
     case_file.write("cancer_study_identifier: " + canc_study_id + "\n")
     key_list = list(attr_dict)
@@ -110,6 +115,9 @@ def write_case_list(case_key, attr_dict, sample_list, case_dir):
 
 
 def create_case_lists(data_dict, output_dir):
+    """
+    Function to iterate through config file, determine data types available, and initialize relevant sample lists for each data type and data type combo
+    """
     case_dir = output_dir + "case_lists/"
     try:
         os.mkdir(case_dir)
@@ -119,8 +127,10 @@ def create_case_lists(data_dict, output_dir):
     muts_list = []
     cna_list = []
     rna_list = []
+    fusion_list = []
 
     if data_dict["merged_mafs"]:
+        # Get samples from merged maf file
         muts_fname = (
             output_dir + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
         )
@@ -135,7 +145,10 @@ def create_case_lists(data_dict, output_dir):
         muts_file.close()
         muts_list = [*{*muts_list}]
         write_case_list("cases_sequenced", config_data["cases_sequenced"], muts_list, case_dir)
+    # Initialize all cases with muts list, even if empty
+    all_cases = muts_list
     if data_dict["merged_cnvs"] == 1:
+        # Get samples from merged cnv file
         cna_fname = (
             output_dir + config_data["merged_cnvs"]["dtypes"]["linear"]["cbio_name"]
         )
@@ -144,8 +157,13 @@ def create_case_lists(data_dict, output_dir):
         # assumes header is Hugo_symbols\tsample_name1\tsamplename2 etc, if entrez ID, will need to change!
         cna_list = head.rstrip("\n").split("\t")[1:]
         cna_file.close()
+        all_cases += cna_list
+        # Create case list for samples with muts and cnv data
+        muts_plus_cna = list(set(muts_list) & set(cna_list))
+        write_case_list("cases_cnaseq", config_data["cases_cnaseq"], muts_plus_cna, case_dir)
+
     if data_dict["merged_rsem"] == 1:
-        # assumes header is Hugo_symbols\tsample_name1\tsamplename2 etc, if entrez ID, will need to change!
+        # Get samples from merged rsem file - is a simple gene by sample table
         rna_fname = (
             output_dir + config_data["merged_rsem"]["dtypes"]["counts"]["cbio_name"]
         )
@@ -153,13 +171,24 @@ def create_case_lists(data_dict, output_dir):
         head = next(rna_file)
         rna_list = head.rstrip("\n").split("\t")[1:]
         fusion_list = rna_list
-    all_cases = muts_list
 
-    if len(cna_list) > 0:
-        write_case_list("cases_cna", config_data["cases_cna"], cna_list, case_dir)
-        all_cases += cna_list
-        muts_plus_cna = list(set(muts_list) & set(cna_list))
-        write_case_list("cases_cnaseq", config_data["cases_cnaseq"], cna_list, case_dir)
+    if "merged_fusion" in data_keys and data_keys["merged_fusion"] == 1:
+        # Get samples from merge fusion file
+        fusion_fname = (
+            output_dir + config_data["merged_fusion"]["dtypes"]["fusion"]["cbio_name"]
+        )
+        fusion_file = open(fusion_fname)
+        head = next(fusion_file)
+        header = head.rstrip("\n").split("\t")
+        s_idx = header.index("Tumor_Sample_Barcode")
+        for line in fusion_file:
+            data = line.rstrip("\n").split("\t")
+            fusion_list.append(data[s_idx])
+        fusion_file.close()
+        fusion_list = [*{*fusion_list}]
+        write_case_list("cases_sv", config_data["cases_sv"], fusion_list, case_dir)
+        all_cases += fusion_list
+
     if len(rna_list) > 0:
         write_case_list(
             "cases_RNA_Seq_v2_mRNA",
@@ -168,8 +197,6 @@ def create_case_lists(data_dict, output_dir):
             case_dir,
         )
         all_cases += rna_list
-        if "merged_fusion" in data_keys and data_keys["merged_fusion"] == 1:
-            write_case_list("cases_sv", config_data["cases_sv"], rna_list, case_dir)
 
         # loading mutations is a minimum, so if cna exists...3 way file can be made
         if len(cna_list) > 0:
