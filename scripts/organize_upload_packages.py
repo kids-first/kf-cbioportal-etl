@@ -157,6 +157,7 @@ def create_case_lists(data_dict, output_dir):
         # assumes header is Hugo_symbols\tsample_name1\tsamplename2 etc, if entrez ID, will need to change!
         cna_list = head.rstrip("\n").split("\t")[1:]
         cna_file.close()
+        write_case_list("cases_cna", config_data["cases_cna"], cna_list, case_dir)
         all_cases += cna_list
         # Create case list for samples with muts and cnv data
         muts_plus_cna = list(set(muts_list) & set(cna_list))
@@ -170,7 +171,8 @@ def create_case_lists(data_dict, output_dir):
         rna_file = open(rna_fname)
         head = next(rna_file)
         rna_list = head.rstrip("\n").split("\t")[1:]
-        fusion_list = rna_list
+        write_case_list("cases_RNA_Seq_v2_mRNA", config_data["cases_RNA_Seq_v2_mRNA"], rna_list, case_dir)
+        all_cases += rna_list
 
     if "merged_fusion" in data_keys and data_keys["merged_fusion"] == 1:
         # Get samples from merge fusion file
@@ -188,15 +190,6 @@ def create_case_lists(data_dict, output_dir):
         fusion_list = [*{*fusion_list}]
         write_case_list("cases_sv", config_data["cases_sv"], fusion_list, case_dir)
         all_cases += fusion_list
-
-    if len(rna_list) > 0:
-        write_case_list(
-            "cases_RNA_Seq_v2_mRNA",
-            config_data["cases_RNA_Seq_v2_mRNA"],
-            rna_list,
-            case_dir,
-        )
-        all_cases += rna_list
 
         # loading mutations is a minimum, so if cna exists...3 way file can be made
         if len(cna_list) > 0:
