@@ -66,8 +66,10 @@ if __name__ == "__main__":
         else:
             flist = rna_metadata.File_Name
             frame_list = []
+            # concat annofuse file, rename Sample Column according to BS ID for later merge with SQ file
             for i in range(0, len(flist), 1):
                 ann_file = pd.read_csv(fusion_results + "/" + flist[i], sep="\t")
+                ann_file = ann_file.assign(Sample=rna_metadata.at[i, "Sample"])
                 frame_list.append(ann_file)
             concat_frame = pd.concat(frame_list)
             del frame_list
@@ -75,10 +77,11 @@ if __name__ == "__main__":
                 ["Gene1A", "Sample", "FusionName", "Caller", "Fusion_Type"]
             ]
             del concat_frame
+            # Input has one per caller, but may exists multiple times. Collapse to avoid that
             fusion_data = (
                 fusion_data.groupby(["Gene1A", "Sample", "FusionName", "Fusion_Type"])[
                     "Caller"
-                ]
+                ].unique()
                 .apply(", ".join)
                 .reset_index()
             )
@@ -99,11 +102,12 @@ if __name__ == "__main__":
     if args.mode == "annofuse":
         r_ext = "fusion"
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
+    # reset index so that references work later while iterating
+    rna_subset = rna_subset.reset_index(drop=True)
     rna_subset.rename(columns={"T_CL_BS_ID": "Sample"}, inplace=True)
-    rna_subset.set_index("Sample", inplace=True)
     project_list = rna_subset.Cbio_project.unique()
     cbio_master = init_cbio_master(args.fusion_results, args.mode, rna_subset)
-
+    rna_subset.set_index("Sample", inplace=True)
     # Get relevant columns
     cbio_master.set_index("Sample", inplace=True)
     sq_info.rename(columns={"BS_ID": "Sample"}, inplace=True)
