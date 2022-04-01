@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+This is a beta script for converting our current fusion inputs into the new cBio SV format.
+However, the front end support is not complete, so this will not be used until it is.
+"""
+
 
 import sys
 import argparse
@@ -6,7 +11,6 @@ import os
 import pandas as pd
 import pyranges
 import csv
-import pdb
 
 
 if __name__ == "__main__":
@@ -132,27 +136,25 @@ if __name__ == "__main__":
         inplace=True
     )
     # Fill in some defaults
+    cbio_master['Class'] = "FUSION"
     cbio_master["Site1_Ensembl_Transcript_Id"] = ""
     cbio_master["Site1_Entrez_Gene_Id"] = ""
     cbio_master["Site1_Exon"] = ""
     cbio_master["Site2_Ensembl_Transcript_Id"] = ""
     cbio_master["Site2_Entrez_Gene_Id"] = ""
     cbio_master["Site2_Exon"] = ""
-    cbio_master["Variant_Class"] = "Fusion"
-    cbio_master["DNA_support"] = "No"
-    cbio_master["RNA_support"] = "Yes"
     cbio_master["NCBI_Build"] = "GRCh38"
     cbio_master["Connection_Type"] = "5to3"
     # Split some columns that have 2 cols worth of info
     cbio_master[['Site1_Chromosome','Site1_Position']] = cbio_master.LeftBreakpoint.str.split(":", expand=True)
     cbio_master[['Site2_Chromosome','Site2_Position']] = cbio_master.RightBreakpoint.str.split(":", expand=True)
-    cbio_master['Class'] = cbio_master.Annotation.str.split("],").str[1]
-    cbio_master['Annotation'] = cbio_master.Annotation.str.split("],").str[0]
-    # Reformat valiues to fit needs to be ALL CAPS, replace - with _, remove weird chars
+    # cbio_master['Class'] = cbio_master.Annotation.str.split("],").str[1]
+    # cbio_master['Annotation'] = cbio_master.Annotation.str.split("],").str[0]
+    # Reformat values to fit needs to be ALL CAPS, replace - with _, remove weird chars
     cbio_master["Site2_Effect_On_Frame"] = cbio_master["Site2_Effect_On_Frame"].str.upper()
     cbio_master['Site2_Effect_On_Frame'] = cbio_master['Site2_Effect_On_Frame'].str.replace('-','_')
-    cbio_master.loc[cbio_master["Annotation"] == "[", "Annotation"] = "NA"
-    cbio_master['Class'] = cbio_master['Class'].str.upper()
+    # cbio_master.loc[cbio_master["Annotation"] == "[", "Annotation"] = "NA"
+    # cbio_master['Class'] = cbio_master['Class'].str.upper()
     # Drop unneeded cols
     cbio_master.drop(['LeftBreakpoint', 'RightBreakpoint'], axis=1, inplace=True)
 
@@ -173,12 +175,10 @@ if __name__ == "__main__":
         "Site2_Position",
         "Site2_Effect_On_Frame",
         "NCBI_Build",
-        "DNA_support",
-        "RNA_support",
         "Tumor_Read_Count",
         "Tumor_Split_Read_Count",
         "Annotation",
-        "Connection_Type",cd data
+        "Connection_Type",
         "Event_Info",
         "Class",
         "External_Annotation"
