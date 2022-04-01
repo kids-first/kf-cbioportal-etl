@@ -170,8 +170,8 @@
         "groups": "PUBLIC",
         "cancer_study_identifier": "chdm_sd_7spqtt8m",
         "type_of_cancer": "chdm",
-        "short_name": "pbta_all",
-        "reference_genome": "chdm_sd_7spqtt8m",
+        "short_name": "chdm_sd_7spqtt8m",
+        "reference_genome": "hg38",
         "display_name": "Chordoma Foundation Disease Models (Chordoma Foundation, Provisional)"
     },
     "cases_3way_complete": {
