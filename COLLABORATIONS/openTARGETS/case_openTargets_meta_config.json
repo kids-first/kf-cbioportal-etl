@@ -10,6 +10,7 @@
                     "profile_name": "Mutations",
                     "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass, < 0.001 frequeney in gnomAD, and min read depth 8 in normal sample",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
+                    "variant_classification_filter": "Silent,Intron,3'UTR,3'Flank,5'UTR,IGR,RNA",
                     "datatype": "MAF",
                     "show_profile_in_analysis_tab": "true"
                 }
@@ -112,13 +113,15 @@
         }
     },
     "study": {
-        "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
-        "description": ["", "is a collaborative project between the National Cancer Institute and the Children's Hospital of Philadelphia. Through this project and as part of the NCI's Childhood Cancer Data Initiative, we are utilizing the harmonization work of the KidsFirst Data Resource Center and analytics work of OpenPBTA to build a pediatric preclinical pediatric platform to assist in development and query of the FDA's Relevant Molecular Targets List to identify new therapeutics for children with cancer. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>"],
+        "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
+        "description": "Pediatric Open Targets is a collaborative project between the National Cancer Institute and the Children's Hospital of Philadelphia. Through this project and as part of the NCI's Childhood Cancer Data Initiative, we are utilizing the harmonization work of the KidsFirst Data Resource Center and analytics work of OpenPBTA to build a pediatric preclinical pediatric platform to assist in development and query of the FDA's Relevant Molecular Targets List to identify new therapeutics for children with cancer. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
         "cancer_study_identifier": "ped_opentargets_2021",
         "reference_genome": "hg38",
-        "dir_suffix": "",
-        "name_append": ""
+        "display_name": "Pediatric Open Targets (V10)",
+        "type_of_cancer": "mixed",
+        "short_name": "ped_opentargets_2021"
+
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",

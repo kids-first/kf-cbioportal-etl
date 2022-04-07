@@ -184,6 +184,11 @@ for data in clin_data:
             elif header[i] == "tumor_descriptor":
                 if value in tumor_descriptor_dict:
                     value = tumor_descriptor_dict[value]
+            # replace status with NA if value not acceptable
+            elif header[i] == "OS_status":
+                if value not in ["LIVING", "DECEASED", "NA"]:
+                    sys.stderr.write("WARN: OS_status was " + value + ", setting to NA\n")
+                    value = "NA"
             # Keep track of sample id for QC, etc
             elif header[i] == "formatted_sample_id":
                 samp_id = value
@@ -225,21 +230,6 @@ for samp_id in id_mapping:
             if parts[0] not in check:
                 check[parts[0]] = []
             check[parts[0]].append(samp_id)
-# for root in check:
-#     if len(check[root]) == 2:
-#         # if match found, pin to RNA samp ID, then del old RNA key
-#         if bs_type[id_mapping[check[root][0]][0]] != bs_type[id_mapping[check[root][1]][0]]:
-#             sys.stderr.write("Found potential rematch for sample name root: " + root + "\n")
-#             samp_id_to_del = check[root][1]
-#             samp_id_to_pin = check[root][0]
-#             if bs_type[id_mapping[check[root][0]][0]] == "RNA":
-#                 samp_id_to_del = check[root][0]
-#                 samp_id_to_pin = check[root][1]
-#             spec = id_mapping[samp_id_to_pin][0] + ";" + id_mapping[samp_id_to_del][0]
-#             id_mapping[samp_id_to_pin].append(id_mapping[samp_id_to_del][0])
-#             del id_mapping[samp_id_to_del]
-#             del samp_dict[samp_id_to_del]
-#             samp_dict[samp_id_to_pin][0] = spec
 
 for samp_id in samp_dict:
     sample_out.write("\t".join(samp_dict[samp_id]) + "\n")
