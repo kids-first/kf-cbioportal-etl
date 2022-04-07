@@ -50,9 +50,10 @@ def collate_data(cnv_fn):
             try:
                 gistic = qual_to_gistic[data[s_idx]]
             except Exception as e:
-                sys.stderr.write(str(e) + "\n")
-                pdb.set_trace()
-                hold=1
+                sys.stderr.write(str(e) + "\nInvalid value for gistic, skipping " + line.decode())
+                continue
+                # pdb.set_trace()
+                # hold=1
             if samp_id not in ploidy_dict:
                 ploidy_dict[samp_id] = ploidy
             if gene not in cn_dict:
