@@ -167,7 +167,7 @@
     "study": {
         "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
         "description": "Disease models, including cell lines and xenograft models, are crucial resources needed for research to understand chordoma biology and identify new treatment strategies. In the past, lack of access to these models posed a major barrier to advancing chordoma research and prevented many researchers from entering the field. To overcome this barrier, the <a href=\"http://cbtn.org\">Chordoma Foundation</a> invests in developing new models and operates repositories to make them easily accessible to the research community. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
-        "groups": "D3B",
+        "groups": "CHDMF",
         "cancer_study_identifier": "chdm_sd_7spqtt8m",
         "type_of_cancer": "chdm",
         "short_name": "chdm_sd_7spqtt8m",
