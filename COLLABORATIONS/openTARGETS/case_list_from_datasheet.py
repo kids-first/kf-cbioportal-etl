@@ -11,6 +11,8 @@ if __name__ == "__main__":
                     help='cBio sample datasheet')
     parser.add_argument('-s', '--study-id', action='store', dest='study_id',
                     help='cBio cancer_study_identifier')
+    parser.add_argument('-c', '--cohort-csv', action='store', dest='cohorts',
+                    help='add a special case for a cohort-specific case list using a csv list')
     
     args = parser.parse_args()
     # skip first 4 header rows
@@ -48,9 +50,24 @@ if __name__ == "__main__":
                         sys.stderr.write("Skipping " + hist + " for cohort " + cohort + ", less than 5 entries\n")
 
             except Exception as e:
-                print(str(e))
+                print(e)
                 sys.stderr.write("Error encountered - likely a blank histology, skipping\n")
         else:
             sys.stderr.write("Skipping " + hist + " less than 5 entries\n")
+    if args.cohorts:
+        cohorts_csv = args.cohorts
+        for cohort in cohorts_csv.split(','):
+            subset = cbio_ds.loc[cbio_ds['COHORT'] == cohort,]
+            subset_samp = subset.SAMPLE_ID.to_list()
+            cohort_stable = cohort.lower().replace(" ", "_").replace("/", "_")
+            cur = open("cases_" + cohort_stable + ".txt", "w")
+            cur.write("cancer_study_identifier: " + args.study_id + "\n" 
+            + "stable_id: " + args.study_id + "_" + cohort_stable + "\n" 
+            + "case_list_name: " + cohort + " samples\n" 
+            + "case_list_description:  " + cohort + " samples (" + str(len(subset_samp)) + ")\n"
+            + "case_list_category: other\ncase_list_ids: " + "\t".join(subset_samp) + "\n")
+            cur.close()
+
+
     #pdb.set_trace()
     #hold=1
