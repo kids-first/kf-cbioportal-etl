@@ -172,5 +172,37 @@
         "case_list_name": "Tumor samples with fusions",
         "case_list_description": "All tumor samples with fusion data",
         "case_list_category": "all_cases_with_sv_data"
+    },
+    "database_pulls": {
+        "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
+        "manifests": {
+            "maris": {
+                "table": "bix_genomics_file.sd_dypmehhf-genomics_file_manifest",
+                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
+                "out_file": "oligo_nation_genomics_file_manifest.txt"
+            }
+        },
+        "sample_head": {
+            "table": "bix_workflows.data_clinical_sample_header"
+        },
+        "sample_file": {
+            "table": "prod_cbio.oligo_nation_data_clinical_sample",
+            "out_file": "data_clinical_sample.txt"
+        },
+        "patient_head": {
+            "table": "bix_workflows.data_clinical_patient_header"
+        },
+        "patient_file": {
+            "table": "prod_cbio.oligo_nation_data_clinical_patient",
+            "out_file": "data_clinical_patient.txt"
+        },
+        "genomics_etl": {
+            "table": "prod_cbio.oligo_nation_genomics_etl_file",
+            "out_file": "cbio_file_name_id.txt"
+        },
+        "seq_center": {
+            "table": "prod_cbio.oligo_nation_sq_info_etl_resource",
+            "out_file": "seq_center_resource.txt"
+        }
     }
 }
