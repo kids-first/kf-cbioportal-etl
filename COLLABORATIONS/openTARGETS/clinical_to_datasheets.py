@@ -150,7 +150,7 @@ bs_type = {}
 
 for data in clin_data:
     info = data.rstrip('\n').split('\t')
-    if info[s_type] == "Normal":
+    if info[s_type] == "Normal" and info[exp] != 'RNA-Seq':
         continue
     pt_id = info[header.index("Kids_First_Participant_ID")]
     if pt_id in pt_id_dict:
@@ -184,14 +184,13 @@ for data in clin_data:
             elif header[i] == "tumor_descriptor":
                 if value in tumor_descriptor_dict:
                     value = tumor_descriptor_dict[value]
-            elif header[i] == "parent_aliquot_id":
-                value = re.sub(r"-[T|N]-", "_", value)
-                value = re.sub(r"\..*$", "", value)
-                value = re.sub(r"-[T|N]$", "", value)
-                if info[comp] == "Derived Cell Line":
-                    value += "-CL"
-                if info[bs_id] in cl_supp:
-                    value += '-' + cl_supp[info[bs_id]]
+            # replace status with NA if value not acceptable
+            elif header[i] == "OS_status":
+                if value not in ["LIVING", "DECEASED", "NA"]:
+                    sys.stderr.write("WARN: OS_status was " + value + ", setting to NA\n")
+                    value = "NA"
+            # Keep track of sample id for QC, etc
+            elif header[i] == "formatted_sample_id":
                 samp_id = value
             if h_dict[header[i]][s_idx] == '1':
                 sample_to_print.append(value)
@@ -215,7 +214,7 @@ for samp_id in id_mapping:
         # QC check, should only be one DNA and one RNA
         if bs_type[id_mapping[samp_id][0]] == bs_type[id_mapping[samp_id][1]]:
             sys.stderr.write("Duplicate assay types for  " + samp_id + ": " + ",".join(id_mapping[samp_id]) + "\n")
-            exit(1)
+            # exit(1)
         spec = id_mapping[samp_id][0] + ";" + id_mapping[samp_id][1]
         if bs_type[id_mapping[samp_id][0]] == "RNA":
             spec = id_mapping[samp_id][1] + ";" + id_mapping[samp_id][0]
@@ -223,7 +222,7 @@ for samp_id in id_mapping:
     elif len(id_mapping[samp_id]) > 2:
         # QC check, only one or two biospec per sample ID
         sys.stderr.write("Saw more than two biospecimens for " + samp_id + ": " + ",".join(id_mapping[samp_id]) + "\n")
-        exit(1)
+        # exit(1)
     else:
         # skip cell line re-matching
         if not re.search("-CL", samp_id):
@@ -231,21 +230,6 @@ for samp_id in id_mapping:
             if parts[0] not in check:
                 check[parts[0]] = []
             check[parts[0]].append(samp_id)
-for root in check:
-    if len(check[root]) == 2:
-        # if match found, pin to RNA samp ID, then del old RNA key
-        if bs_type[id_mapping[check[root][0]][0]] != bs_type[id_mapping[check[root][1]][0]]:
-            sys.stderr.write("Found potential rematch for sample name root: " + root + "\n")
-            samp_id_to_del = check[root][1]
-            samp_id_to_pin = check[root][0]
-            if bs_type[id_mapping[check[root][0]][0]] == "RNA":
-                samp_id_to_del = check[root][0]
-                samp_id_to_pin = check[root][1]
-            spec = id_mapping[samp_id_to_pin][0] + ";" + id_mapping[samp_id_to_del][0]
-            id_mapping[samp_id_to_pin].append(id_mapping[samp_id_to_del][0])
-            del id_mapping[samp_id_to_del]
-            del samp_dict[samp_id_to_del]
-            samp_dict[samp_id_to_pin][0] = spec
 
 for samp_id in samp_dict:
     sample_out.write("\t".join(samp_dict[samp_id]) + "\n")
