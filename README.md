@@ -4,7 +4,7 @@ Further general loading notes can be found in this [Notion page](https://www.not
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
 ## I have everything and I know I am doing
 Below assumes you have already created the necessary tables from dbt
-1. Run commands as outlined in `scripts/export_clinical.sh`. Copy/move those files to the cBio loader ec2 instance
+1. Run commands as outlined in `scripts/get_study_metadata.py`. Copy/move those files to the cBio loader ec2 instance
 1. Copy over the approriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
@@ -69,7 +69,7 @@ Use this section as a reference in case your overconfidence got the best of you.
 + [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
 
 ## Starting file inputs
-Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `scripts/export_clinical.sh`.
+Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `scripts/export_clinical.sh`, we now use `scripts/get_study_metadata.py` to get the files.
 However, a python wrapper script that leverages the `x_case_meta_config.json` is recommended to use for each study.
 
 ### scripts/get_study_metadata.py

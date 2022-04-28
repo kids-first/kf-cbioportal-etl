@@ -124,12 +124,12 @@
         }
     },
     "study": {
-        "description": "GMKF X01: Genetic basis of neuroblastoma initiation and progression. Samples, provided by the <a href=\"http://CBTTC.org\">Children's Brain Tumor Tissue Consortium</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Children with disseminated neuroblastoma have a very high risk of treatment failure and death despite receiving intensified chemotherapy, radiation therapy and immunotherapy. The long-term goal of our research program is to ultimately improve neuroblastoma cure rates by first comprehensively defining the genetic basis of the disease. The central hypothesis to be tested here is that neuroblastoma arises largely due to the epistatic interaction of common and rare heritable DNA variation. Here we performed whole genome sequencing of 563 quartets of neuroblastoma patient germline and diagnostic tumor DNAs and germline DNAs from both parents. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
+        "description": "GMKF X01: Genetic basis of neuroblastoma initiation and progression. Samples, provided by the <a href=\"http://CBTN.org\">Children's Brain Tumor Network</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Children with disseminated neuroblastoma have a very high risk of treatment failure and death despite receiving intensified chemotherapy, radiation therapy and immunotherapy. The long-term goal of our research program is to ultimately improve neuroblastoma cure rates by first comprehensively defining the genetic basis of the disease. The central hypothesis to be tested here is that neuroblastoma arises largely due to the epistatic interaction of common and rare heritable DNA variation. Here we performed whole genome sequencing of 563 quartets of neuroblastoma patient germline and diagnostic tumor DNAs and germline DNAs from both parents. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
         "cancer_study_identifier": "x01_fy16_nbl_maris",
         "short_name": "x01_fy16_nbl_maris",
         "display_name": "Discovering the Genetic Basis of Human Neuroblastoma (Maris/GMKF dbGaP phs001436.v1.p1, Provisional)",
-        "name_append": "(x01_fy16_nbl, provisional)",
+        "name_append": "(x01_fy16_nbl, Provisional)",
         "type_of_cancer": "nbl",
         "reference_genome": "hg38"
     },
@@ -174,5 +174,37 @@
         "case_list_name": "Tumor samples with fusions",
         "case_list_description": "All tumor samples with fusion data",
         "case_list_category": "all_cases_with_sv_data"
+    },
+    "database_pulls": {
+        "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
+        "manifests": {
+            "maris": {
+                "table": "bix_genomics_file.sd_dypmehhf-genomics_file_manifest",
+                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
+                "out_file": "maris_genomics_file_manifest.txt"
+            }
+        },
+        "sample_head": {
+            "table": "bix_workflows.data_clinical_sample_header"
+        },
+        "sample_file": {
+            "table": "prod_cbio.x01_fy16_nbl_maris_data_clinical_sample",
+            "out_file": "data_clinical_sample.txt"
+        },
+        "patient_head": {
+            "table": "bix_workflows.data_clinical_patient_header"
+        },
+        "patient_file": {
+            "table": "prod_cbio.x01_fy16_nbl_maris_data_clinical_patient",
+            "out_file": "data_clinical_patient.txt"
+        },
+        "genomics_etl": {
+            "table": "prod_cbio.x01_fy16_nbl_maris_genomics_etl_file",
+            "out_file": "cbio_file_name_id.txt"
+        },
+        "seq_center": {
+            "table": "prod_cbio.x01_fy16_nbl_maris_sq_info_etl_resource",
+            "out_file": "seq_center_resource.txt"
+        }
     }
 }

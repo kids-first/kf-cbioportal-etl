@@ -5,6 +5,7 @@ import argparse
 import os
 import pandas as pd
 import numpy as np
+import re
 
 
 if __name__ == "__main__":
@@ -162,6 +163,8 @@ if __name__ == "__main__":
         "Frame",
     ]
     cbio_master = cbio_master[order_list]
+    # drop dupes as chrom coords not used yet
+    cbio_master.drop_duplicates(subset=None, keep='first', inplace=True)
     cbio_master.set_index("Hugo_Symbol", inplace=True)
     for project in project_list:
         sub_sample_list = list(
@@ -177,8 +180,10 @@ if __name__ == "__main__":
         fus_data = list(fus_tbl.values)
         # "hack" to allow 3' end of fusion to be searched
         for data in fus_data:
+            a, b = data[4].split('--')
+            # replace `--` with `-` in fusion names for proper cBio parsing
+            data[4] = data[4].replace('--', '-') 
             fus_file.write("\t".join(data) + "\n")
-            (a, b) = data[4].split("--")
             if a != b:
                 data[0] = b
                 fus_file.write("\t".join(data) + "\n")
