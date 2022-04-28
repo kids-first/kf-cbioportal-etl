@@ -160,6 +160,7 @@ maf_dir = args.maf_dir
 if maf_dir[-1] != "/":
     maf_dir += "/"
 # If DGD maf only, else if both, dgd maf wil be handled separately, or not at all if no dgd and kf only
+
 file_meta_dict = get_file_metadata(args.table, "DGD_MAF")
 if args.dgd_status != "dgd":
     file_meta_dict = get_file_metadata(args.table, "maf")
