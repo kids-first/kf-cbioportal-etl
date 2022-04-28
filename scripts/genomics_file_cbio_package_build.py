@@ -12,6 +12,13 @@ import json
 import subprocess
 
 
+def log_cmd(cmd):
+    """
+    A silly litte helper function to output commands run to stderr
+    """
+    sys.stderr.write(cmd + "\n")
+    sys.stderr.flush()
+
 def check_status(status, data_type, log_name):
     if status:
         sys.stderr.write(
@@ -36,6 +43,7 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
     maf_cmd = "{}maf_merge.py -t {} -i {} -m {} -j {} -f {} 2> collate_mafs.log".format(
         script_dir, cbio_id_table, maf_header, maf_dir, data_config_file, dgd_status
     )
+    log_cmd(maf_cmd)
     status = 0
     status = subprocess.call(maf_cmd, shell=True)
     if args.dgd_status == "both":
@@ -56,6 +64,7 @@ def process_append_dgd_maf(maf_loc_dict, cbio_id_table):
             script_dir, maf_header, in_maf_dir, cbio_id_table, append_maf
         )
     )
+    log_cmd(append_cmd)
     status = 0
     status = subprocess.call(append_cmd, shell=True)
     return status
@@ -70,6 +79,7 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
     gene_annot_cmd = "{}cnv_1_genome2gene.py -d {} -j {} 2> cnv_gene_annot.log".format(
         script_dir, cnv_dir, data_config_file
     )
+    log_cmd(gene_annot_cmd)
     status = 0
     status = subprocess.call(gene_annot_cmd, shell=True)
     info_dir = cnv_loc_dict["info"]
@@ -79,6 +89,7 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
     if info_dir != "":
         merge_gene_cmd += " -i " + info_dir
     merge_gene_cmd += " 2> merge_cnv_gene.log"
+    log_cmd(merge_gene_cmd)
     status += subprocess.call(merge_gene_cmd, shell=True)
     gistic_style_cmd = "{}cnv_3_gistic_style.py -d merged_cnvs -j {} -t {}".format(
         script_dir, data_config_file, cbio_id_table
@@ -86,6 +97,7 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
     if info_dir != "":
         gistic_style_cmd += " -i " + info_dir
     gistic_style_cmd += " 2> merge_cnv_gene.log"
+    log_cmd(gistic_style_cmd)
     status += subprocess.call(gistic_style_cmd, shell=True)
 
     if "seg" in cnv_loc_dict:
@@ -103,6 +115,7 @@ def process_seg(cnv_loc_dict, cbio_id_table, data_config_file):
     merge_seg_cmd = "{}cnv_merge_seg.py -t {} -m {} -j {} 2> cnv_merge_seg.log".format(
         script_dir, cbio_id_table, seg_dir, data_config_file
     )
+    log_cmd(merge_seg_cmd)
     status = subprocess.call(merge_seg_cmd, shell=True)
     return status
 
@@ -115,6 +128,7 @@ def process_rsem(rsem_dir, cbio_id_table):
     merge_rsem_cmd = "{}rna_merge_rename_expression.py -t {} -r {} 2> rna_merge_rename_expression.log".format(
         script_dir, cbio_id_table, rsem_dir
     )
+    log_cmd(merge_rsem_cmd)
     status = subprocess.call(merge_rsem_cmd, shell=True)
     return status
 
@@ -127,6 +141,7 @@ def process_kf_fusion(fusion_dir, cbio_id_table, sq_file):
     fusion_cmd = "{}rna_convert_fusion.py -t {} -f {} -m annofuse -s {} 2> rna_convert_fusion.log".format(
         script_dir, cbio_id_table, fusion_dir, sq_file
     )
+    log_cmd(fusion_cmd)
     status = subprocess.call(fusion_cmd, shell=True)
     return status
 
@@ -145,6 +160,7 @@ def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
     else:
         sys.stderr.write("Processing DGD fusion calls\n")
     dgd_fusion_cmd += " 2> add_dgd_fusion.log"
+    log_cmd(dgd_fusion_cmd)
     status = subprocess.call(dgd_fusion_cmd, shell=True)
     return status
 
