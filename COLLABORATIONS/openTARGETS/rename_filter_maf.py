@@ -6,6 +6,10 @@ parser = argparse.ArgumentParser(description='Script to pre-filter entries on us
 parser.add_argument('-m', '--mapping-file', action='store', dest = 'mapping_file', help='tsv file with header and bs_id, sample type, cbio ID mappings')
 parser.add_argument('-v', '--maf-file', action='store', dest='maf_file',
                     help='openX maf file')
+parser.add_argument('-s', '--skip', action='store', dest='skip', default=False,
+                    help='Skip typical #version header line')
+parser.add_argument('-n', '--study', action='store', dest='type',
+                    help='study name, like "openpbta"')
 
 
 def populate_id_map(map_fn):
@@ -44,9 +48,13 @@ maf_exc = {"Silent": 0, "Intron": 0, "IGR": 0, "3'UTR": 0, "5'UTR": 0, "3'Flank"
 
 # process header, track key indices and drop entrez ID
 maf_file = gzip.open(args.maf_file)
-maf_out = open("mixed.maf", "w")
-head = next(maf_file).decode()
-maf_out.write(head)
+maf_out = open(args.type + ".maf", "w")
+if args.skip:
+    head = next(maf_file).decode()
+    maf_out.write(head)
+else:
+    sys.stderr.write('Skip flag not given. Adding typical #version header for best compatibility\n')
+    maf_out.write('#version 2.4\n')
 head = next(maf_file).decode()
 header = head.rstrip("\n").split("\t")
 tid_idx = header.index('Tumor_Sample_Barcode')
