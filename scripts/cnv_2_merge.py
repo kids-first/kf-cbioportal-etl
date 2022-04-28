@@ -8,6 +8,7 @@ import concurrent.futures
 import pandas as pd
 import re
 from get_file_metadata_helper import get_file_metadata
+import pdb
 
 
 def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
@@ -68,7 +69,7 @@ def process_table(cbio_dx, file_meta_dict):
             s_list.append(cbio_tum_id)
             if manifest is not None:
                 ploidy = get_ploidy(
-                    args.info_dir + "/" + manifest.loc[kf_bs_id]["File_Name"]
+                    info_dir + "/" + manifest.loc[kf_bs_id]["File_Name"]
                 )
                 ploidy_dict[cbio_tum_id] = ploidy
             else:
@@ -87,7 +88,8 @@ def process_table(cbio_dx, file_meta_dict):
         new_cnv.close()
     except Exception as e:
         print(e)
-        sys.exit(1)
+        exit(1)
+
 
 
 parser = argparse.ArgumentParser(
@@ -119,7 +121,7 @@ parser.add_argument(
     "--config",
     action="store",
     dest="config_file",
-    help="json config file with data types and " "data locations",
+    help="json config file with data types and data locations",
 )
 
 
@@ -127,17 +129,17 @@ args = parser.parse_args()
 with open(args.config_file) as f:
     config_data = json.load(f)
 cnv_dir = args.cnv_dir
+info_dir = args.info_dir
 if cnv_dir[-1] != "/":
     cnv_dir += "/"
 manifest = None
-if args.info_dir is not None:
+if info_dir is not None:
     manifest = pd.read_csv(args.table, sep="\t")
     manifest.set_index(["T_CL_BS_ID"], inplace=True)
     manifest = manifest.loc[manifest["File_Type"] == "info"]
 
 else:
     sys.stderr.write("No info file given, will assume ploidy 2\n")
-
 orig_suffix = config_data["dna_ext_list"]["copy_number"]
 w_gene_suffix = ".CNVs.Genes.copy_number"
 out_dir = "merged_cnvs/"
@@ -151,5 +153,6 @@ with concurrent.futures.ProcessPoolExecutor(config_data["cpus"]) as executor:
         executor.submit(process_table, cbio_dx, file_meta_dict): cbio_dx
         for cbio_dx in file_meta_dict
     }
-
-sys.stderr.write("Done, check logs\n")
+# for cbio_dx in file_meta_dict:
+#     process_table(cbio_dx, file_meta_dict)
+# sys.stderr.write("Done, check logs\n")

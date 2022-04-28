@@ -5,9 +5,10 @@ import argparse
 import json
 from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
+import pdb
 
 
-def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, eid_idx):
+def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx):
     """
     Only output entries not in exclusion list while dropping ENTREZ ID, but keeping TERT promoter hits
     """
@@ -18,36 +19,58 @@ def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, eid_idx):
     ):
         data[tid_idx] = tum_id
         data[nid_idx] = norm_id
-        data.pop(eid_idx)
         return data
     else:
         return None
 
 
 def process_maf(
-    maf_fn, new_maf, maf_exc, tum_id, norm_id, tid_idx, h_idx, nid_idx, v_idx, eid_idx
+    maf_fn, new_maf, maf_exc, tum_id, norm_id
 ):
     """
-    Iterate over maf file, skipping header lines since the files are being merged
+    Iterate over maf file, skipping header lines since the files are being merged.
+    With possiblility of mixed source, search headers
     """
     cur_maf = open(maf_fn)
     next(cur_maf)
-    next(cur_maf)
+    head = next(cur_maf)
+
+    cur_header = head.rstrip('\n').split('\t')
+    h_dict = {}
+    for item in print_header:
+        if item in cur_header:
+            h_dict[item] = cur_header.index(item)
+        else:
+            h_dict[item] = None
+
+    tid_idx = cur_header.index("Tumor_Sample_Barcode")
+    nid_idx = cur_header.index("Matched_Norm_Sample_Barcode")
+    v_idx = cur_header.index("Variant_Classification")
+    h_idx = cur_header.index("Hugo_Symbol")
+
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
         results = {
             executor.submit(
-                filter_entry, entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, eid_idx
+                filter_entry, entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx
             )
             for entry in cur_maf
         }
         for result in concurrent.futures.as_completed(results):
-            if result.result() != None:
-                new_maf.write("\t".join(result.result()) + "\n")
+            filtered = result.result()
+            if filtered != None:
+                to_print = []
+                for item in print_header:
+                    if h_dict[item] != None:
+                        to_print.append(filtered[h_dict[item]])
+                    else:
+                        to_print.append("")
+
+                new_maf.write("\t".join(to_print) + "\n")
     cur_maf.close()
 
 
 def process_tbl(
-    cbio_dx, file_meta_dict, tid_idx, h_idx, nid_idx, v_idx, eid_idx, print_head
+    cbio_dx, file_meta_dict, print_head
 ):
     """
     Probaby a less likely scenario, but can split out into multiple projects based on dict
@@ -82,11 +105,6 @@ def process_tbl(
                 maf_exc,
                 cbio_tum_id,
                 cbio_norm_id,
-                tid_idx,
-                h_idx,
-                nid_idx,
-                v_idx,
-                eid_idx,
             )
             x += 1
         sys.stderr.write(
@@ -141,7 +159,8 @@ with open(args.config_file) as f:
 maf_dir = args.maf_dir
 if maf_dir[-1] != "/":
     maf_dir += "/"
-# If DGD maf only, else if both, dgd maf wil be handled separately, or no at all if no dgd and kf only
+# If DGD maf only, else if both, dgd maf wil be handled separately, or not at all if no dgd and kf only
+
 file_meta_dict = get_file_metadata(args.table, "DGD_MAF")
 if args.dgd_status != "dgd":
     file_meta_dict = get_file_metadata(args.table, "maf")
@@ -149,16 +168,12 @@ head_fh = open(args.header)
 
 print_head = next(head_fh)
 cur_head = next(head_fh)
-cur_header = cur_head.rstrip("\n").split("\t")
-eid_idx = cur_header.index("Entrez_Gene_Id")
-tid_idx = cur_header.index("Tumor_Sample_Barcode")
-nid_idx = cur_header.index("Matched_Norm_Sample_Barcode")
-v_idx = cur_header.index("Variant_Classification")
-h_idx = cur_header.index("Hugo_Symbol")
-cur_header.pop(eid_idx)
+print_header = cur_head.rstrip("\n").split("\t")
+eid_idx = print_header.index("Entrez_Gene_Id")
+print_header.pop(eid_idx)
 
 head_fh.close()
-print_head += "\t".join(cur_header) + "\n"
+print_head += "\t".join(print_header) + "\n"
 maf_exc = {
     "Silent": 0,
     "Intron": 0,
@@ -177,7 +192,7 @@ except:
 
 for cbio_dx in file_meta_dict:
     process_tbl(
-        cbio_dx, file_meta_dict, tid_idx, h_idx, nid_idx, v_idx, eid_idx, print_head
+        cbio_dx, file_meta_dict, print_head
     )
 
 sys.stderr.write("Done, check logs\n")
