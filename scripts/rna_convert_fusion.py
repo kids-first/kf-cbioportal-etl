@@ -166,8 +166,6 @@ if __name__ == "__main__":
     # drop dupes as chrom coords not used yet
     cbio_master.drop_duplicates(subset=None, keep='first', inplace=True)
     cbio_master.set_index("Hugo_Symbol", inplace=True)
-    # replace `--` with `-` in fusion names for proper cBio parsing
-    cbio_master['Fusion'] = cbio_master['Fusion'].str.replace('--','-')
     for project in project_list:
         sub_sample_list = list(
             rna_subset.loc[rna_subset["Cbio_project"] == project, "Cbio_Tumor_Name"]
@@ -182,10 +180,10 @@ if __name__ == "__main__":
         fus_data = list(fus_tbl.values)
         # "hack" to allow 3' end of fusion to be searched
         for data in fus_data:
+            a, b = data[4].split('--')
+            # replace `--` with `-` in fusion names for proper cBio parsing
+            data[4] = data[4].replace('--', '-') 
             fus_file.write("\t".join(data) + "\n")
-            a = data[0]
-            parse = re.search(rf"{a}(.*)", data[4])
-            b = parse.group(1)[1:]
             if a != b:
                 data[0] = b
                 fus_file.write("\t".join(data) + "\n")
