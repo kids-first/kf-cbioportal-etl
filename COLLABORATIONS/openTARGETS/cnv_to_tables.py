@@ -7,6 +7,9 @@ parser = argparse.ArgumentParser(description='Script to convert openX cnv table 
 parser.add_argument('-m', '--mapping-file', action='store', dest = 'mapping_file', help='tsv file with header and bs_id, sample type, cbio ID mappings')
 parser.add_argument('-c', '--copy-number', action='store', dest='cnv_tbl',
                     help='openX tables, listed as csv since they tend to seprate autosomes, xy')
+parser.add_argument('-s', '--study', action='store', dest='type',
+                    help='study name, like "openpbta"')
+
 
 
 def populate_id_map(map_fn):
@@ -76,9 +79,9 @@ for cnv_tbl in file_list:
     collate_data(cnv_tbl)
 
 sys.stderr.write("Printing results\n")
-cnv_cn_out = open("mixed.predicted_cnv.txt", "w")
+cnv_cn_out = open(args.type + ".predicted_cnv.txt", "w")
 cnv_cn_out.write("Hugo_Symbol")
-cnv_gistic_out = open("mixed.discrete_cnvs.txt", "w")
+cnv_gistic_out = open(args.type + ".discrete_cnvs.txt", "w")
 cnv_gistic_out.write("Hugo_Symbol")
 
 sample_list = list(ploidy_dict.keys())
