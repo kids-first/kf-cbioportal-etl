@@ -122,7 +122,7 @@
         "groups": "PUBLIC",
         "cancer_study_identifier": "os_sd_zxjffmef_2015",
         "type_of_cancer": "os",
-        "short_name": "An Integrated Clinical and Genomic Analysis of Treatment Failure in Pediatric OS",
+        "short_name": "An Integrated Analysis of Treatment Failure in Pediatric OS",
         "reference_genome": "hg38",
         "display_name": "An Integrated Clinical and Genomic Analysis of Treatment Failure in Pediatric Osteosarcoma (Kids First, Provisional)"
     },
