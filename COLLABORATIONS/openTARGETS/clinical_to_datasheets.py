@@ -136,7 +136,13 @@ patient_out.write("\t".join(patient_head_list[-1]) + "\n")
 # pt dict to track if already seen to avoid duplicate output
 pt_id_dict = {}
 # convert values to those that have function and meaning in cbio
-tumor_descriptor_dict = {"Initial CNS Tumor": "primary", "Progressive": "progression", "Recurrence": "recurrence", "Progressive Disease Post Mortem": "progressed", "Second Malignancy": "metastasis" }
+tumor_descriptor_dict = {
+    "Initial CNS Tumor": "primary", 
+    "Primary Tumor": "primary", "Metastatic Tumor": "metastasis",
+    "Second Malignancy": "second malignancy", "Recurrence": "recurrence",
+    "Progressive": "progressed",
+    "Progressive Disease Post Mortem": "progressed"
+    }
 
 # track some sample info so that somatic events can be collapsed
 samp_dict = {}
