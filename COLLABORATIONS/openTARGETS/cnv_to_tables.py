@@ -70,7 +70,7 @@ args = parser.parse_args()
 sys.stderr.write("Getting mapping IDs\n")
 map_dict = populate_id_map(args.mapping_file)
 
-qual_to_gistic = {"deep deletion": "-2", "loss": "-1", "neutral": "0", "gain": "1", "amplification": "2", "NA": "0"}
+qual_to_gistic = {"deep deletion": "-2", "loss": "-1", "neutral": "0", "gain": "1", "amplification": "2", "NA": "0", "unknown": "0"}
 sys.stderr.write("Collating copy number data\n")
 file_list = args.cnv_tbl.split(",")
 # init dicts tracking relevant info
