@@ -6,6 +6,8 @@ Script to append dgd fusion results to pbta using STDOUT or collate if standalon
 import sys
 import os
 import argparse
+import gzip
+import pdb
 from get_file_metadata_helper import get_file_metadata
 
 
@@ -34,6 +36,13 @@ parser.add_argument(
     help="Optional - if given will output to stdout to append, else will create new merged file",
 )
 parser.add_argument(
+    "-m",
+    "--merged",
+    action="store_true",
+    dest="merged",
+    help="If input is already merged, treat fusion dir as file instead",
+)
+parser.add_argument(
     "-o",
     "--out-dir",
     action="store",
@@ -42,9 +51,7 @@ parser.add_argument(
     help="Result output dir. Default is merged_fusion",
 )
 
-
 args = parser.parse_args()
-file_meta_dict = get_file_metadata(args.table, "DGD_FUSION")
 
 header = [
     "Hugo_Symbol",
@@ -65,22 +72,53 @@ if args.append:
         sys.stderr.flush()
 mid_idx = header.index("Method")
 t_idx = header.index("Tumor_Sample_Barcode")
-for cbio_dx in file_meta_dict:
-    if args.append:
-        out_file = open(args.out_dir + cbio_dx + ".fusions.txt", "w")
-        out_file.write("\t".join(header) + "\n")
+if args.merged:
+    # merged file needs to get cBio ID by BS ID instead of using table to parse individual files and assin cBio IDs
+    file_meta_dict = {}
+    meta_table =  open(args.table)
+    mhead = next(meta_table)
+    mheader = mhead.rstrip('\n').split('\t')
+    mb_idx = mheader.index('T_CL_BS_ID')
+    cbio_idx = mheader.index('Cbio_Tumor_Name')
+    for line in meta_table:
+        info = line.rstrip('\n').split('\t')
+        file_meta_dict[info[mb_idx]] = info[cbio_idx]
+else:
+    file_meta_dict = get_file_metadata(args.table, "DGD_FUSION")
+
+if args.merged:
+    out_file = sys.stdout
+    if args.fusion_dir[-3:] == '.gz':
+        cur = gzip.open(args.fusion_dir, mode='rt')
     else:
-        out_file = sys.stdout
-    for cbio_tum_id in file_meta_dict[cbio_dx]:
-        fusion = file_meta_dict[cbio_dx][cbio_tum_id]["fname"]
-        sys.stderr.write("Processing " + fusion + "\n")
-        cur = open(args.fusion_dir + "/" + fusion)
-        f_head = next(cur)
-        for data in cur:
-            datum = data.rstrip("\n").split("\t")
-            # Set method
-            datum[mid_idx] = "DGD_curated"
-            datum[t_idx] = cbio_tum_id
-            out_file.write("\t".join(datum) + "\n")
-        sys.stderr.write("Processed " + fusion + "\n")
-    out_file.close()
+        cur = open(args.fusion_dir)
+    f_head = next(cur)
+    for data in cur:
+        datum = data.rstrip("\n").split("\t")
+        # To fit current format of having a blank value for Entrez ID column
+        datum.insert(1,"")
+        cbio_tum_id = file_meta_dict[datum[t_idx]]
+        # Set method
+        datum[mid_idx] = "DGD_curated"
+        datum[t_idx] = cbio_tum_id
+        out_file.write("\t".join(datum) + "\n")
+else:
+    for cbio_dx in file_meta_dict:
+        if args.append:
+            out_file = open(args.out_dir + cbio_dx + ".fusions.txt", "w")
+            out_file.write("\t".join(header) + "\n")
+        else:
+            out_file = sys.stdout
+        for cbio_tum_id in file_meta_dict[cbio_dx]:
+            fusion = file_meta_dict[cbio_dx][cbio_tum_id]["fname"]
+            sys.stderr.write("Processing " + fusion + "\n")
+            cur = open(args.fusion_dir + "/" + fusion)
+            f_head = next(cur)
+            for data in cur:
+                datum = data.rstrip("\n").split("\t")
+                # Set method
+                datum[mid_idx] = "DGD_curated"
+                datum[t_idx] = cbio_tum_id
+                out_file.write("\t".join(datum) + "\n")
+            sys.stderr.write("Processed " + fusion + "\n")
+        out_file.close()
