@@ -170,6 +170,15 @@
                     "datatype": "GENE_PANEL_MATRIX",
                     "data_filename": "data_gene_matrix_CHOP.txt"
                 }
+            },
+            "imaging": {
+                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
+                "cbio_name": "data_timeline_imaging.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "CLINICAL",
+                    "datatype": "TIMELINE",
+                    "data_filename": "data_timeline_imaging.txt"
+                }
             }
         }
     },
@@ -269,6 +278,10 @@
         "gene_file": {
             "table": "prod_cbio.pbta_all_data_gene_matrix",
             "out_file": "data_gene_matrix_CHOP.txt"
+        },
+        "imaging_file":{
+            "table": "brownm28_dev_schema_cbio.pbta_all_data_timeline_imaging",
+            "out_file": "data_timeline_imaging.txt"
         }
     }
 }
