@@ -12,16 +12,24 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--study-id', action='store', dest='study_id',
                     help='cBio cancer_study_identifier')
     parser.add_argument('-c', '--cohort-csv', action='store', dest='cohorts',
-                    help='add a special case for a cohort-specific case list using a csv list')
+                    help='add a special case for a cohort-specific case list using a csv list and omit from hist split')
     
     args = parser.parse_args()
     # skip first 4 header rows
     cbio_ds = pd.read_csv(args.datasheet, sep="\t", skiprows=4)
+    
+    # skip cohorts for hist split given in arg c
+    skip_cohort_list = []
+    if args.cohorts:
+        skip_cohort_list = args.cohorts.split(',')
+    process_cohorts_df = cbio_ds[~cbio_ds['COHORT'].isin(skip_cohort_list)]
+    skip_cohorts_df = cbio_ds[cbio_ds['COHORT'].isin(skip_cohort_list)]
+    hist_list = process_cohorts_df.HISTOLOGY.unique()
+    cohort_list = process_cohorts_df.COHORT.unique()
+
     # iterate through histologies with at least 5 samples
-    hist_list = cbio_ds.HISTOLOGY.unique()
-    cohort_list = cbio_ds.COHORT.unique()
     for hist in hist_list:
-        samp_ids = cbio_ds[cbio_ds['HISTOLOGY'].isin([hist])].SAMPLE_ID.to_list()
+        samp_ids = process_cohorts_df[process_cohorts_df['HISTOLOGY'].isin([hist])].SAMPLE_ID.to_list()
         if len(samp_ids) >= 5:
             # print(hist)
             try:
@@ -35,7 +43,7 @@ if __name__ == "__main__":
                 cur.close()
                 # Also collapse on the cohort level
                 for cohort in cohort_list:
-                    subset = cbio_ds.loc[cbio_ds['COHORT'] == cohort,]
+                    subset = process_cohorts_df.loc[process_cohorts_df['COHORT'] == cohort,]
                     subset_samp = subset[subset['HISTOLOGY'].isin([hist])].SAMPLE_ID.to_list()
                     if len(subset_samp) >= 5:
                         cohort_stable = cohort.lower().replace(" ", "_").replace("/", "_")
@@ -54,10 +62,10 @@ if __name__ == "__main__":
                 sys.stderr.write("Error encountered - likely a blank histology, skipping\n")
         else:
             sys.stderr.write("Skipping " + hist + " less than 5 entries\n")
+    # skip disease/tissue specific for these cohorts
     if args.cohorts:
-        cohorts_csv = args.cohorts
-        for cohort in cohorts_csv.split(','):
-            subset = cbio_ds.loc[cbio_ds['COHORT'] == cohort,]
+        for cohort in skip_cohort_list:
+            subset = skip_cohorts_df.loc[skip_cohorts_df['COHORT'] == cohort,]
             subset_samp = subset.SAMPLE_ID.to_list()
             cohort_stable = cohort.lower().replace(" ", "_").replace("/", "_")
             cur = open("cases_" + cohort_stable + ".txt", "w")

@@ -190,7 +190,7 @@ These are highly specialized cases in which all or most of the data come from a 
 ## OpenTargets
 This project is organized much like OpenPBTA in which all genomics data for each assay-type are collated into one giant table.
 In general, this fits cBioPortal well.
-Input files mostly come from a "subdirectory" from within `s3://kf-openaccess-us-east-1-prd-pbta/public/`, consisting of:
+Input files mostly come from a "subdirectory" from within `s3://kf-openaccess-us-east-1-prd-pbta/`, consisting of:
  - `histologies.tsv`
  - `snv-consensus-plus-hotspots.maf.tsv.gz`
  - `consensus_wgs_plus_cnvkit_wxs_x_and_y.tsv.gz`
@@ -200,17 +200,56 @@ Input files mostly come from a "subdirectory" from within `s3://kf-openaccess-us
 
 See `https://pedcbioportal.kidsfirstdrc.org/study/summary?id=ped_opentargets_2021` for final product.
 
+## Prep work
+The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to supress duplicate RNA libraries from different sequencing methods.
+Since we are not handling `Methylation` yet, it is recommneded those entries be removed ahead of time.
+To create the histologies file, recommended method is to:
+1. `docker pull pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest` if you haven't already
+1. Pull the OpenPedCan repo (should probably make the script more flexible pulling a 12GB repo for such a small task is a bit overkill): https://github.com/PediatricOpenTargets/OpenPedCan-analysis
+1. Export from D3b Warehouse the latest existing cBio IDs to use for population. Ensure that the output is csv double-quoted. Copy that into the OpenPedCan-analysis repo in `analyses/pedcbio-sample-name/input/cbio_name.csv`. Currently that can be obtained using the sql command:
+    ```sql
+
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.aml_sd_pet7q6f2_2018_cbio_sample
+    union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.aml_sd_z6mwd3h0_2018_cbio_sample
+    union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.x01_fy16_nbl_maris_cbio_sample
+    union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.cbtn_cbio_sample
+    union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.dgd_cbio_sample
+    union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.pnoc_cbio_sample
+    union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.oligo_nation_cbio_sample
+    union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.os_sd_zxjffmef_2015_cbio_sample
+
+    ```
+1. Run an interactive docker, and ensure to mount a volume that will have the repo and whatever input histologies file you end up using, i.e. `docker run -it --mount type=bind,source=/home/ubuntu,target=/WORK pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest /bin/bash`
+1. In that container, go to the location of `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R`
+1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons`
+1. Run `Rscript --vanilla pedcbio_sample_name_col.R --hist_dir path-to-hist-dir`. Histologies file must be `histologies.tsv`, modify file name or create sym link if needed. Results will be in `results` as `histologies-formatted-id-added.tsv`
+
 ### Inputs
 Inputs are located in the old Kids First AWS account (`538745987955`) in this general bucket location: `s3://kf-openaccess-us-east-1-prd-pbta/open-targets/`.
-Clinical data are obtained from the `histologies.tsv` file.
+Clinical data with cBio names are obtained from the `histologies-formatted-id-added.tsv` file, as noted in [Prep Work section](#prep-work).
 Genomic data generally obtained as such:
  - Somatic variant calls: merged maf
  - Copy number: tsv file with copy number, ploidy, and GISTIC-style information in maf-like format (each call is a row)
  - RNA expression: tpm values from rsem stored an `.rds` object
  - RNA fusion: annoFuse output
 
- ### File Transformation
-
+### File Transformation
+It's recommended to datasheets in a dir called `datasheets`, and the rest of the outputs into it's own dir to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
 #### 1. COLLABORATIONS/openTARGETS/clinical_to_datasheets.py
  ```
 usage: clinical_to_datasheets.py [-h] [-f HEAD] [-c CLIN] [-s CL_SUPP]
@@ -222,6 +261,8 @@ optional arguments:
   -f HEAD, --header-file HEAD
                         tsv file with input file original sample names, output
                         sheet flag, and conversion
+  -b BLACKLIST, --blacklist BLACKLIST
+                        because every club needs a bouncer. Headered tsv file with BS ID and reason
   -c CLIN, --clinical-data CLIN
                         Input clinical data sheet
   -s CL_SUPP, --cell-line-supplement CL_SUPP
@@ -230,16 +271,16 @@ optional arguments:
  ```
  - `-f` Header file example can be found here: `COLLABORATIONS/openTARGETS/header_desc.tsv`
  - `-s` cell line supplemental file here: `REFS/cell_line_supplemental.txt`
- - `-c` `histologies.tsv`
+ - `-b` blacklist exported from D3b Warehouse
+ - `-c` `histologies-formatted-id-added.tsv`
 
  Outputs a `data_clinical_sample.txt` and `data_clinical_patient.txt` for the cBio package, and a `bs_id_sample_map.txt` mapping file to link BS IDs to gnerated cBioPortal IDs based on the rules for creating a proper somatic event using column `parent_aliquot_id`
 
-_NOTE:_ histologies.tsv was subset on `PBTA` for the initial run
-
 Example run:
-`python3 COLLABORATIONS/openTARGETS/clinical_to_datasheets.py -f COLLABORATIONS/openTARGETS/header_desc.tsv -s REFS/cell_line_supplemental.txt -c histologies.tsv`
+`python3 COLLABORATIONS/openTARGETS/clinical_to_datasheets.py -f COLLABORATIONS/openTARGETS/header_desc.tsv -c histologies-formatted-id-added.tsv -b cbio_hide_reasons.tsv 2> clin2.errs`
 
 #### 2. COLLABORATIONS/openTARGETS/rename_filter_maf.py
+_NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz`
 Rename IDs in `Tumor_Sample_Barcode`
 ```
 usage: rename_filter_maf.py [-h] [-m MAPPING_FILE] [-v MAF_FILE]
@@ -274,13 +315,89 @@ optional arguments:
 ```
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/cnv_to_tables.py -m bs_id_sample_map.txt  -c consensus_seg_annotated_cn_autosomes_xy.tsv.gz`
+`python3 COLLABORATIONS/openTARGETS/cnv_to_tables.py -m bs_id_sample_map.txt  -c consensus_wgs_plus_cnvkit_wxs.tsv.gz`
 
 #### 4. COLLABORATIONS/openTARGETS/rename_export_rsem.R
-This script is more of an outline of how exactly it was run rather than quite able to be run as standalone.
-A future update will include using the existing mapping file and being able to take args
+Note, I merged the tcga into the main rds. I also needed an instance with _64GB ram_ in order to calc z scores
+```
+Usage: /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/rename_export_rsem.R [options]
 
-#### 5. COLLABORATIONS/openTARGETS/case_list_from_datasheet.py
+
+Options:
+	--rna_rds=RNA_RDS
+		openX rsem rds expression object
+
+	--map_id=MAP_ID
+		mapping ID file with headers: BS_ID	Sample Type	Cbio ID
+
+	--type=TYPE
+		study name, like 'openpbta'
+
+	-h, --help
+		Show this help message and exit
+```
+Example run:
+`Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v11 2> rna_convert.errs`
+
+#### 5a. scripts/rna_convert_fusion.py
+Before running, to leverage an existing fusion conversion, I first ran:
+`COLLABORATIONS/openTARGETS/reformat_cbio_sample_index.py -t bs_id_sample_map.txt -n openpedcan_v11 > fusion_sample_name_input.txt`
+to reformat the sample name index. Then actually ran the rna fusion script:
+
+```
+Convert openPBTA fusion table OR list of annofuse files to cbio format.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file names
+  -f FUSION_RESULTS, --fusion-results FUSION_RESULTS
+                        openPBTA fusion file OR annoFuse results dir
+  -m MODE, --mode MODE  describe source, pbta or annofuse
+  -s SQ_FILE, --center-file SQ_FILE
+                        File with BS IDs and sequencing centers. Should have headered columns: BS_ID SQ_Value
+  -o OUT_DIR, --out-dir OUT_DIR
+                        Result output dir. Default is merged_fusion
+```
+Example run:
+`scripts/rna_convert_fusion.py -t fusion_sample_name_input.txt -f fusion-putative-oncogenic.tsv -m pbta -s COLLABORATIONS/openTARGETS/seq_center_info_updated.txt`
+
+#### 5b. /scripts/add_dgd_fusion.py
+Since dgd was just added, this appends to the existing file as it has different columns and input format
+```
+Output fields DGD fusion - meant to be appended to an existing file!
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -f FUSION_DIR, --fusion-dir FUSION_DIR
+                        Fusion file directory
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file names
+  -a, --append          Optional - if given will output to stdout to append, else will create new merged file
+  -m, --merged          If input is already merged, treat fusion dir as file instead
+  -o OUT_DIR, --out-dir OUT_DIR
+                        Result output dir. Default is merged_fusion
+```
+Example run:
+`scripts/add_dgd_fusion.py -f fusion-dgd.tsv.gz -t fusion_sample_name_input.txt -a -m >> merged_fusion/openpedcan_v11.fusions.txt`
+
+#### 6. scripts/organize_upload_packages.py
+Leverage the existing meta config and package organizer from kids first to create all relevant meta and case files...except for the added case lists achieved by the next step
+```
+Create cases lists, meta files, and organize data for cbio upload. It is assumed you are at the dir level of all input data files
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o OUT_DIR, --output_dir OUT_DIR
+                        output directory name
+  -c CONFIG_FILE, --config CONFIG_FILE
+                        json config file with meta information; see REFS/case_meta_config.json example
+```
+Example run:
+`python3 scripts/organize_upload_packages.py -o processed -c COLLABORATIONS/openTARGETS/openpedcan_v11_case_meta_config.json`
+
+#### 7. COLLABORATIONS/openTARGETS/case_list_from_datasheet.py
+Last step before validation and upload
 ```
 usage: case_list_from_datasheet.py [-h] [-d DATASHEET] [-s STUDY_ID]
 
@@ -292,12 +409,10 @@ optional arguments:
                         cBio sample datasheet
   -s STUDY_ID, --study-id STUDY_ID
                         cBio cancer_study_identifier
+  -c COHORTS, --cohort-csv COHORTS
+                        add a special case for a cohort-specific case list using a csv list and omit from hist split
 ```
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/case_list_from_datasheet.py -d data_clinical_sample.txt -s ped_opentargets_2021`
+`python3 COLLABORATIONS/openTARGETS/case_list_from_datasheet.py -d data_clinical_sample.txt -s ped_opentargets_2021 -c GTEx`
 
-### TODO
- - Improve step 4
- - Automate or store meta data files
- - Automate standard case list generation

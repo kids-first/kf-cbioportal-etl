@@ -70,6 +70,7 @@ parser.add_argument('-f', '--header-file', action='store', dest="head" ,help='ts
                     'names, output sheet flag, and conversion')
 parser.add_argument('-c', '--clinical-data', action='store', dest='clin',
                     help='Input clinical data sheet')
+parser.add_argument('-b', '--blacklist', action='store', dest='blacklist', help='because every club needs a bouncer. Headered tsv file with BS ID and reason')
 parser.add_argument('-s', '--cell-line-supplement', action='store', dest='cl_supp', help='supplemental file with cell '
                                                                         'line meta data - bs id<tab>type.  optional')
 
@@ -100,7 +101,13 @@ if args.cl_supp is not None:
     for line in cl_info:
         info = line.rstrip('\n').split('\t')
         cl_supp[info[0]] = info[1]
-
+# added blacklist capability
+blacklist_dict = {}
+if args.blacklist is not None:
+    blacklist = open(args.blacklist)
+    for line in blacklist:
+        info = line.rstrip('\n').split('\t')
+        blacklist_dict[info[0]] = info[1]
 
 clin_data = open(args.clin)
 head = next(clin_data)
@@ -150,6 +157,16 @@ s_type = header.index('sample_type')
 comp = header.index('composition')
 bs_id = header.index('Kids_First_Biospecimen_ID')
 exp = header.index('experimental_strategy')
+
+# experimental strategy may be too vague, use to tell if RNA
+# related to recent addition of DGD samples, need gene matrix file
+rna_lib = header.index('RNA_library')
+cohort = header.index('cohort')
+a_idx = header.index('aliquot_id')
+cbio_id = header.index('formatted_sample_id')
+data_gene = open('data_gene_matrix_CHOP.txt', 'w')
+data_gene.write('SAMPLE_ID\tmutations\n')
+
 id_mapping = {}
 bs_type = {}
 # iterate through data, calculate field values in special cases
@@ -158,6 +175,19 @@ for data in clin_data:
     info = data.rstrip('\n').split('\t')
     if info[s_type] == "Normal" and info[exp] != 'RNA-Seq':
         continue
+    if info[bs_id] in blacklist_dict:
+        sys.stderr.write('Skipping output of ' + info[bs_id] + ' because in blacklist for reason ' + blacklist_dict[info[bs_id]] + '\n')
+        continue
+    # adjust exp value if targeted sequencing
+    if info[exp] == 'Targeted Sequencing':
+        if info[rna_lib] != 'NA':
+            info[exp] = 'RNA-Seq'
+        # if DGD DNA, add to gene matrix
+        elif info[cohort] == 'DGD':
+            # parse aliquot for panel type, i.e. ET_242MFKXW_DGD_STNGS_93
+            test = re.match('.*_DGD_(\w+)_\d+', info[a_idx])
+            data_gene.write(info[cbio_id] + '\tCHOP-' + test.group(1) + '\n')
+
     pt_id = info[header.index("Kids_First_Participant_ID")]
     if pt_id in pt_id_dict:
         pt_id_dict[pt_id] += 1
@@ -252,3 +282,4 @@ for samp_id in id_mapping:
 sample_out.close()
 patient_out.close()
 mapping_file.close()
+data_gene.close()
