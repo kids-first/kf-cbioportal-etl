@@ -33,9 +33,11 @@ map_ids = read.csv(sep = "\t", header=TRUE, opts$map_id)
 map_ids = map_ids[map_ids$Sample.Type == "RNA",]
 # Subset only on sample present in mapping ID file
 subset_rna = rna[,which(colnames(rna) %in% map_ids$BS_ID)]
+#print(rownames(rna))
 rownames(subset_rna) = rownames(rna)
 # Rename BS IDs to cBio IDs
 message("Renaming samples and outputting tpm file")
+subset_rna <- as.data.frame(subset_rna)
 setnames(subset_rna, old=as.character(map_ids$BS_ID), new=as.character(map_ids$Cbio.ID), skip_absent=TRUE)
 
 write_tsv(data.frame("Hugo_Symbol"=rownames(subset_rna),subset_rna, check.names = FALSE),paste(opts$type, ".rsem_merged.txt", sep=""), escape="none")
