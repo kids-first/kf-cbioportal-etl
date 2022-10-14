@@ -234,22 +234,22 @@
             "table": "bix_workflows.data_clinical_sample_header"
         },
         "sample_file": {
-            "table": "prod_cbio.pbta_all_treatment_data_clinical_sample",
+            "table": "brownm28_dev_schema_cbio.pbta_all_treatment_data_clinical_sample",
             "out_file": "data_clinical_sample.txt"
         },
         "patient_head": {
             "table": "bix_workflows.data_clinical_patient_header"
         },
         "patient_file": {
-            "table": "prod_cbio.pbta_all_treatment_data_clinical_patient",
+            "table": "brownm28_dev_schema_cbio.pbta_all_treatment_data_clinical_patient",
             "out_file": "data_clinical_patient.txt"
         },
         "genomics_etl": {
-            "table": "prod_cbio.pbta_all_treatment_genomics_etl_file",
+            "table": "brownm28_dev_schema_cbio.pbta_all_treatment_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
         },
         "seq_center": {
-            "table": "prod_cbio.pbta_all_treatment_sq_info_etl_resource",
+            "table": "brownm28_dev_schema_cbio.pbta_all_treatment_sq_info_etl_resource",
             "out_file": "seq_center_resource.txt"
         }
     }
