@@ -12,7 +12,9 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--study-id', action='store', dest='study_id',
                     help='cBio cancer_study_identifier')
     parser.add_argument('-c', '--cohort-csv', action='store', dest='cohorts',
-                    help='add a special case for a cohort-specific case list using a csv list and omit from hist split')
+                    help='add a special case for a cohort-specific case list using a csv list')
+    parser.add_argument('-m', '--min-sample', action='store', dest='samp_min',
+                    help='min number of samples a cohort must have to generate a case list for. recommend 3', type=int)
     
     args = parser.parse_args()
     # skip first 4 header rows
@@ -29,8 +31,8 @@ if __name__ == "__main__":
 
     # iterate through histologies with at least 5 samples
     for hist in hist_list:
-        samp_ids = process_cohorts_df[process_cohorts_df['HISTOLOGY'].isin([hist])].SAMPLE_ID.to_list()
-        if len(samp_ids) >= 5:
+        samp_ids = cbio_ds[cbio_ds['HISTOLOGY'].isin([hist])].SAMPLE_ID.to_list()
+        if len(samp_ids) >= args.samp_min:
             # print(hist)
             try:
                 suffix = hist.lower().replace(" ", "_").replace("/", "_")
@@ -45,7 +47,7 @@ if __name__ == "__main__":
                 for cohort in cohort_list:
                     subset = process_cohorts_df.loc[process_cohorts_df['COHORT'] == cohort,]
                     subset_samp = subset[subset['HISTOLOGY'].isin([hist])].SAMPLE_ID.to_list()
-                    if len(subset_samp) >= 5:
+                    if len(subset_samp) >= args.samp_min:
                         cohort_stable = cohort.lower().replace(" ", "_").replace("/", "_")
                         cur = open("cases_" + cohort_stable + "_" + suffix + ".txt", "w")
                         cur.write("cancer_study_identifier: " + args.study_id + "\n" 
@@ -55,14 +57,13 @@ if __name__ == "__main__":
                         + "case_list_category: other\ncase_list_ids: " + "\t".join(subset_samp) + "\n")
                         cur.close()
                     else:
-                        sys.stderr.write("Skipping " + hist + " for cohort " + cohort + ", less than 5 entries\n")
+                        sys.stderr.write("Skipping " + hist + " for cohort " + cohort + ", less than " + str(args.samp_min) + " entries\n")
 
             except Exception as e:
                 print(e)
                 sys.stderr.write("Error encountered - likely a blank histology, skipping\n")
         else:
-            sys.stderr.write("Skipping " + hist + " less than 5 entries\n")
-    # skip disease/tissue specific for these cohorts
+            sys.stderr.write("Skipping " + hist + " less than " + str(args.samp_min) + " entries\n")
     if args.cohorts:
         for cohort in skip_cohort_list:
             subset = skip_cohorts_df.loc[skip_cohorts_df['COHORT'] == cohort,]
