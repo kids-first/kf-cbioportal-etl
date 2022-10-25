@@ -39,7 +39,6 @@ processed
     ├── data_clinical_sample.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_clinical_sample.txt
     ├── data_cna.seg.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.merged_seg.txt
     ├── data_fusions.txt -> /home/ubuntu/mount/pbta_all/merged_fusion/pbta_all.fusions.txt
-    ├── data_gene_matrix_CHOP.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_gene_matrix_CHOP.txt
     ├── data_linear_CNA.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.predicted_cnv.txt
     ├── data_mutations_extended.txt -> /home/ubuntu/mount/pbta_all/merged_mafs/pbta_all.maf
     ├── data_rna_seq_v2_mrna.txt -> /home/ubuntu/mount/pbta_all/merged_rsem/pbta_all.rsem_merged.txt
@@ -49,7 +48,6 @@ processed
     ├── meta_clinical_patient.txt
     ├── meta_clinical_sample.txt
     ├── meta_cna.seg.txt
-    ├── meta_gene_matrix_CHOP.txt
     ├── meta_linear_CNA.txt
     ├── meta_mutations_extended.txt
     ├── meta_rna_seq_v2_mrna.txt
@@ -117,7 +115,6 @@ This section here:
     "_comment": "edit the values based on existing/anticipated source file locations, relative to working directory of the script being run",
     "mafs": {
       "kf": "annotated_public_outputs",
-      "dgd": "DGD_MAF",
       "header": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/maf_KF_CONSENSUS.txt"
     },
     "cnvs": {
@@ -127,7 +124,6 @@ This section here:
     },
     "rsem": "RSEM_gene",
     "fusion": "annofuse_filtered_fusions_tsv",
-    "dgd_fusion": "DGD_FUSION",
     "fusion_sq_file": ""
   },
   "dl_file_type_list": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs",
@@ -202,7 +198,7 @@ See `https://pedcbioportal.kidsfirstdrc.org/study/summary?id=ped_opentargets_202
 
 ## Prep work
 The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to supress duplicate RNA libraries from different sequencing methods.
-Since we are not handling `Methylation` yet, it is recommneded those entries be removed ahead of time.
+Since we are not handling `Methylation` yet, it is recommended those entries be removed ahead of time.
 To create the histologies file, recommended method is to:
 1. `docker pull pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest` if you haven't already
 1. Pull the OpenPedCan repo (should probably make the script more flexible pulling a 12GB repo for such a small task is a bit overkill): https://github.com/PediatricOpenTargets/OpenPedCan-analysis
@@ -294,10 +290,13 @@ optional arguments:
                         tsv file with header and bs_id, sample type, cbio ID mappings
   -v MAF_FILE, --maf-file MAF_FILE
                         openX maf file
+  -s SKIP, --skip SKIP  Skip typical #version header line
+  -n TYPE, --study TYPE
+                        study name, like "openpbta"
 ```
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz`
+`python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz -s 1 -n openpedcan_v11`
 
 #### 3. COLLABORATIONS/openTARGETS/cnv_to_tables.py
 Convert cnv table to cBio format - genes as rows, samples as cols, one for absolute CN, another for GISTIC-style
@@ -312,13 +311,15 @@ optional arguments:
                         tsv file with header and bs_id, sample type, cbio ID mappings
   -c CNV_TBL, --copy-number CNV_TBL
                         openX table
+  -s TYPE, --study TYPE
+                        study name, like "openpbta"
 ```
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/cnv_to_tables.py -m bs_id_sample_map.txt  -c consensus_wgs_plus_cnvkit_wxs.tsv.gz`
+`python3 COLLABORATIONS/openTARGETS/cnv_to_tables.py -m bs_id_sample_map.txt  -c consensus_wgs_plus_cnvkit_wxs.tsv.gz -s openpedcan_v11`
 
 #### 4. COLLABORATIONS/openTARGETS/rename_export_rsem.R
-Note, I merged the tcga into the main rds. I also needed an instance with _64GB ram_ in order to calc z scores
+Note, I merged the tcga into the main rds. I also needed an instance with _64GB ram_ in order to calc z scores. Update: Can also achieve by setting up 32GB swap space 
 ```
 Usage: /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/rename_export_rsem.R [options]
 
@@ -411,8 +412,10 @@ optional arguments:
                         cBio cancer_study_identifier
   -c COHORTS, --cohort-csv COHORTS
                         add a special case for a cohort-specific case list using a csv list and omit from hist split
+  -m SAMP_MIN, --min-sample SAMP_MIN
+                        min number of samples a cohort must have to generate a case list for. recommend 3
 ```
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/case_list_from_datasheet.py -d data_clinical_sample.txt -s ped_opentargets_2021 -c GTEx`
+`python3 COLLABORATIONS/openTARGETS/case_list_from_datasheet.py -d data_clinical_sample.txt -s openpedcan_v11 -c GTEx -m 3`
 
