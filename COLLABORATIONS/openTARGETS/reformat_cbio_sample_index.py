@@ -5,14 +5,14 @@ This is to reduce repeat work
 import argparse
 
 parser = argparse.ArgumentParser(
-    description="Convert openPBTA fusion table OR list of annofuse files to cbio format."
+    description="Reformat sample table to fit unput required for other scripts."
 )
 parser.add_argument(
     "-t",
     "--table",
     action="store",
     dest="table",
-    help="Table with BS ID, samplt type, cBio ID",
+    help="Table with BS ID, sample type, cBio ID",
 )
 parser.add_argument(
     "-n",
