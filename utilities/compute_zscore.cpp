@@ -3,6 +3,7 @@
 #include <fstream>
 #include <thread>
 #include <unistd.h>
+
 using namespace Rcpp;
 
 NumericMatrix compute_write_zscore(NumericMatrix num, int no_threads) ;
@@ -18,14 +19,15 @@ void write_file(NumericMatrix num,std::string output_file_name)
     myfile.open(output_file_name);
     CharacterVector ch = colnames(num);
     CharacterVector ch1 = rownames(num);
+
     myfile <<"Hugo_Symbol"<<"\t";
     for(auto p = ch.begin(); p != ch.end(); ++p){
           myfile << *p<<"\t";
       }
     myfile <<"\n";
-    for(int i =0; i < num.nrow();++i){
-        myfile << ch1[i]<<"\t";
-        for(int j =0; j <  num.ncol();++j ){
+    for(size_t i = 0; i < num.nrow();++i){
+        myfile << ch1(i)<<"\t";
+        for(size_t j = 0; j <  num.ncol();++j ){
             myfile << num(i,j)<<"\t";
           }
         myfile <<"\n";
@@ -62,35 +64,35 @@ void compute_zscore_row(NumericMatrix::Row row)
 // [[Rcpp::export]]
 NumericMatrix compute_write_zscore(NumericMatrix num, int no_threads =1) 
 {
-      std::vector<std::thread*> threads;
-      Rcout<<"Utilizing "<<no_threads<<" threads to compute zscore"<<"\n";
-      for( int i =0; i < num.rows();i+=no_threads){
-          if (i>num.rows()-no_threads) //check for last rows i.e corner case
-          {
-          for (int j=i; j<num.rows();j++)
-          {
-          compute_zscore_row(num( j , _ ));
-        }
+  std::vector<std::thread*> threads;
+  Rcout<<"Utilizing "<<no_threads<<" threads to compute zscore"<<"\n";
+  for(int i = 0; i < num.nrow();i+=no_threads){
+      if (i>num.nrow()-no_threads) //check for last rows i.e corner case
+        {
+          for (size_t j=i; j<num.nrow();j++)
+            {
+            compute_zscore_row(num( j , _ ));
+            }
         break;
+        }
+      for(int jj = 0; jj < no_threads; ++jj) //fire threads
+      {
+            threads.push_back(new std::thread(compute_zscore_row,num(i+jj, _ )));
+            //  Rcout <<i+jj<<"\n";
       }
-  for (int jj =0; jj < no_threads;++jj) //fire threads
-  {
-    threads.push_back(new std::thread(compute_zscore_row,num(i+jj, _ )));
-  //  Rcout <<i+jj<<"\n";
-  }
-  for (int jj =0; jj < no_threads;++jj) // join threads and clean heap
-  {
-      threads.at(jj) -> join();
-      delete threads.at(jj);
-  }    
-  threads.clear(); //clear the vector
-}
-//NumericMatrix::Row  col = num( 0 , _ );
-//for (auto i = col.begin(); i != col.end(); ++i)
-//     Rcout << *i << "\n";
+      for(int jj = 0; jj < no_threads; ++jj) // join threads and clean heap
+      {
+          threads.at(jj) -> join();
+          delete threads.at(jj);
+      }    
+      threads.clear(); //clear the vector
+    }
+  //NumericMatrix::Row  col = num( 0 , _ );
+  //for (auto i = col.begin(); i != col.end(); ++i)
+  //     Rcout << *i << "\n";
 
-//write_file(num,"written.tsv"); //write the num matrix to tsv format
-return num; //return matrix with zscores in it
+  //write_file(num,"written.tsv"); //write the num matrix to tsv format
+  return num; //return matrix with zscores in it
 }
 
 /* keeping it for future
