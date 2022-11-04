@@ -1,10 +1,10 @@
 if(!require(data.table)){install.packages('data.table')}
-if(!require(readr)){install.packages('readr')}
 if(!require(optparse)){install.packages('optparse')}
 if(!require(Rcpp)){install.packages('Rcpp')}
 library("optparse")
 library("data.table")
 library("Rcpp")
+
 sourceCpp('/home/ubuntu/tools/kf-cbioportal-etl/utilities/compute_zscore.cpp') #set path to the cpp file
 
 #process inputs
@@ -41,7 +41,7 @@ rownames(subset_rna) = rownames(rna)
 message("Renaming samples and outputting tpm file")
 setnames(subset_rna, old=as.character(map_ids$BS_ID), new=as.character(map_ids$Cbio.ID), skip_absent=TRUE)
 
-write_tsv(data.frame("Hugo_Symbol"=rownames(subset_rna),subset_rna, check.names = FALSE),paste(opts$type, ".rsem_merged.txt", sep=""), escape="none")
+#write_tsv(data.frame("Hugo_Symbol"=rownames(subset_rna),subset_rna, check.names = FALSE),paste(opts$type, ".rsem_merged.txt", sep=""), escape="none")
 # Get z score of log2 tpm with added pseudocount - round to 4 places as added precision not needed
 
 rm(rna)
@@ -52,6 +52,7 @@ subset_zscore=compute_write_zscore(data.matrix(subset_rna),8) #c++ function to c
 #subset_zscore = round(t(scale(t(log2(subset_rna + 1)))), 4)
 
 rm(subset_rna)
+
 output_file_name=paste(opts$type, ".rsem_merged_zscore.txt", sep="")
 message("Writing zscore to a file")
 write_file(subset_zscore,output_file_name) #function in C++ to write matrix into tsv format with name of the file as output_file_name
