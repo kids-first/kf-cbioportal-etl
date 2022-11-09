@@ -16,19 +16,15 @@ if __name__ == '__main__':
     predicted = pd.read_csv(args.cnvs, sep='\t')
     cbio_ID_DNA=sample_map.loc[sample_map['Sample Type']=='DNA']['Cbio ID']
 
-    #print(len(cbio_ID_DNA))
-    #print(predicted.shape)
-    add=[]
-    a=0
+    common_IDs=[]
     for col in cbio_ID_DNA:
-        a=0
+        check=0
         for row in predicted.columns:
             if row == col:
-                a=1
-        if a!=1:
-            add.append(col)
+                check=1
+        if check!=1:
+            common_IDs.append(col)
             predicted[col]=0
 
-    #print(predicted.shape)
     with open(args.output_file,'w') as write_tsv:
         write_tsv.write(predicted.to_csv(sep='\t', index=False))    
