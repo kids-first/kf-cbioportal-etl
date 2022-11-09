@@ -1,11 +1,14 @@
 if(!require(data.table)){install.packages('data.table')}
 if(!require(optparse)){install.packages('optparse')}
 if(!require(Rcpp)){install.packages('Rcpp')}
+if(!require(funr)){install.packages('funr')}
 library("optparse")
 library("data.table")
 library("Rcpp")
-
-sourceCpp('/home/ubuntu/tools/kf-cbioportal-etl/utilities/compute_zscore.cpp') #set path to the cpp file
+library("funr")
+root_dir <- dirname(dirname(dirname(sys.script()))) #extract the base folder
+path_cpp_file <- file.path(root_dir, "utilities","compute_zscore.cpp") #path to c++ file
+sourceCpp(path_cpp_file) #set path to the cpp file
 
 #process inputs
 option_list <- list(
