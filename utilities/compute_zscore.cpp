@@ -6,6 +6,7 @@
 
 using namespace Rcpp;
 
+//Just declaration of functions similar to header file
 NumericMatrix compute_write_zscore(NumericMatrix num, int no_threads) ;
 void write_file(NumericMatrix num,std::string output_file_name);
 void compute_zscore_row(NumericMatrix::Row row);
