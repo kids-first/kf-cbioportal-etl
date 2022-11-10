@@ -1,8 +1,14 @@
 if(!require(data.table)){install.packages('data.table')}
-if(!require(readr)){install.packages('readr')}
 if(!require(optparse)){install.packages('optparse')}
+if(!require(Rcpp)){install.packages('Rcpp')}
+if(!require(funr)){install.packages('funr')}
 library("optparse")
 library("data.table")
+library("Rcpp")
+library("funr")
+root_dir <- dirname(dirname(dirname(sys.script()))) #extract the base folder
+path_cpp_file <- file.path(root_dir, "utilities","compute_zscore.cpp") #path to c++ file
+sourceCpp(path_cpp_file) #set path to the cpp file
 
 #process inputs
 option_list <- list(
@@ -39,9 +45,20 @@ message("Renaming samples and outputting tpm file")
 subset_rna <- as.data.frame(subset_rna)
 setnames(subset_rna, old=as.character(map_ids$BS_ID), new=as.character(map_ids$Cbio.ID), skip_absent=TRUE)
 
-write_tsv(data.frame("Hugo_Symbol"=rownames(subset_rna),subset_rna, check.names = FALSE),paste(opts$type, ".rsem_merged.txt", sep=""), escape="none")
+#write_tsv(data.frame("Hugo_Symbol"=rownames(subset_rna),subset_rna, check.names = FALSE),paste(opts$type, ".rsem_merged.txt", sep=""), escape="none")
 # Get z score of log2 tpm with added pseudocount - round to 4 places as added precision not needed
+
+rm(rna)
+rm(map_ids)
+
 message("Calculating z scores of log2 tmp + 1")
-subset_zscore = round(t(scale(t(log2(subset_rna + 1)))), 4)
-message("Outputting z scores")
-write_tsv(data.frame("Hugo_Symbol"=rownames(subset_zscore),subset_zscore, check.names = FALSE),paste(opts$type, ".rsem_merged_zscore.txt", sep=""), escape="none")
+
+subset_zscore=compute_write_zscore(data.matrix(subset_rna),8) #c++ function to compute zscores with 8 threads
+#subset_zscore = round(t(scale(t(log2(subset_rna + 1)))), 4)
+
+rm(subset_rna)
+
+output_file_name=paste(opts$type, ".rsem_merged_zscore.txt", sep="")
+message("Writing zscore to a file")
+write_file(subset_zscore,output_file_name) #function in C++ to write matrix into tsv format with name of the file as output_file_name
+#write_tsv(data.frame("Hugo_Symbol"=rownames(subset_zscore),subset_zscore, check.names = FALSE),output_file_name, escape="none")
