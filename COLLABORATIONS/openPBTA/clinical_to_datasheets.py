@@ -70,6 +70,7 @@ parser.add_argument('-f', '--header-file', action='store', dest="head" ,help='ts
                     'names, output sheet flag, and conversion')
 parser.add_argument('-c', '--clinical-data', action='store', dest='clin',
                     help='Input clinical data sheet')
+parser.add_argument('-b', '--blacklist', action='store', dest='blacklist', help='because every club needs a bouncer. Headered tsv file with BS ID and reason')
 parser.add_argument('-p', '--pbta-all-data-sample-sheet', action='store', dest='pbta_ds', help='pbta_all sample sheet to use as sample name source')
 
 
@@ -107,6 +108,13 @@ for line in pbta_ds:
     for bs_id in bs_ids:
         current_samp_id[bs_id] = info[samp_idx]
 
+# added blacklist capability
+blacklist_dict = {}
+if args.blacklist is not None:
+    blacklist = open(args.blacklist)
+    for line in blacklist:
+        info = line.rstrip('\n').split('\t')
+        blacklist_dict[info[0]] = info[1]
 
 clin_data = open(args.clin)
 head = next(clin_data)
@@ -159,6 +167,10 @@ for data in clin_data:
     info = data.rstrip('\n').split('\t')
     if info[s_type] == "Normal":
         continue
+    if info[bs_id] in blacklist_dict:
+        sys.stderr.write('Skipping output of ' + info[bs_id] + ' because in blacklist for reason ' + blacklist_dict[info[bs_id]] + '\n')
+        continue
+
     pt_id = info[header.index("Kids_First_Participant_ID")]
     if pt_id in pt_id_dict:
         pt_id_dict[pt_id] += 1
@@ -189,7 +201,7 @@ for data in clin_data:
             elif header[i] == "tumor_descriptor":
                 if value in tumor_descriptor_dict:
                     value = tumor_descriptor_dict[value]
-            elif header[i] == "parent_aliquot_id":
+            elif header[i] == "sample_id":
                 try:
                     value = current_samp_id[info[bs_id]]
                 except Exception as e:
@@ -204,6 +216,7 @@ for data in clin_data:
                 samp_i += 1
             if h_dict[header[i]][p_idx] == '1' and pt_id_dict[pt_id] == 1:
                 patient_to_print.append(value)
+
     if pt_id_dict[pt_id] == 1:
         patient_out.write("\t".join(patient_to_print) + "\n")
 
