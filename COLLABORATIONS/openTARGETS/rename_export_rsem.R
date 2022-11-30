@@ -45,7 +45,7 @@ message("Renaming samples and outputting tpm file")
 subset_rna <- as.data.frame(subset_rna)
 setnames(subset_rna, old=as.character(map_ids$BS_ID), new=as.character(map_ids$Cbio.ID), skip_absent=TRUE)
 
-#write_tsv(data.frame("Hugo_Symbol"=rownames(subset_rna),subset_rna, check.names = FALSE),paste(opts$type, ".rsem_merged.txt", sep=""), escape="none")
+write_tsv(data.frame("Hugo_Symbol"=rownames(subset_rna),subset_rna, check.names = FALSE),paste(opts$type, ".rsem_merged.txt", sep=""), escape="none")
 # Get z score of log2 tpm with added pseudocount - round to 4 places as added precision not needed
 
 rm(rna)
