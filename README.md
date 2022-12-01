@@ -320,6 +320,7 @@ Example run:
 
 #### 4. COLLABORATIONS/openTARGETS/rename_export_rsem.R
 Note, I merged the tcga into the main rds. I also needed an instance with _64GB ram_ in order to calc z scores. Update: Can also achieve by setting up 32GB swap space 
+Additionally,can also use C++ implementation to speed up zscore computation and save memory. Note: writing in C++ is slower than write_tsv function in R but have less memory footprint.
 ```
 Usage: /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/rename_export_rsem.R [options]
 
@@ -334,11 +335,14 @@ Options:
 	--type=TYPE
 		study name, like 'openpbta'
 
+	--computeZscore=R/C++
+		Implementation to use C++ or R to compute zscore and write a tsv file
+
 	-h, --help
 		Show this help message and exit
 ```
 Example run:
-`Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v11 2> rna_convert.errs`
+`Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v11 --computeZscore R 2> rna_convert.errs`
 
 #### 5a. scripts/rna_convert_fusion.py
 Before running, to leverage an existing fusion conversion, I first ran:
