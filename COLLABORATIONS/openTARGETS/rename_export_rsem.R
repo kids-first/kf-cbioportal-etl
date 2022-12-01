@@ -2,10 +2,12 @@ if(!require(data.table)){install.packages('data.table')}
 if(!require(optparse)){install.packages('optparse')}
 if(!require(Rcpp)){install.packages('Rcpp')}
 if(!require(funr)){install.packages('funr')}
+if(!require(readr)){install.packages('readr')}
 library("optparse")
 library("data.table")
 library("Rcpp")
 library("funr")
+library("readr") #required for write_tsv function
 root_dir <- dirname(dirname(dirname(sys.script()))) #extract the base folder
 path_cpp_file <- file.path(root_dir, "utilities","compute_zscore.cpp") #path to c++ file
 sourceCpp(path_cpp_file) #set path to the cpp file
@@ -26,6 +28,12 @@ option_list <- list(
     opt_str = "--type",
     type = "character",
     help = "study name, like 'openpbta'"
+  ),
+  make_option(
+    opt_str = "--computeZscore",
+    type = "character",
+    default = "None", 
+    help = "Use C++ Method to compute zscore and write file. Usage: C++ or R"
   )
 )
 #parse options
@@ -48,17 +56,22 @@ setnames(subset_rna, old=as.character(map_ids$BS_ID), new=as.character(map_ids$C
 write_tsv(data.frame("Hugo_Symbol"=rownames(subset_rna),subset_rna, check.names = FALSE),paste(opts$type, ".rsem_merged.txt", sep=""), escape="none")
 # Get z score of log2 tpm with added pseudocount - round to 4 places as added precision not needed
 
-rm(rna)
-rm(map_ids)
-
-message("Calculating z scores of log2 tmp + 1")
-
-subset_zscore=compute_write_zscore(data.matrix(subset_rna),8) #c++ function to compute zscores with 8 threads
-#subset_zscore = round(t(scale(t(log2(subset_rna + 1)))), 4)
-
-rm(subset_rna)
+rm(rna) #clean the memory footprint
+rm(map_ids) 
 
 output_file_name=paste(opts$type, ".rsem_merged_zscore.txt", sep="")
-message("Writing zscore to a file")
-write_file(subset_zscore,output_file_name) #function in C++ to write matrix into tsv format with name of the file as output_file_name
-#write_tsv(data.frame("Hugo_Symbol"=rownames(subset_zscore),subset_zscore, check.names = FALSE),output_file_name, escape="none")
+if(opts$computeZscore =="C++"){
+	message("Calculating z scores of log2 tmp + 1 with C++")	
+	subset_zscore=compute_write_zscore(data.matrix(subset_rna),8) #c++ function to compute zscores with 8 threads
+	rm(subset_rna)
+	message("Writing zscore to a file with C++")
+	write_file(subset_zscore,output_file_name) #function in C++ to write matrix into tsv format with name of the file as output_file_name
+} else if(opts$computeZscore =="R") {
+	message("Calculating z scores of log2 tmp + 1")
+	subset_zscore = round(t(scale(t(log2(subset_rna + 1)))), 4)
+	rm(subset_rna)
+	message("Writing zscore to a file")
+	write_tsv(data.frame("Hugo_Symbol"=rownames(subset_zscore),subset_zscore, check.names = FALSE),output_file_name, escape="none")
+} else {
+	stop("Either computeZscore flag is not setup or invalid input argument to computeZscore flag. Allowed arguments are C++ or R") 
+}
