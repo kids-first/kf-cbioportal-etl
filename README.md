@@ -334,6 +334,9 @@ Options:
 	--type=TYPE
 		study name, like 'openpbta'
 
+	--computeZscore=R/C++
+		Implementation to use C++ or R to compute zscore and write a tsv file
+
 	-h, --help
 		Show this help message and exit
 ```
