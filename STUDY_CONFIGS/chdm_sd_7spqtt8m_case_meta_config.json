@@ -220,7 +220,7 @@
         "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
         "manifests": {
             "chdm_sd_7spqtt8m": {
-                "table": "bix_workflows.temp_chordoma_genomics_file_manifest",
+                "table": "bix_workflows.chdm_sd_7spqtt8m_cbio_manifest",
                 "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","mutect2_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
                 "out_file": "chdm_sd_7spqtt8m_genomics_file_manifest.txt"
             }

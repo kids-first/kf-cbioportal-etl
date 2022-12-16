@@ -7,21 +7,14 @@ import concurrent.futures
 import urllib3
 import os
 import pandas as pd
+import sevenbridges as sbg
+from sevenbridges.errors import SbgError
+from sevenbridges.http.error_handlers import rate_limit_sleeper, maintenance_sleeper
+import pdb
 
 
-def mt_type_download(file_type):
-    """
-    Download files from each desired file type at the same time
-    """
-    sys.stderr.write("Downloading " + file_type + " files\n")
-    sys.stderr.flush()
+def download_aws(file_type):
     sub_file_list = list(selected.loc[selected["file_type"] == file_type, "s3_path"])
-    try:
-        os.mkdir(file_type)
-    except Exception as e:
-        sys.stderr.write(
-            str(e) + " error while making directory for " + file_type + "\n"
-        )
     for loc in sub_file_list:
         out = file_type + "/" + loc.split("/")[-1]
         parse_url = urllib3.util.parse_url(loc)
@@ -34,6 +27,39 @@ def mt_type_download(file_type):
             sys.stderr.flush()
     sys.stderr.write("Completed downloading files for " + file_type + "\n")
     sys.stderr.flush()
+
+
+def download_sbg(file_type):
+    sub_file_list = list(selected.loc[selected["file_type"] == file_type, "file_id"])
+    for loc in sub_file_list:
+        try:
+            sbg_file = api.files.get(loc)
+        except Exception as e:
+            sys.stderr.write('Failed to get file with id ' + loc + '\n')
+            sys.stderr.write(str(e) + '\n')
+            exit(1)
+        out = file_type + "/" + sbg_file.name
+        dl = sbg_file.download(out)
+
+    return 0
+
+
+def mt_type_download(file_type):
+    """
+    Download files from each desired file type at the same time
+    """
+    sys.stderr.write("Downloading " + file_type + " files\n")
+    sys.stderr.flush()
+    try:
+        os.mkdir(file_type)
+    except Exception as e:
+        sys.stderr.write(
+            str(e) + " error while making directory for " + file_type + "\n"
+        )
+    if args.profile:
+        download_aws(file_type)
+    else:
+        download_sbg(file_type)
 
 
 parser = argparse.ArgumentParser(description="Get all files for a project.")
@@ -52,8 +78,12 @@ parser.add_argument(
     help="csv list of workflow types to download",
 )
 parser.add_argument(
-    "-p", "--profile", action="store", dest="profile", help="aws profile name"
+    "-p", "--profile", action="store", dest="profile", help="aws profile name. Leave blank if using sbg instead"
 )
+parser.add_argument(
+    "-s", "--sbg-profile", action="store", dest="sbg_profile", help="sbg profile name. Leave blank if using AWS instead"
+)
+
 
 args = parser.parse_args()
 # concat multiple possible manifests
@@ -85,9 +115,17 @@ out_file = "manifest_subset.tsv"
 selected.to_csv(out_file, sep="\t", mode="w", index=False)
 
 # download files by type
-session = boto3.Session(profile_name=args.profile)
-dl_client = session.client("s3")
-# pdb.set_trace()
+if args.profile is not None:
+    session = boto3.Session(profile_name=args.profile)
+    dl_client = session.client("s3")
+elif args.sbg_profile is not None:
+    config = sbg.Config(profile=args.sbg_profile)
+    api = sbg.Api(config=config, error_handlers=[rate_limit_sleeper, maintenance_sleeper])
+else:
+    sys.stderr.write("Pleaes set one of profile or sbg_profile\n")
+    exit(1)
 
 with concurrent.futures.ThreadPoolExecutor(16) as executor:
     results = {executor.submit(mt_type_download, ftype): ftype for ftype in file_types}
+# for ftype in file_types:
+#     mt_type_download(ftype)
