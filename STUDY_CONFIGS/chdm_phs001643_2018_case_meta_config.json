@@ -166,13 +166,13 @@
     },
     "study": {
         "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
-        "description": "Disease models, including cell lines and xenograft models, are crucial resources needed for research to understand chordoma biology and identify new treatment strategies. In the past, lack of access to these models posed a major barrier to advancing chordoma research and prevented many researchers from entering the field. To overcome this barrier, the <a href=\"http://cbtn.org\">Chordoma Foundation</a> invests in developing new models and operates repositories to make them easily accessible to the research community. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
+        "description": "In this study, we performed paired tumor/normal whole exome and shallow long insert whole genome sequencing, as well as tumor RNAseq, from archival chordoma specimens collected from four patients at the Barrow Neurological Institute in Phoenix, AZ. The purpose of this analysis was to identify potential therapeutic targets. In three patients, we observed that although different DNA and RNA changes were present in each tumor, alterations fell on converging pathways. In the fourth patient, constitutional DNA demonstrated potentially pathogenic alterations that may have predisposed the patient to chordoma. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
-        "cancer_study_identifier": "chdm_sd_7spqtt8m",
+        "cancer_study_identifier": "chdm_phs001643_2018",
         "type_of_cancer": "chdm",
-        "short_name": "chdm_sd_7spqtt8m",
+        "short_name": "chdm_phs001643_2018",
         "reference_genome": "hg38",
-        "display_name": "Chordoma Foundation Disease Models (Chordoma Foundation, Provisional)"
+        "display_name": "Genomic and transcriptomic characterization of chordoma (phs001643, Provisional)"
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",
@@ -219,32 +219,32 @@
     "database_pulls": {
         "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
         "manifests": {
-            "chdm_sd_7spqtt8m": {
-                "table": "bix_workflows.chdm_sd_7spqtt8m_cbio_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","mutect2_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "chdm_sd_7spqtt8m_genomics_file_manifest.txt"
+            "chdm_phs001643_2018": {
+                "table": "bix_workflows.chdm_phs001643_2018_cbio_file_manifest",
+                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
+                "out_file": "chdm_phs001643_2018_genomics_file_manifest.txt"
             }
         },
         "sample_head": {
             "table": "bix_workflows.data_clinical_sample_header"
         },
         "sample_file": {
-            "table": "brownm28_dev_schema_cbio.chdm_sd_7spqtt8m_data_clinical_sample",
+            "table": "brownm28_dev_schema_cbio.chdm_phs001643_2018_data_clinical_sample",
             "out_file": "data_clinical_sample.txt"
         },
         "patient_head": {
             "table": "bix_workflows.data_clinical_patient_header"
         },
         "patient_file": {
-            "table": "brownm28_dev_schema_cbio.chdm_sd_7spqtt8m_data_clinical_patient",
+            "table": "brownm28_dev_schema_cbio.chdm_phs001643_2018_data_clinical_patient",
             "out_file": "data_clinical_patient.txt"
         },
         "genomics_etl": {
-            "table": "brownm28_dev_schema_cbio.chdm_sd_7spqtt8m_genomics_etl_file",
+            "table": "brownm28_dev_schema_cbio.chdm_phs001643_2018_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
         },
         "seq_center": {
-            "table": "brownm28_dev_schema_cbio.chdm_sd_7spqtt8m_sq_info_etl_resource",
+            "table": "brownm28_dev_schema_cbio.chdm_phs001643_2018_sq_info_etl_resource",
             "out_file": "seq_center_resource.txt"
         }
     }

@@ -54,8 +54,19 @@ processed
     ├── meta_rna_seq_v2_mrna_median_Zscores.txt
     └── meta_study.txt
 ```
-## Details
-Use this section as a reference in case your overconfidence got the best of you.
+# Details
+Use this section as a reference in case your overconfidence got the best of you
+
+## REFS
+In case you want to use different reference inputs...
+ - From data_processing_config.json `bed_genes`:
+   - This is used to collate ControlFreeC results into gene hits
+   - For VEP 105, gtf was downloaded from `https://ftp.ensembl.org/pub/release-105/gtf/homo_sapiens/Homo_sapiens.GRCh38.105.chr.gtf.gz`
+   - Then, using bedops and a perl-one-liner: 
+   ```sh
+   cat Homo_sapiens.GRCh38.105.chr.gtf | perl -e 'while(<>){@a=split /\t/; if($a[2] eq "gene" && $a[8] =~ /gene_name/){print $_;}}'  | convert2bed -i gtf --attribute-key=gene_name  > Homo_sapiens.GRCh38.105.chr.gtf_genes.bed
+   ```
+
 ## Software Prerequisites
 
 + `python3` v3.5.3+
