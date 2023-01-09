@@ -37,15 +37,12 @@ def download_sbg(file_type):
         except Exception as e:
             sys.stderr.write('Failed to get file with id ' + loc + '\n')
             sys.stderr.write(str(e) + '\n')
-            exit(1)
         out = file_type + "/" + sbg_file.name
         try:
             sbg_file.download(out)
         except Exception as e:
             sys.stderr.write('Failed to download file with id ' + loc + '\n')
             sys.stderr.write(str(e) + '\n')
-            exit(1)
-
     return 0
 
 
