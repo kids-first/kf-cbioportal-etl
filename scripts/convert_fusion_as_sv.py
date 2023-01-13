@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 This is a beta script for converting our current fusion inputs into the new cBio SV format.
-However, the front end support is not complete, so this will not be used until it is.
+For repeat rows (same breakpoint in a sample, different callers), ARRIBA annot is used with cieling of mean for counts used
 """
 
 
@@ -9,8 +9,10 @@ import sys
 import argparse
 import os
 import pandas as pd
+import numpy as np
 import pyranges
 import csv
+import pdb
 
 
 if __name__ == "__main__":
@@ -74,27 +76,40 @@ if __name__ == "__main__":
                 "Caller"
                 ]
         ]
+        # Sort as a cheat to easily select preferred annot later
+        fusion_data = fusion_data.sort_values(["Sample", "LeftBreakpoint", "RightBreakpoint", "Caller"])
         del concat_frame
-        fusion_data = (
-            fusion_data.groupby([
-                "Sample",
-                "Gene1A",
-                "LeftBreakpoint",
-                "Gene1B",
-                "RightBreakpoint",
-                "Fusion_Type",
-                "JunctionReadCount",
-                "SpanningFragCount",
-                "annots",
-                "FusionName",
-                "Fusion_anno",])[
-                "Caller"
-            ]
-            .apply(", ".join)
-            .reset_index()
+        pdb.set_trace()
+        # Merge rows that have the exact same fusion from different callers - thanks Natasha!
+        key_cols = ["Sample","Gene1A","LeftBreakpoint","Gene1B","RightBreakpoint","Fusion_Type","FusionName","Fusion_anno"]
+        fusion_data["groupby_key"] = fusion_data.apply(
+           lambda row: "\t".join([str(row[col]) for col in key_cols]), 
+            axis=1
         )
-        fusion_data["Caller"] = fusion_data["Caller"].str.upper()
-        return fusion_data
+        # "JunctionReadCount","SpanningFragCount","annots"
+        collapsed_list = []
+        
+        for g in fusion_data.groupby(by="groupby_key"):
+            values, df_group = g
+            df_group["Caller"] = ",".join(set(df_group["Caller"].tolist()))
+            df_group["JunctionReadCount"] = df_group["JunctionReadCount"].mean()
+            df_group["SpanningFragCount"] = df_group["SpanningFragCount"].mean()
+            # Go with the cieling of the mean
+            df_group["JunctionReadCount"] = df_group["JunctionReadCount"].apply(np.ceil)
+            df_group["SpanningFragCount"] = df_group["SpanningFragCount"].apply(np.ceil)
+
+            collapsed_list.append(df_group[key_cols + [ "JunctionReadCount","SpanningFragCount","annots", "Caller"]].head(1))
+        fusion_data_collapsed = pd.concat(collapsed_list)
+        # Should be int
+        fusion_data_collapsed["JunctionReadCount"] = fusion_data_collapsed["JunctionReadCount"].astype(int)
+        fusion_data_collapsed["SpanningFragCount"] = fusion_data_collapsed["SpanningFragCount"].astype(int)
+
+        del collapsed_list
+        pdb.set_trace()
+        del fusion_data
+
+        fusion_data_collapsed["Caller"] = fusion_data_collapsed["Caller"].str.upper()
+        return fusion_data_collapsed
 
     out_dir = args.out_dir
     try:
@@ -135,8 +150,10 @@ if __name__ == "__main__":
         },
         inplace=True
     )
+    
     # Fill in some defaults
-    cbio_master['Class'] = "FUSION"
+    cbio_master["Class"] = "FUSION"
+    cbio_master["SV_Status"] = "SOMATIC"
     cbio_master["Site1_Ensembl_Transcript_Id"] = ""
     cbio_master["Site1_Entrez_Gene_Id"] = ""
     cbio_master["Site1_Exon"] = ""
@@ -161,6 +178,7 @@ if __name__ == "__main__":
     # Reorder table
     order_list = [
         "Sample_ID",
+        "SV_Status",
         "Site1_Hugo_Symbol",
         "Site1_Entrez_Gene_Id",
         "Site1_Ensembl_Transcript_Id",
@@ -181,7 +199,8 @@ if __name__ == "__main__":
         "Connection_Type",
         "Event_Info",
         "Class",
-        "External_Annotation"
+        "External_Annotation",
+        "Comments"
     ]
     cbio_master = cbio_master[order_list]
     # cbio_master.set_index("Sample_ID", inplace=True)
