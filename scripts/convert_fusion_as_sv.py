@@ -94,15 +94,14 @@ if __name__ == "__main__":
             # Go with the cieling of the mean
             df_group["JunctionReadCount"] = df_group["JunctionReadCount"].apply(np.ceil)
             df_group["SpanningFragCount"] = df_group["SpanningFragCount"].apply(np.ceil)
-
             collapsed_list.append(df_group[key_cols + [ "JunctionReadCount","SpanningFragCount","annots", "Fusion_Type", "Caller"]].head(1))
+        del fusion_data
         fusion_data_collapsed = pd.concat(collapsed_list)
+        del collapsed_list
         # Should be int
         fusion_data_collapsed["JunctionReadCount"] = fusion_data_collapsed["JunctionReadCount"].astype(int)
         fusion_data_collapsed["SpanningFragCount"] = fusion_data_collapsed["SpanningFragCount"].astype(int)
 
-        del collapsed_list
-        del fusion_data
 
         fusion_data_collapsed["Caller"] = fusion_data_collapsed["Caller"].str.upper()
         return fusion_data_collapsed
