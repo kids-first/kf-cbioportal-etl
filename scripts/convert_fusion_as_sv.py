@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 This is a beta script for converting our current fusion inputs into the new cBio SV format.
-However, the front end support is not complete, so this will not be used until it is.
+For repeat rows (same breakpoint in a sample, different callers), ARRIBA annot is used with cieling of mean for counts used
 """
 
 
@@ -9,7 +9,7 @@ import sys
 import argparse
 import os
 import pandas as pd
-import pyranges
+import numpy as np
 import csv
 
 
@@ -74,27 +74,37 @@ if __name__ == "__main__":
                 "Caller"
                 ]
         ]
+        # Sort as a cheat to easily select preferred annot later
+        fusion_data = fusion_data.sort_values(["Sample", "LeftBreakpoint", "RightBreakpoint", "Caller"])
         del concat_frame
-        fusion_data = (
-            fusion_data.groupby([
-                "Sample",
-                "Gene1A",
-                "LeftBreakpoint",
-                "Gene1B",
-                "RightBreakpoint",
-                "Fusion_Type",
-                "JunctionReadCount",
-                "SpanningFragCount",
-                "annots",
-                "FusionName",
-                "Fusion_anno",])[
-                "Caller"
-            ]
-            .apply(", ".join)
-            .reset_index()
+        # Merge rows that have the exact same fusion from different callers - thanks Natasha!
+        key_cols = ["Sample","Gene1A","LeftBreakpoint","Gene1B","RightBreakpoint","FusionName","Fusion_anno"]
+        fusion_data["groupby_key"] = fusion_data.apply(
+           lambda row: "\t".join([str(row[col]) for col in key_cols]), 
+            axis=1
         )
-        fusion_data["Caller"] = fusion_data["Caller"].str.upper()
-        return fusion_data
+        # "JunctionReadCount","SpanningFragCount","annots"
+        collapsed_list = []
+        
+        for g in fusion_data.groupby(by="groupby_key"):
+            values, df_group = g
+            df_group["Caller"] = ",".join(set(df_group["Caller"].tolist()))
+            df_group["JunctionReadCount"] = df_group["JunctionReadCount"].mean()
+            df_group["SpanningFragCount"] = df_group["SpanningFragCount"].mean()
+            # Go with the cieling of the mean
+            df_group["JunctionReadCount"] = df_group["JunctionReadCount"].apply(np.ceil)
+            df_group["SpanningFragCount"] = df_group["SpanningFragCount"].apply(np.ceil)
+            collapsed_list.append(df_group[key_cols + [ "JunctionReadCount","SpanningFragCount","annots", "Fusion_Type", "Caller"]].head(1))
+        del fusion_data
+        fusion_data_collapsed = pd.concat(collapsed_list)
+        del collapsed_list
+        # Should be int
+        fusion_data_collapsed["JunctionReadCount"] = fusion_data_collapsed["JunctionReadCount"].astype(int)
+        fusion_data_collapsed["SpanningFragCount"] = fusion_data_collapsed["SpanningFragCount"].astype(int)
+
+
+        fusion_data_collapsed["Caller"] = fusion_data_collapsed["Caller"].str.upper()
+        return fusion_data_collapsed
 
     out_dir = args.out_dir
     try:
@@ -122,7 +132,7 @@ if __name__ == "__main__":
 
     cbio_master.rename(
         columns={
-            "Sample": "Sample_ID",
+            "Sample": "Sample_Id",
             "Gene1A": "Site1_Hugo_Symbol",
             "Gene1B": "Site2_Hugo_Symbol",
             "Fusion_Type": "Site2_Effect_On_Frame",
@@ -135,8 +145,10 @@ if __name__ == "__main__":
         },
         inplace=True
     )
+    
     # Fill in some defaults
-    cbio_master['Class'] = "FUSION"
+    cbio_master["Class"] = "FUSION"
+    cbio_master["SV_Status"] = "SOMATIC"
     cbio_master["Site1_Ensembl_Transcript_Id"] = ""
     cbio_master["Site1_Entrez_Gene_Id"] = ""
     cbio_master["Site1_Exon"] = ""
@@ -145,22 +157,20 @@ if __name__ == "__main__":
     cbio_master["Site2_Exon"] = ""
     cbio_master["NCBI_Build"] = "GRCh38"
     cbio_master["Connection_Type"] = "5to3"
+    cbio_master["RNA_Support"] = "Yes"
     # Split some columns that have 2 cols worth of info
     cbio_master[['Site1_Chromosome','Site1_Position']] = cbio_master.LeftBreakpoint.str.split(":", expand=True)
     cbio_master[['Site2_Chromosome','Site2_Position']] = cbio_master.RightBreakpoint.str.split(":", expand=True)
-    # cbio_master['Class'] = cbio_master.Annotation.str.split("],").str[1]
-    # cbio_master['Annotation'] = cbio_master.Annotation.str.split("],").str[0]
     # Reformat values to fit needs to be ALL CAPS, replace - with _, remove weird chars
     cbio_master["Site2_Effect_On_Frame"] = cbio_master["Site2_Effect_On_Frame"].str.upper()
     cbio_master['Site2_Effect_On_Frame'] = cbio_master['Site2_Effect_On_Frame'].str.replace('-','_')
-    # cbio_master.loc[cbio_master["Annotation"] == "[", "Annotation"] = "NA"
-    # cbio_master['Class'] = cbio_master['Class'].str.upper()
     # Drop unneeded cols
     cbio_master.drop(['LeftBreakpoint', 'RightBreakpoint'], axis=1, inplace=True)
 
     # Reorder table
     order_list = [
-        "Sample_ID",
+        "Sample_Id",
+        "SV_Status",
         "Site1_Hugo_Symbol",
         "Site1_Entrez_Gene_Id",
         "Site1_Ensembl_Transcript_Id",
@@ -178,29 +188,21 @@ if __name__ == "__main__":
         "Tumor_Read_Count",
         "Tumor_Split_Read_Count",
         "Annotation",
+        "RNA_Support",
         "Connection_Type",
         "Event_Info",
         "Class",
-        "External_Annotation"
+        "External_Annotation",
+        "Comments"
     ]
     cbio_master = cbio_master[order_list]
-    # cbio_master.set_index("Sample_ID", inplace=True)
+    # cbio_master.set_index("Sample_Id", inplace=True)
     for project in project_list:
         sub_sample_list = list(
             rna_subset.loc[rna_subset["Cbio_project"] == project, "Cbio_Tumor_Name"]
         )
         fus_fname = out_dir + project + ".fusions.txt"
-        fus_tbl = cbio_master[cbio_master.Sample_ID.isin(sub_sample_list)]
+        fus_tbl = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]
         fus_tbl.fillna("NA", inplace=True)
-        fus_tbl.set_index("Sample_ID", inplace=True)
-        # fus_head = "\t".join(fus_tbl.columns) + "\n"
-        # fus_file.write(fus_head)
-        # fus_data = list(fus_tbl.values)
-        # # "hack" to allow 3' end of fusion to be searched
-        # for data in fus_data:
-        #     fus_file.write("\t".join(data) + "\n")
-        #     (a, b) = data[4].split("--")
-        #     if a != b:
-        #         data[0] = b
-        #         fus_file.write("\t".join(data) + "\n")
+        fus_tbl.set_index("Sample_Id", inplace=True)
         fus_tbl.to_csv(fus_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
