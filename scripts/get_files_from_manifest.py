@@ -119,7 +119,7 @@ selected = selected[~filter]
 out_file = "manifest_subset.tsv"
 selected.to_csv(out_file, sep="\t", mode="w", index=False)
 
-err_types = { 'aws download': 0, 'sbg get': 0, 'sbg_download': 0 }
+err_types = { 'aws download': 0, 'sbg get': 0, 'sbg download': 0 }
 # download files by type
 if args.profile is not None:
     session = boto3.Session(profile_name=args.profile)
