@@ -25,6 +25,7 @@ def download_aws(file_type):
         except Exception as e:
             sys.stderr.write(str(e) + " could not download from " + loc + "\n")
             sys.stderr.flush()
+            err_types['aws download'] += 1
     sys.stderr.write("Completed downloading files for " + file_type + "\n")
     sys.stderr.flush()
 
@@ -37,10 +38,12 @@ def download_sbg(file_type):
         except Exception as e:
             sys.stderr.write('Failed to get file with id ' + loc + '\n')
             sys.stderr.write(str(e) + '\n')
+            err_types['sbg get'] += 1
         out = file_type + "/" + sbg_file.name
         try:
             sbg_file.download(out)
         except Exception as e:
+            err_types['sbg download'] += 1
             sys.stderr.write('Failed to download file with id ' + loc + '\n')
             sys.stderr.write(str(e) + '\n')
     return 0
@@ -116,6 +119,7 @@ selected = selected[~filter]
 out_file = "manifest_subset.tsv"
 selected.to_csv(out_file, sep="\t", mode="w", index=False)
 
+err_types = { 'aws download': 0, 'sbg get': 0, 'sbg_download': 0 }
 # download files by type
 if args.profile is not None:
     session = boto3.Session(profile_name=args.profile)
@@ -129,5 +133,13 @@ else:
 
 with concurrent.futures.ThreadPoolExecutor(16) as executor:
     results = {executor.submit(mt_type_download, ftype): ftype for ftype in file_types}
+
+flag = 0
+for key in err_types:
+    if err_types[key]:
+        flag += err_types[key]
+        sys.stderr.write("ERROR: " + str(err_types[key]) + " " + key + " failure(s) occurred\n")
+if flag:
+    exit(1)
 # for ftype in file_types:
 #     mt_type_download(ftype)
