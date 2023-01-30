@@ -90,13 +90,13 @@
         "dtypes": {
             "fusion": {
                 "ext": "fusions.txt",
-                "cbio_name": "data_fusions.txt",
+                "cbio_name": "data_sv.txt",
                 "meta_file_attr": {
                     "stable_id": "fusion",
                     "profile_name": "Predicted RNA fusions",
                     "profile_description": "Fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse.",
-                    "genetic_alteration_type": "FUSION",
-                    "datatype": "FUSION",
+                    "genetic_alteration_type": "STRUCTURAL_VARIANT",
+                    "datatype": "SV",
                     "show_profile_in_analysis_tab": "true"
                 }
             }
