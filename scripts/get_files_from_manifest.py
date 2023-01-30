@@ -88,6 +88,9 @@ parser.add_argument(
 parser.add_argument(
     "-s", "--sbg-profile", action="store", dest="sbg_profile", help="sbg profile name. Leave blank if using AWS instead"
 )
+parser.add_argument(
+    "-a", "--active-only", default=False, action="store_true", dest="active_only", help="Set to grab only active files. Recommended."
+)
 
 
 args = parser.parse_args()
@@ -111,6 +114,9 @@ sys.stderr.flush()
 # change col names to lower case for input compatibility
 manifest_concat.columns = manifest_concat.columns.str.lower()
 selected = manifest_concat[manifest_concat["file_type"].isin(file_types)]
+# if active only flag set, further subset
+if args.active_only:
+    selected = selected[selected["status"] == 'active']
 # remove vcfs as we only want mafs
 pattern_del = ".vcf.gz"
 filter = selected["file_name"].str.contains(pattern_del)
@@ -128,7 +134,7 @@ elif args.sbg_profile is not None:
     config = sbg.Config(profile=args.sbg_profile)
     api = sbg.Api(config=config, error_handlers=[rate_limit_sleeper, maintenance_sleeper])
 else:
-    sys.stderr.write("Pleaes set one of profile or sbg_profile\n")
+    sys.stderr.write("Please set one of profile or sbg_profile\n")
     exit(1)
 
 with concurrent.futures.ThreadPoolExecutor(16) as executor:
