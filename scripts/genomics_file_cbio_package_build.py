@@ -213,7 +213,7 @@ parser.add_argument(
     "--data-config",
     action="store",
     dest="data_config",
-    help="json config file with data types and " "data locations",
+    help="json config file with data types and data locations",
 )
 parser.add_argument(
     "-f",
@@ -277,9 +277,7 @@ for key in config_meta_case:
                 if not args.legacy:
                     exit_status = process_kf_fusion(
                         config_data["file_loc_defs"]["fusion"],
-                        args.table,
-                        config_data["file_loc_defs"]["fusion_sq_file"],
-                    )
+                        args.table                    )
                 else:
                     exit_status = process_kf_fusion_legacy(
                         config_data["file_loc_defs"]["fusion"],

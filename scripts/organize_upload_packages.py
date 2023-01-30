@@ -182,7 +182,11 @@ def create_case_lists(data_dict, output_dir):
         fusion_file = open(fusion_fname)
         head = next(fusion_file)
         header = head.rstrip("\n").split("\t")
-        s_idx = header.index("Tumor_Sample_Barcode")
+        # Flag to get samples names depending if source is legacy or current
+        sample_id_colname = "Sample_Id"
+        if args.legacy:
+            sample_id_colname = "Tumor_Sample_Barcode"
+        s_idx = header.index(sample_id_colname)
         for line in fusion_file:
             data = line.rstrip("\n").split("\t")
             fusion_list.append(data[s_idx])
@@ -218,6 +222,15 @@ parser.add_argument(
     dest="config_file",
     help="json config file with meta information; see REFS/case_meta_config.json example",
 )
+parser.add_argument(
+    "-l",
+    "--legacy",
+    default=False,
+    action="store_true",
+    dest="legacy",
+    help="If set, will run legacy fusion output",
+)
+
 args = parser.parse_args()
 
 cwd = os.getcwd() + "/"
