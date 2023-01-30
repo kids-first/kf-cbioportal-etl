@@ -133,9 +133,22 @@ def process_rsem(rsem_dir, cbio_id_table):
     return status
 
 
-def process_kf_fusion(fusion_dir, cbio_id_table, sq_file):
+def process_kf_fusion(fusion_dir, cbio_id_table):
     """
     Collate and process annoFuse output
+    """
+    sys.stderr.write("Processing KF fusion calls\n")
+    fusion_cmd = "{}convert_fusion_as_sv.py -t {} -f {} 2> convert_fusion_as_sv.log".format(
+        script_dir, cbio_id_table, fusion_dir
+    )
+    log_cmd(fusion_cmd)
+    status = subprocess.call(fusion_cmd, shell=True)
+    return status
+
+
+def process_kf_fusion_legacy(fusion_dir, cbio_id_table, sq_file):
+    """
+    Collate and process annoFuse output using deprecated format
     """
     sys.stderr.write("Processing KF fusion calls\n")
     fusion_cmd = "{}rna_convert_fusion.py -t {} -f {} -m annofuse -s {} 2> rna_convert_fusion.log".format(
@@ -213,6 +226,14 @@ parser.add_argument(
     nargs="?",
     choices=["both", "kf", "dgd"],
 )
+parser.add_argument(
+    "-l",
+    "--legacy",
+    default=False,
+    action="store_true",
+    dest="legacy",
+    help="If set, will run legacy fusion output",
+)
 
 
 args = parser.parse_args()
@@ -253,11 +274,19 @@ for key in config_meta_case:
         elif data_type == "fusion":
             # Status both works for...both, only when one is specifically picked should one not be run
             if args.dgd_status != "dgd":
-                exit_status = process_kf_fusion(
-                    config_data["file_loc_defs"]["fusion"],
-                    args.table,
-                    config_data["file_loc_defs"]["fusion_sq_file"],
-                )
+                if not args.legacy:
+                    exit_status = process_kf_fusion(
+                        config_data["file_loc_defs"]["fusion"],
+                        args.table,
+                        config_data["file_loc_defs"]["fusion_sq_file"],
+                    )
+                else:
+                    exit_status = process_kf_fusion_legacy(
+                        config_data["file_loc_defs"]["fusion"],
+                        args.table,
+                        config_data["file_loc_defs"]["fusion_sq_file"],
+                    )
+
                 check_status(exit_status, "kf fusions", "rna_convert_fusion.log")
             if args.dgd_status != "kf":
                 exit_status = process_dgd_fusion(
