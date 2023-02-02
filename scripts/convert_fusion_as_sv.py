@@ -11,6 +11,7 @@ import os
 import pandas as pd
 import numpy as np
 import csv
+import pdb
 
 
 if __name__ == "__main__":
@@ -39,27 +40,68 @@ if __name__ == "__main__":
         default="merged_fusion/",
         help="Result output dir. Default is merged_fusion",
     )
+    parser.add_argument(
+        "-m",
+        "--mode",
+        action="store",
+        dest="mode",
+        help="describe source, openX or kfprod",
+        required=True,
+    )
     args = parser.parse_args()
+    if args.mode != "openX" and args.mode != "kfprod":
+        sys.stderr.write(
+            "-m mode argument must be one of openX or kfprod. It is case sensitive. You put "
+            + args.mode
+            + "\n"
+        )
+        exit(1)
 
-    def init_cbio_master(fusion_results, rna_metadata):
+
+    def collapse_and_format(fusion_data):
+            # Sort as a cheat to easily select preferred annot later
+            fusion_data = fusion_data.sort_values(["Sample", "LeftBreakpoint", "RightBreakpoint", "Caller"])
+            del concat_frame
+            # Merge rows that have the exact same fusion from different callers - thanks Natasha!
+            key_cols = ["Sample","Gene1A","LeftBreakpoint","Gene1B","RightBreakpoint","FusionName","Fusion_anno"]
+            fusion_data["groupby_key"] = fusion_data.apply(
+            lambda row: "\t".join([str(row[col]) for col in key_cols]), 
+                axis=1
+            )
+            # "JunctionReadCount","SpanningFragCount","annots"
+            collapsed_list = []
+            
+            for g in fusion_data.groupby(by="groupby_key"):
+                values, df_group = g
+                df_group["Caller"] = ",".join(set(df_group["Caller"].tolist()))
+                df_group["JunctionReadCount"] = df_group["JunctionReadCount"].mean()
+                df_group["SpanningFragCount"] = df_group["SpanningFragCount"].mean()
+                # Go with the cieling of the mean
+                df_group["JunctionReadCount"] = df_group["JunctionReadCount"].apply(np.ceil)
+                df_group["SpanningFragCount"] = df_group["SpanningFragCount"].apply(np.ceil)
+                collapsed_list.append(df_group[key_cols + [ "JunctionReadCount","SpanningFragCount","annots", "Fusion_Type", "Caller"]].head(1))
+            del fusion_data
+            fusion_data_collapsed = pd.concat(collapsed_list)
+            del collapsed_list
+            # Should be int
+            fusion_data_collapsed["JunctionReadCount"] = fusion_data_collapsed["JunctionReadCount"].astype(int)
+            fusion_data_collapsed["SpanningFragCount"] = fusion_data_collapsed["SpanningFragCount"].astype(int)
+
+
+            fusion_data_collapsed["Caller"] = fusion_data_collapsed["Caller"].str.upper()
+            return fusion_data_collapsed
+
+
+    def init_cbio_master(fusion_results, mode, rna_metadata):
         """
         Use data frame subset on RNA fusion files to find and merge result files
         """
-        flist = rna_metadata.File_Name
-        frame_list = []
-        for i in range(0, len(flist), 1):
-            try:
-                # concat annofuse file, rename Sample Column according to cBio name
-                ann_file = pd.read_csv(fusion_results + "/" + flist[i], sep="\t")
-                ann_file = ann_file.assign(Sample=rna_metadata.at[i, "Cbio_Tumor_Name"])
-                frame_list.append(ann_file)
-            except Exception as e:
-                pdb.set_trace()
-                hold = 1
-        concat_frame = pd.concat(frame_list)
-        del frame_list
-        fusion_data = concat_frame[
-            [
+        if mode == "openX":
+            openx_data = pd.read_csv(fusion_results, sep="\t")
+
+            openx_data.loc[openx_data["Sample"] == rna_metadata["T_CL_BS_ID"], 'Sample'] = rna_metadata["Cbio_Tumor_Name"]
+            # openx_data = openx_data.assign(Sample=rna_metadata.at[i, "Cbio_Tumor_Name"])
+            openx_data = openx_data[
                 "Sample",
                 "Gene1A",
                 "LeftBreakpoint",
@@ -72,39 +114,39 @@ if __name__ == "__main__":
                 "FusionName",
                 "Fusion_anno",
                 "Caller"
-                ]
-        ]
-        # Sort as a cheat to easily select preferred annot later
-        fusion_data = fusion_data.sort_values(["Sample", "LeftBreakpoint", "RightBreakpoint", "Caller"])
-        del concat_frame
-        # Merge rows that have the exact same fusion from different callers - thanks Natasha!
-        key_cols = ["Sample","Gene1A","LeftBreakpoint","Gene1B","RightBreakpoint","FusionName","Fusion_anno"]
-        fusion_data["groupby_key"] = fusion_data.apply(
-           lambda row: "\t".join([str(row[col]) for col in key_cols]), 
-            axis=1
-        )
-        # "JunctionReadCount","SpanningFragCount","annots"
-        collapsed_list = []
-        
-        for g in fusion_data.groupby(by="groupby_key"):
-            values, df_group = g
-            df_group["Caller"] = ",".join(set(df_group["Caller"].tolist()))
-            df_group["JunctionReadCount"] = df_group["JunctionReadCount"].mean()
-            df_group["SpanningFragCount"] = df_group["SpanningFragCount"].mean()
-            # Go with the cieling of the mean
-            df_group["JunctionReadCount"] = df_group["JunctionReadCount"].apply(np.ceil)
-            df_group["SpanningFragCount"] = df_group["SpanningFragCount"].apply(np.ceil)
-            collapsed_list.append(df_group[key_cols + [ "JunctionReadCount","SpanningFragCount","annots", "Fusion_Type", "Caller"]].head(1))
-        del fusion_data
-        fusion_data_collapsed = pd.concat(collapsed_list)
-        del collapsed_list
-        # Should be int
-        fusion_data_collapsed["JunctionReadCount"] = fusion_data_collapsed["JunctionReadCount"].astype(int)
-        fusion_data_collapsed["SpanningFragCount"] = fusion_data_collapsed["SpanningFragCount"].astype(int)
-
-
-        fusion_data_collapsed["Caller"] = fusion_data_collapsed["Caller"].str.upper()
-        return fusion_data_collapsed
+            ]
+            collapse_and_format(openx_data)
+        else:
+            flist = rna_metadata.File_Name
+            frame_list = []
+            for i in range(0, len(flist), 1):
+                try:
+                    # concat annofuse file, rename Sample Column according to cBio name
+                    ann_file = pd.read_csv(fusion_results + "/" + flist[i], sep="\t")
+                    ann_file = ann_file.assign(Sample=rna_metadata.at[i, "Cbio_Tumor_Name"])
+                    frame_list.append(ann_file)
+                except Exception as e:
+                    pdb.set_trace()
+                    hold = 1
+            concat_frame = pd.concat(frame_list)
+            del frame_list
+            fusion_data = concat_frame[
+                [
+                    "Sample",
+                    "Gene1A",
+                    "LeftBreakpoint",
+                    "Gene1B",
+                    "RightBreakpoint",
+                    "Fusion_Type",
+                    "JunctionReadCount",
+                    "SpanningFragCount",
+                    "annots",
+                    "FusionName",
+                    "Fusion_anno",
+                    "Caller"
+                    ]
+            ]
+        collapse_and_format(fusion_data)
 
     out_dir = args.out_dir
     try:
@@ -115,19 +157,18 @@ if __name__ == "__main__":
 
     # deal only with RNA metadata
     r_ext = "fusion"
+    if args.mode == 'openX':
+        r_ext = "rsem"
     all_file_meta = pd.read_csv(args.table, sep="\t")
         
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
     # reset index so that references work later while iterating
     rna_subset = rna_subset.reset_index(drop=True)
     project_list = rna_subset.Cbio_project.unique()
-    cbio_master = init_cbio_master(args.fusion_results, rna_subset)
+    cbio_master = init_cbio_master(args.fusion_results, args.mode, rna_subset)
 
     # Get relevant columns
     cbio_master.set_index("Sample", inplace=True)
-    # get cbio IDs and seq center
-
-    # drop bs ids
     cbio_master.reset_index(inplace=True)
 
     cbio_master.rename(
