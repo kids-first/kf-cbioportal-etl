@@ -434,3 +434,26 @@ optional arguments:
 Example run:
 `python3 COLLABORATIONS/openTARGETS/case_list_from_datasheet.py -d data_clinical_sample.txt -s openpedcan_v11 -c GTEx -m 3`
 
+## OpenPBTA
+Quite similar to openTargets with some caveats
+
+### Prep Work
+1. Obtain files from `s3://d3b-openaccess-us-east-1-prd-pbta/data/release-xxx`, with the `xxx` being a release version of interest.
+  Files to get includes:
+  ```
+  pbta-histologies.tsv
+  consensus_seg_annotated_cn_x_and_y.tsv.gz
+  consensus_seg_annotated_cn_autosomes.tsv.gz
+  pbta-snv-consensus-mutation.maf.tsv.gz
+  pbta-snv-scavenged-hotspots.maf.tsv.gz
+  pbta-gene-expression-rsem-fpkm-collapsed.polya.rds
+  pbta-gene-expression-rsem-fpkm-collapsed.stranded.rds
+  pbta-fusion-putative-oncogenic.tsv.gz
+  pbta-cnv-consensus.seg.gz
+  ```
+1. Create complete maf:
+  `python3 COLLABORATIONS/openPBTA/merge_pbta_file_columns.py -1 pbta-snv-consensus-mutation.maf.tsv.gz -2 pbta-snv-scavenged-hotspots.maf.tsv.gz -o pbta-snv-consensus-plus-hotspots.maf`
+1. Create complete rsem rds:
+  `Rscript COLLABORATIONS/openPBTA/merge_rsem_rds.R --stranded pbta-gene-expression-rsem-fpkm-collapsed.stranded.rds --polya pbta-gene-expression-rsem-fpkm-collapsed.polya.rds`
+1. Create complete cnv tsv:
+  `python3 COLLABORATIONS/openPBTA/merge_pbta_file_columns.py -1 consensus_seg_annotated_cn_autosomes.tsv.gz -2 consensus_seg_annotated_cn_x_and_y.tsv.gz -o consensus_seg_annotated_cn.tsv`
