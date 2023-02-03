@@ -30,7 +30,7 @@ if __name__ == "__main__":
         "--fusion-results",
         action="store",
         dest="fusion_results",
-        help="annoFuse results dir",
+        help="annoFuse results dir OR openX merged fusion file",
     )
     parser.add_argument(
         "-o",
@@ -61,7 +61,6 @@ if __name__ == "__main__":
     def collapse_and_format(fusion_data):
             # Sort as a cheat to easily select preferred annot later
             fusion_data = fusion_data.sort_values(["Sample", "LeftBreakpoint", "RightBreakpoint", "Caller"])
-            del concat_frame
             # Merge rows that have the exact same fusion from different callers - thanks Natasha!
             key_cols = ["Sample","Gene1A","LeftBreakpoint","Gene1B","RightBreakpoint","FusionName","Fusion_anno"]
             fusion_data["groupby_key"] = fusion_data.apply(
@@ -96,12 +95,7 @@ if __name__ == "__main__":
         """
         Use data frame subset on RNA fusion files to find and merge result files
         """
-        if mode == "openX":
-            openx_data = pd.read_csv(fusion_results, sep="\t")
-
-            openx_data.loc[openx_data["Sample"] == rna_metadata["T_CL_BS_ID"], 'Sample'] = rna_metadata["Cbio_Tumor_Name"]
-            # openx_data = openx_data.assign(Sample=rna_metadata.at[i, "Cbio_Tumor_Name"])
-            openx_data = openx_data[
+        desired = [
                 "Sample",
                 "Gene1A",
                 "LeftBreakpoint",
@@ -115,7 +109,22 @@ if __name__ == "__main__":
                 "Fusion_anno",
                 "Caller"
             ]
-            collapse_and_format(openx_data)
+        if mode == "openX":
+            openx_data = pd.read_csv(fusion_results, sep="\t")
+            # Merge so that sample names can be cBio names - thanks Natasha!
+            merged = pd.merge(
+                openx_data, rna_metadata[["T_CL_BS_ID", "Cbio_Tumor_Name"]], left_on="Sample", right_on="T_CL_BS_ID", how="left"
+                )
+            merged["Sample"] = merged.apply(
+                lambda row: row["Cbio_Tumor_Name"], axis=1
+                )
+            # OpenX data may not have all annoFuse cols
+            present = []
+            for col in desired:
+                if col in merged.columns:
+                    present.append(col)
+            openx_data = merged[present]
+            return openx_data, present
         else:
             flist = rna_metadata.File_Name
             frame_list = []
@@ -130,23 +139,9 @@ if __name__ == "__main__":
                     hold = 1
             concat_frame = pd.concat(frame_list)
             del frame_list
-            fusion_data = concat_frame[
-                [
-                    "Sample",
-                    "Gene1A",
-                    "LeftBreakpoint",
-                    "Gene1B",
-                    "RightBreakpoint",
-                    "Fusion_Type",
-                    "JunctionReadCount",
-                    "SpanningFragCount",
-                    "annots",
-                    "FusionName",
-                    "Fusion_anno",
-                    "Caller"
-                    ]
-            ]
-        collapse_and_format(fusion_data)
+            fusion_data = concat_frame[desired]
+            del concat_frame
+            return collapse_and_format(fusion_data), desired
 
     out_dir = args.out_dir
     try:
@@ -165,25 +160,30 @@ if __name__ == "__main__":
     # reset index so that references work later while iterating
     rna_subset = rna_subset.reset_index(drop=True)
     project_list = rna_subset.Cbio_project.unique()
-    cbio_master = init_cbio_master(args.fusion_results, args.mode, rna_subset)
+    cbio_master, present_cols = init_cbio_master(args.fusion_results, args.mode, rna_subset)
 
     # Get relevant columns
     cbio_master.set_index("Sample", inplace=True)
     cbio_master.reset_index(inplace=True)
-
+    # openX and annoFuse have different, cols
+    rename_dict = {
+        "Sample": "Sample_Id",
+        "Gene1A": "Site1_Hugo_Symbol",
+        "Gene1B": "Site2_Hugo_Symbol",
+        "Fusion_Type": "Site2_Effect_On_Frame",
+        "JunctionReadCount": "Tumor_Read_Count",
+        "SpanningFragCount": "Tumor_Split_Read_Count",
+        "annots": "Annotation",
+        "FusionName": "Event_Info",
+        "Fusion_anno": "External_Annotation",
+        "Caller": "Comments"
+        }
+    present_rename = {}
+    for col in rename_dict:
+        if col in present_cols:
+            present_rename[col] = rename_dict[col]
     cbio_master.rename(
-        columns={
-            "Sample": "Sample_Id",
-            "Gene1A": "Site1_Hugo_Symbol",
-            "Gene1B": "Site2_Hugo_Symbol",
-            "Fusion_Type": "Site2_Effect_On_Frame",
-            "JunctionReadCount": "Tumor_Read_Count",
-            "SpanningFragCount": "Tumor_Split_Read_Count",
-            "annots": "Annotation",
-            "FusionName": "Event_Info",
-            "Fusion_anno": "External_Annotation",
-            "Caller": "Comments"
-        },
+        columns=present_rename,
         inplace=True
     )
     
@@ -236,7 +236,12 @@ if __name__ == "__main__":
         "External_Annotation",
         "Comments"
     ]
-    cbio_master = cbio_master[order_list]
+    # again, ensure only present columns are ordered
+    present_order = []
+    for col in cbio_master:
+        if col in order_list:
+            present_order.append(col)
+    cbio_master = cbio_master[present_order]
     # cbio_master.set_index("Sample_Id", inplace=True)
     for project in project_list:
         sub_sample_list = list(
