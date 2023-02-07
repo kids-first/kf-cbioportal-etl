@@ -123,6 +123,9 @@ if __name__ == "__main__":
             for col in desired:
                 if col in merged.columns:
                     present.append(col)
+            # openPBTA...and maybe open pedcan uses this
+            if 'CalledBy' in merged.columns:
+                present.append('CalledBy')
             openx_data = merged[present]
             return openx_data, present
         else:
@@ -176,7 +179,8 @@ if __name__ == "__main__":
         "annots": "Annotation",
         "FusionName": "Event_Info",
         "Fusion_anno": "External_Annotation",
-        "Caller": "Comments"
+        "Caller": "Comments",
+        "CalledBy": "Comments" # this is what it is in openbta
         }
     present_rename = {}
     for col in rename_dict:
