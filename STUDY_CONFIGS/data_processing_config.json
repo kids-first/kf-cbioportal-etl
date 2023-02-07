@@ -9,7 +9,7 @@
     "fusion": "annoFuse_filter.tsv"
   },
   "dna_ext_list": {
-    "mutation": "consensus_somatic.vep.maf", 
+    "mutation": "consensus_somatic.norm.annot.public.maf", 
     "copy_number": "controlfreec.CNVs.p.value.txt",
     "seg": "controlfreec.seg"
   },

@@ -33,5 +33,4 @@ frames = [first_common, second_common]
   
 result = pd.concat(frames)
 
-with open(args.output,'w') as write_tsv:
-    write_tsv.write(result.to_csv(sep='\t', index=False))
+result.to_csv(args.output, sep='\t', index=False, compression="gzip")

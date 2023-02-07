@@ -1,4 +1,3 @@
-library(dplyr)
 library("optparse")
 
 option_list <- list(
@@ -27,6 +26,6 @@ print(class(columns))
 common_read1 <- read1[columns,]
 common_read2 <- read2[columns,]
 
-merge_data <- merge(common_read1,common_read2,by = 'row.names', all = TRUE)
+merge_data <- cbind(common_read1,common_read2)
 print(dim(merge_data))
 saveRDS(merge_data, file = "pbta-gene-expression-rsem-fpkm-collapsed.rds")

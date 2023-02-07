@@ -34,8 +34,15 @@ def collate_data(cnv_fn):
     """
     Read in the cnv table, convert and hash values that are in the mapping dict
     """
-    cnv_tbl = gzip.open(cnv_fn)
-    head = next(cnv_tbl).decode()
+    gzipped = 0
+    if cnv_fn [-3] == '.gz':
+        cnv_tbl = gzip.open(cnv_fn)
+        gzipped = 1
+    else:
+        cnv_tbl = open(cnv_fn)
+    head = next(cnv_tbl)
+    if gzipped:
+        head = head.decode()
     header = head.rstrip('\n').split('\t')
     b_idx = header.index('biospecimen_id')
     s_idx = header.index('status')
@@ -44,7 +51,9 @@ def collate_data(cnv_fn):
     g_idx = header.index('gene_symbol')
 
     for line in cnv_tbl:
-        data = line.decode().rstrip('\n').split('\t')
+        if gzipped:
+            line = line.decode()
+        data = line.rstrip('\n').split('\t')
         if data[b_idx] in map_dict:
             samp_id = map_dict[data[b_idx]]
             gene = data[g_idx]
