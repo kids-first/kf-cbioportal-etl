@@ -56,7 +56,10 @@ def process_cnv(cpath):
                 + temp
                 + ".copy_number"
             )
-            subprocess.call(out_gene_cnv_only, shell=True)
+            check = subprocess.call(out_gene_cnv_only, shell=True)
+            if check:
+                sys.stderr.write('Error using to geens script. Check log\n')
+                sys.exit(1)
             rm_tmp = "rm " + out_dir + temp + " " + out_dir + temp_len
             subprocess.call(rm_tmp, shell=True)
     except Exception as e:
