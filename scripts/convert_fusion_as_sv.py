@@ -120,13 +120,25 @@ if __name__ == "__main__":
                 )
             # OpenX data may not have all annoFuse cols
             present = []
+            # openPBTA...and maybe open pedcan uses this
+            if 'CalledBy' in merged.columns:
+                merged.rename(
+                    columns={"CalledBy": "Caller"},
+                    inplace=True
+                   )
+            # Also merge existing annotations in Gene 1A, Gene 1B into annots
+            annot_cols = ['Gene1A_anno', 'Gene2A_anno']
+            merged["annots"] = merged.apply(
+            lambda row: ",".join([str(row[col]) for col in annot_cols]), 
+                axis=1
+            )
             for col in desired:
                 if col in merged.columns:
                     present.append(col)
-            # openPBTA...and maybe open pedcan uses this
-            if 'CalledBy' in merged.columns:
-                present.append('CalledBy')
             openx_data = merged[present]
+            # only if read counts there, collapse
+            if "JunctionReadCount" in openx_data.columns:
+                openx_data = collapse_and_format(openx_data)
             return openx_data, present
         else:
             flist = rna_metadata.File_Name
@@ -180,7 +192,6 @@ if __name__ == "__main__":
         "FusionName": "Event_Info",
         "Fusion_anno": "External_Annotation",
         "Caller": "Comments",
-        "CalledBy": "Comments" # this is what it is in openbta
         }
     present_rename = {}
     for col in rename_dict:
