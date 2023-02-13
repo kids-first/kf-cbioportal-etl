@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 "Caller"
             ]
         if mode == "openX":
-            openx_data = pd.read_csv(fusion_results, sep="\t")
+            openx_data = pd.read_csv(fusion_results, sep="\t", keep_default_na=False, na_values=[""])
             # Merge so that sample names can be cBio names - thanks Natasha!
             merged = pd.merge(
                 openx_data, rna_metadata[["T_CL_BS_ID", "Cbio_Tumor_Name"]], left_on="Sample", right_on="T_CL_BS_ID", how="left"
@@ -129,9 +129,14 @@ if __name__ == "__main__":
             # Also merge existing annotations in Gene 1A, Gene 1B into annots
             annot_cols = ['Gene1A_anno', 'Gene2A_anno']
             merged["annots"] = merged.apply(
-            lambda row: ",".join([str(row[col]) for col in annot_cols]), 
-                axis=1
-            )
+                lambda row: ",".join(
+                    set(list(row["Gene1A_anno"].split(", ") + row["Gene1B_anno"].split(", ")))
+                    ),
+                    axis=1
+                )
+            # remove NA as annot when other annots exist
+            merged["annots"] = merged["annots"].str.replace('NA,', '')
+            merged["annots"] = merged["annots"].str.replace(',NA', '')
             for col in desired:
                 if col in merged.columns:
                     present.append(col)
