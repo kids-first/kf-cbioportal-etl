@@ -27,18 +27,21 @@ void write_file(NumericMatrix num,std::string output_file_name)
     CharacterVector row_names = rownames(num);
 
     myfile <<"Hugo_Symbol"<<"\t";
-    for(auto p = column_names.begin(); p != column_names.end(); ++p){
+    for(auto p = column_names.begin(); p != column_names.end()-1; ++p){
           myfile << *p<<"\t";
       }
+      myfile << *(column_names.end()-1); //do not add tab at the end of row
     myfile <<"\n";
+    
     for(size_t i = 0; i < num.nrow();++i){
         myfile << row_names(i)<<"\t";
-        for(size_t j = 0; j <  num.ncol();++j ){
+        for(size_t j = 0; j < num.ncol()-1;++j ){
             myfile << num(i,j)<<"\t";
           }
-        myfile <<"\n";
+          myfile << num(i,num.ncol()-1); //do not add tab at the end of row
+        myfile <<"\n"; //change of line
       }
-    myfile.close();
+    myfile.close();  // close the file
 }
 
 /**
