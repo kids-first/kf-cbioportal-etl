@@ -5,10 +5,11 @@ See [below](#collaborative-and-publication-workflows) for special cases like pub
 ## I have everything and I know I am doing
 Below assumes you have already created the necessary tables from dbt
 1. Run commands as outlined in `scripts/get_study_metadata.py`. Copy/move those files to the cBio loader ec2 instance
-1. Copy over the approriate aws account key and download files. Example using `pbta_all` study:
+1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
-   python3 ~/tools/kf-cbioportal-etl/scripts/get_files_from_manifest.py -m genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg -p saml 2> pbta_dl.log &
+   python3 ~/tools/kf-cbioportal-etl/scripts/get_files_from_manifest.py -m genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg -p saml 2> pbta_dl.log & # -p aws download
+  python3 /home/ubuntu/tools/kf-cbioportal-etl/scripts/get_files_from_manifest.py -m pnoc_sb_subset -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_bam_seg,ctrlfreec_info,ctrlfreec_pval -s turbo -a -c cbio_file_name_id.txt 2> pnoc_sb_dl.err # -s sbg download
    python3 ~/tools/kf-cbioportal-etl/scripts/get_files_from_manifest.py -m dgd_genomics_file_manifest.txt -f DGD_MAF,DGD_FUSION -p d3b 2> dgd_dl.log &
    ```
 
@@ -162,6 +163,27 @@ Likely personalized edits would occur in the following fields:
 ## Pipeline script
 After downloading the genomic files and files above as needed, and properly editing config files as needed, this script should generate and validate the cBioportal load package
 
+### scripts/get_files_from_manifest.py
+Currently, file locations are still too volatile to trust to make downloading part of the pipeline. Using various combinations of buckets and sbg file ID pulls will eventually get you everything
+```
+usage: get_files_from_manifest.py [-h] [-m MANIFEST] [-f FTS] [-p PROFILE] [-s SBG_PROFILE] [-c CBIO] [-a] [-d]
+
+Get all files for a project.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -m MANIFEST, --manifest-list MANIFEST
+                        csv list of of genomic file location manifests
+  -f FTS, --file-types FTS
+                        csv list of workflow types to download
+  -p PROFILE, --profile PROFILE
+                        aws profile name. Leave blank if using sbg instead
+  -s SBG_PROFILE, --sbg-profile SBG_PROFILE
+                        sbg profile name. Leave blank if using AWS instead
+  -c CBIO, --cbio CBIO  Add cbio manifest to limit downloads
+  -a, --active-only     Set to grab only active files. Recommended.
+  -d, --debug           Just output manifest subset to see what would be grabbed
+```
 ### scripts/genomics_file_cbio_package_build.py
 ```
 usage: genomics_file_cbio_package_build.py [-h] [-t TABLE] [-m MANIFEST] [-c CBIO_CONFIG] [-d DATA_CONFIG] [-f [{both,kf,dgd}]]
@@ -180,6 +202,7 @@ optional arguments:
                         json config file with data types and data locations
   -f [{both,kf,dgd}], --dgd-status [{both,kf,dgd}]
                         Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)
+  -l, --legacy          If set, will run legacy fusion output
 ```
 + `-t` would be the [Genomics metadata file](#genomics-metadata-file)
 + `-c` would be the [Metadata processing config file](#metadata-processing-config-file)
@@ -355,6 +378,8 @@ Options:
 Example run:
 `Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v11 --computeZscore R 2> rna_convert.errs`
 
+### DEPRECATED
+Leaving here until next major release. Refer to [convert sv as fusion](#5-scriptsconvert_fusion_as_svpy)
 #### 5a. scripts/rna_convert_fusion.py
 Before running, to leverage an existing fusion conversion, I first ran:
 `COLLABORATIONS/openTARGETS/reformat_cbio_sample_index.py -t bs_id_sample_map.txt -n openpedcan_v11 > fusion_sample_name_input.txt`
@@ -396,7 +421,24 @@ optional arguments:
 ```
 Example run:
 `scripts/add_dgd_fusion.py -f fusion-dgd.tsv.gz -t fusion_sample_name_input.txt -a -m >> merged_fusion/openpedcan_v11.fusions.txt`
+#### 5. scripts/convert_fusion_as_sv.py
+```
+usage: convert_fusion_as_sv.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-o OUT_DIR] -m MODE
 
+Convert openPBTA fusion table OR list of annofuse files to cbio format.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -t TABLE, --table TABLE
+                        Table with cbio project, kf bs ids, cbio IDs, and file names
+  -f FUSION_RESULTS, --fusion-results FUSION_RESULTS
+                        annoFuse results dir OR openX merged fusion file
+  -o OUT_DIR, --out-dir OUT_DIR
+                        Result output dir. Default is merged_fusion
+  -m MODE, --mode MODE  describe source, openX or kfprod
+```
+Example run:
+`python3 ~/tools/kf-cbioportal-etl/scripts/convert_fusion_as_sv.py -t fusion_sample_table.txt -m openX -f ../pbta-fusion-putative-oncogenic.tsv`
 #### 6. scripts/organize_upload_packages.py
 Leverage the existing meta config and package organizer from kids first to create all relevant meta and case files...except for the added case lists achieved by the next step
 ```
