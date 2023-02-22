@@ -14,6 +14,9 @@ import pdb
 
 
 def download_aws(file_type):
+    """
+    Function to download from AWS to file_type dir if AWS profile was given
+    """
     sub_file_list = list(selected.loc[selected["file_type"] == file_type, "s3_path"])
     for loc in sub_file_list:
         out = file_type + "/" + loc.split("/")[-1]
@@ -31,6 +34,9 @@ def download_aws(file_type):
 
 
 def download_sbg(file_type):
+    """
+    Function to download from SBG to file_type dir if SBG profile was given
+    """
     sub_file_list = list(selected.loc[selected["file_type"] == file_type, "file_id"])
     for loc in sub_file_list:
         try:
@@ -88,6 +94,15 @@ parser.add_argument(
 parser.add_argument(
     "-s", "--sbg-profile", action="store", dest="sbg_profile", help="sbg profile name. Leave blank if using AWS instead"
 )
+parser.add_argument(
+    "-c", "--cbio", action="store", dest="cbio", help="Add cbio manifest to limit downloads"
+)
+parser.add_argument(
+    "-a", "--active-only", default=False, action="store_true", dest="active_only", help="Set to grab only active files. Recommended."
+)
+parser.add_argument(
+    "-d", "--debug", default=False, action="store_true", dest="debug", help="Just output manifest subset to see what would be grabbed"
+)
 
 
 args = parser.parse_args()
@@ -111,6 +126,16 @@ sys.stderr.flush()
 # change col names to lower case for input compatibility
 manifest_concat.columns = manifest_concat.columns.str.lower()
 selected = manifest_concat[manifest_concat["file_type"].isin(file_types)]
+# if active only flag set, further subset
+if args.active_only:
+    sys.stderr.write('active only flag given, will limit to that\n')
+    selected = selected[selected["status"] == 'active']
+# if cbio manifest given, limit to that
+if args.cbio:
+    sys.stderr.write('cBio manifest provided, limiting downloads to matching IDs\n')
+    cbio_data = pd.read_csv(args.cbio, sep=None)
+    specimen_list = cbio_data.T_CL_BS_ID.unique()
+    selected = selected[selected["biospecimen_id"].isin(specimen_list)]
 # remove vcfs as we only want mafs
 pattern_del = ".vcf.gz"
 filter = selected["file_name"].str.contains(pattern_del)
@@ -118,7 +143,9 @@ selected = selected[~filter]
 
 out_file = "manifest_subset.tsv"
 selected.to_csv(out_file, sep="\t", mode="w", index=False)
-
+if args.debug:
+    sys.stderr.write('Debug flag given. No downloads actually happen, just a manifest subset to preview\n')
+    exit(1)
 err_types = { 'aws download': 0, 'sbg get': 0, 'sbg download': 0 }
 # download files by type
 if args.profile is not None:
@@ -128,7 +155,7 @@ elif args.sbg_profile is not None:
     config = sbg.Config(profile=args.sbg_profile)
     api = sbg.Api(config=config, error_handlers=[rate_limit_sleeper, maintenance_sleeper])
 else:
-    sys.stderr.write("Pleaes set one of profile or sbg_profile\n")
+    sys.stderr.write("Please set one of profile or sbg_profile\n")
     exit(1)
 
 with concurrent.futures.ThreadPoolExecutor(16) as executor:
