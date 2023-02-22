@@ -131,13 +131,13 @@
         "dtypes": {
             "fusion": {
                 "ext": "fusions.txt",
-                "cbio_name": "data_fusions.txt",
+                "cbio_name": "data_sv.txt",
                 "meta_file_attr": {
-                    "stable_id": "fusion",
+                    "stable_id": "structural_variants",
                     "profile_name": "Predicted RNA fusions",
                     "profile_description": "PBTA fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse. Also contains DGD custom filtered fusions",
-                    "genetic_alteration_type": "FUSION",
-                    "datatype": "FUSION",
+                    "genetic_alteration_type": "STRUCTURAL_VARIANT",
+                    "datatype": "SV",
                     "show_profile_in_analysis_tab": "true"
                 }
             }
@@ -224,6 +224,11 @@
                 "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
                 "out_file": "cbtn_genomics_file_manifest.txt"
             },
+            "x01": {
+                "table": "bix_genomics_file.sd_bhjxbdqk_x01-genomics_file_manifest",
+                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
+                "out_file": "x01_genomics_file_manifest.txt"
+            },
             "pnoc": {
                 "table": "bix_genomics_file.sd_8y99qzjj-genomics_file_manifest",
                 "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
@@ -247,10 +252,6 @@
         "genomics_etl": {
             "table": "prod_cbio.pbta_all_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
-        },
-        "seq_center": {
-            "table": "prod_cbio.pbta_all_sq_info_etl_resource",
-            "out_file": "seq_center_resource.txt"
         }
     }
 }
