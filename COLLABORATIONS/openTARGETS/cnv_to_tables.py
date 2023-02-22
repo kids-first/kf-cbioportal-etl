@@ -30,49 +30,40 @@ def populate_id_map(map_fn):
 
 
 
+
 def collate_data(cnv_fn):
     """
     Read in the cnv table, convert and hash values that are in the mapping dict
     """
-    gzipped = 0
-    if cnv_fn [-3] == '.gz':
-        cnv_tbl = gzip.open(cnv_fn)
-        gzipped = 1
-    else:
-        cnv_tbl = open(cnv_fn)
-    head = next(cnv_tbl)
-    if gzipped:
-        head = head.decode()
-    header = head.rstrip('\n').split('\t')
-    b_idx = header.index('biospecimen_id')
-    s_idx = header.index('status')
-    c_idx = header.index('copy_number')
-    p_idx = header.index('ploidy')
-    g_idx = header.index('gene_symbol')
+    with (gzip.open if cnv_fn.endswith("gz") else open)(cnv_fn, "rt", encoding="utf-8") as cnv_tbl:
+        header = head.rstrip('\n').split('\t')
+        b_idx = header.index('biospecimen_id')
+        s_idx = header.index('status')
+        c_idx = header.index('copy_number')
+        p_idx = header.index('ploidy')
+        g_idx = header.index('gene_symbol')
 
-    for line in cnv_tbl:
-        if gzipped:
-            line = line.decode()
-        data = line.rstrip('\n').split('\t')
-        if data[b_idx] in map_dict:
-            samp_id = map_dict[data[b_idx]]
-            gene = data[g_idx]
-            ploidy = data[p_idx]
-            cn = data[c_idx]
-            try:
-                gistic = qual_to_gistic[data[s_idx]]
-            except Exception as e:
-                sys.stderr.write(str(e) + "\nInvalid value for gistic, skipping " + line.decode())
-                continue
-                # pdb.set_trace()
-                # hold=1
-            if samp_id not in ploidy_dict:
-                ploidy_dict[samp_id] = ploidy
-            if gene not in cn_dict:
-                cn_dict[gene] = {}
-                gistic_dict[gene] = {}
-            cn_dict[gene][samp_id] = cn
-            gistic_dict[gene][samp_id] = gistic
+        for line in cnv_tbl:
+            data = line.rstrip('\n').split('\t')
+            if data[b_idx] in map_dict:
+                samp_id = map_dict[data[b_idx]]
+                gene = data[g_idx]
+                ploidy = data[p_idx]
+                cn = data[c_idx]
+                try:
+                    gistic = qual_to_gistic[data[s_idx]]
+                except Exception as e:
+                    sys.stderr.write(str(e) + "\nInvalid value for gistic, skipping " + line.decode())
+                    continue
+                    # pdb.set_trace()
+                    # hold=1
+                if samp_id not in ploidy_dict:
+                    ploidy_dict[samp_id] = ploidy
+                if gene not in cn_dict:
+                    cn_dict[gene] = {}
+                    gistic_dict[gene] = {}
+                cn_dict[gene][samp_id] = cn
+                gistic_dict[gene][samp_id] = gistic
 
 
 args = parser.parse_args()
