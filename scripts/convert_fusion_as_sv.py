@@ -127,10 +127,11 @@ if __name__ == "__main__":
                     inplace=True
                    )
             # Also merge existing annotations in Gene 1A, Gene 1B into annots
-            annot_cols = ['Gene1A_anno', 'Gene2A_anno']
+            # annot_cols = ['Gene1A_anno', 'Gene1B_anno']
             merged["annots"] = merged.apply(
-                lambda row: ",".join(
-                    set(list(row["Gene1A_anno"].split(", ") + row["Gene1B_anno"].split(", ")))
+                lambda row: "Gene1: " + ",".join(
+                    set(list(row["Gene1A_anno"].split(", "))))
+                     + "; Gene2: " + ",".join(set(list(row["Gene1B_anno"].split(", ")))
                     ),
                     axis=1
                 )
