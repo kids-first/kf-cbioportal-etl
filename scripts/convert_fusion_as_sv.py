@@ -164,8 +164,8 @@ if __name__ == "__main__":
                     ann_file = ann_file.assign(Sample=rna_metadata.at[i, "Cbio_Tumor_Name"])
                     frame_list.append(ann_file)
                 except Exception as e:
-                    pdb.set_trace()
-                    hold = 1
+                    sys.stderr.write(str(e) + '\n')
+                    exit(1)
             concat_frame = pd.concat(frame_list)
             concat_frame = filter_and_format_annots(concat_frame, True)
             del frame_list
