@@ -10,6 +10,8 @@ import sys
 import argparse
 import json
 import subprocess
+import time
+import pdb
 
 
 def log_cmd(cmd):
@@ -19,16 +21,19 @@ def log_cmd(cmd):
     sys.stderr.write(cmd + "\n")
     sys.stderr.flush()
 
-def check_status(status, data_type, log_name):
+def check_status(status, data_type):
     if status:
         sys.stderr.write(
             "Something when wrong while processing the "
-            + data_type
-            + "! Check the "
-            + log_name
-            + " for more info\n"
+            + data_type + " shutting down other running procs\n"
         )
+        for key in run_status:
+            if run_status[key] is None:
+                run_status[key].kill()
         exit(1)
+    else:
+        sys.stderr.write('Processing ' + data_type + " successful!\n")
+        sys.stderr.flush()
 
 
 def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
@@ -44,11 +49,9 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
         script_dir, cbio_id_table, maf_header, maf_dir, data_config_file, dgd_status
     )
     log_cmd(maf_cmd)
-    status = 0
-    status = subprocess.call(maf_cmd, shell=True)
-    if args.dgd_status == "both":
-        status += process_append_dgd_maf(maf_loc_dict, cbio_id_table)
-    return status
+    run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
+    # if args.dgd_status == "both":
+    #     status += process_append_dgd_maf(maf_loc_dict, cbio_id_table)
 
 
 def process_append_dgd_maf(maf_loc_dict, cbio_id_table):
@@ -66,7 +69,7 @@ def process_append_dgd_maf(maf_loc_dict, cbio_id_table):
     )
     log_cmd(append_cmd)
     status = 0
-    status = subprocess.call(append_cmd, shell=True)
+    status = subprocess.Popen(append_cmd, shell=True)
     return status
 
 
@@ -80,8 +83,8 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
         script_dir, cnv_dir, data_config_file
     )
     log_cmd(gene_annot_cmd)
-    status = 0
-    status = subprocess.call(gene_annot_cmd, shell=True)
+    run_status["convert_to_gene"] = subprocess.Popen(gene_annot_cmd, shell=True)
+    run_status["convert_to_gene"].wait()
     info_dir = cnv_loc_dict["info"]
     merge_gene_cmd = "{}cnv_2_merge.py -t {} -n converted_cnvs -j {}".format(
         script_dir, cbio_id_table, data_config_file
@@ -90,7 +93,8 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
         merge_gene_cmd += " -i " + info_dir
     merge_gene_cmd += " 2> merge_cnv_gene.log"
     log_cmd(merge_gene_cmd)
-    status += subprocess.call(merge_gene_cmd, shell=True)
+    run_status["cnv_merge_gene"] = subprocess.Popen(merge_gene_cmd, shell=True)
+    run_status["cnv_merge_gene"].wait()
     gistic_style_cmd = "{}cnv_3_gistic_style.py -d merged_cnvs -j {} -t {}".format(
         script_dir, data_config_file, cbio_id_table
     )
@@ -98,12 +102,10 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
         gistic_style_cmd += " -i " + info_dir
     gistic_style_cmd += " 2> merge_cnv_gene.log"
     log_cmd(gistic_style_cmd)
-    status += subprocess.call(gistic_style_cmd, shell=True)
+    run_status["gistic"] = subprocess.Popen(gistic_style_cmd, shell=True)
 
     if "seg" in cnv_loc_dict:
-        status += process_seg(cnv_loc_dict, cbio_id_table, data_config_file)
-
-    return status
+        run_status["seg"] = process_seg(cnv_loc_dict, cbio_id_table, data_config_file)
 
 
 def process_seg(cnv_loc_dict, cbio_id_table, data_config_file):
@@ -116,7 +118,7 @@ def process_seg(cnv_loc_dict, cbio_id_table, data_config_file):
         script_dir, cbio_id_table, seg_dir, data_config_file
     )
     log_cmd(merge_seg_cmd)
-    status = subprocess.call(merge_seg_cmd, shell=True)
+    status = subprocess.Popen(merge_seg_cmd, shell=True)
     return status
 
 
@@ -129,21 +131,19 @@ def process_rsem(rsem_dir, cbio_id_table):
         script_dir, cbio_id_table, rsem_dir
     )
     log_cmd(merge_rsem_cmd)
-    status = subprocess.call(merge_rsem_cmd, shell=True)
-    return status
+    run_status["rsem_merge"] = subprocess.Popen(merge_rsem_cmd, shell=True)
 
 
-def process_kf_fusion(fusion_dir, cbio_id_table):
+def process_kf_fusion(fusion_dir, cbio_id_table, mode):
     """
     Collate and process annoFuse output
     """
     sys.stderr.write("Processing KF fusion calls\n")
-    fusion_cmd = "{}convert_fusion_as_sv.py -t {} -f {} 2> convert_fusion_as_sv.log".format(
-        script_dir, cbio_id_table, fusion_dir
+    fusion_cmd = "{}convert_fusion_as_sv.py -t {} -f {} -m {} 2> convert_fusion_as_sv.log".format(
+        script_dir, cbio_id_table, fusion_dir, mode
     )
     log_cmd(fusion_cmd)
-    status = subprocess.call(fusion_cmd, shell=True)
-    return status
+    run_status["fusion"] = subprocess.Popen(fusion_cmd, shell=True)
 
 
 def process_kf_fusion_legacy(fusion_dir, cbio_id_table, sq_file):
@@ -155,8 +155,7 @@ def process_kf_fusion_legacy(fusion_dir, cbio_id_table, sq_file):
         script_dir, cbio_id_table, fusion_dir, sq_file
     )
     log_cmd(fusion_cmd)
-    status = subprocess.call(fusion_cmd, shell=True)
-    return status
+    run_status["fusion_legacy"] = subprocess.Popen(fusion_cmd, shell=True)
 
 
 def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
@@ -174,7 +173,7 @@ def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
         sys.stderr.write("Processing DGD fusion calls\n")
     dgd_fusion_cmd += " 2> add_dgd_fusion.log"
     log_cmd(dgd_fusion_cmd)
-    status = subprocess.call(dgd_fusion_cmd, shell=True)
+    status = subprocess.Popen(dgd_fusion_cmd, shell=True)
     return status
 
 
@@ -182,7 +181,7 @@ def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
 # if(args.manifest != None):
 #     sys.stderr.write('Download manifest given. Downloading files\n')
 #     dl_file_cmd = config_data['script_dir'] + 'get_files_from_manifest.py -m ' + args.manifest + ' -f ' + join(config_data['dl_file_type_list'] + ' -p saml')
-#     subprocess.call(dl_file_cmd, shell=True)
+#     subprocess.Popen(dl_file_cmd, shell=True)
 
 parser = argparse.ArgumentParser(
     description="Download files (if needed), collate genomic files, organize load package."
@@ -246,46 +245,34 @@ with open(args.cbio_config) as f:
 cbio_study_id = config_meta_case["study"]["cancer_study_identifier"]
 # iterate through config file - file should only have keys related to data to be loaded
 script_dir = config_data["script_dir"]
+run_status = {}
 for key in config_meta_case:
     if key.startswith("merged_"):
         data_type = "_".join(key.split("_")[1:])
         if data_type == "mafs":
-            exit_status = process_maf(
+            process_maf(
                 config_data["file_loc_defs"]["mafs"],
                 args.table,
                 args.data_config,
-                args.dgd_status,
+                args.dgd_status
             )
-            check_status(
-                exit_status,
-                "mafs and/or dgd_append_maf",
-                "collate_mafs.log and/or dgd_append_maf.log",
-            )
-        elif data_type == "cnvs":
-            exit_status = process_cnv(
-                config_data["file_loc_defs"]["cnvs"], args.data_config, args.table
-            )
-            check_status(exit_status, "cnv data", "cnv_* logs")
         elif data_type == "rsem":
-            exit_status = process_rsem(config_data["file_loc_defs"]["rsem"], args.table)
-            check_status(
-                exit_status, "rna expression", "rna_merge_rename_expression.log"
-            )
+            process_rsem(config_data["file_loc_defs"]["rsem"], args.table)
         elif data_type == "fusion":
             # Status both works for...both, only when one is specifically picked should one not be run
             if args.dgd_status != "dgd":
                 if not args.legacy:
-                    exit_status = process_kf_fusion(
+                    process_kf_fusion(
                         config_data["file_loc_defs"]["fusion"],
-                        args.table                    )
+                        args.table,
+                        "kfprod"
+                        )
                 else:
-                    exit_status = process_kf_fusion_legacy(
+                    process_kf_fusion_legacy(
                         config_data["file_loc_defs"]["fusion"],
                         args.table,
                         config_data["file_loc_defs"]["fusion_sq_file"],
                     )
-
-                check_status(exit_status, "kf fusions", "rna_convert_fusion.log")
             if args.dgd_status != "kf":
                 exit_status = process_dgd_fusion(
                     args.table,
@@ -293,6 +280,34 @@ for key in config_meta_case:
                     args.dgd_status,
                 )
                 check_status(exit_status, "dgd fusions", "add_dgd_fusion.log")
+        elif data_type == "cnvs":
+            process_cnv(
+                config_data["file_loc_defs"]["cnvs"], args.data_config, args.table
+            )
+
+# Wait for concurrent processes to finish and report statuses
+x = 30
+n = 0
+done = 1
+
+while done:
+    done = 0
+    # don't need to check the same process over and over again if done
+    rm_keys = []
+    sys.stderr.write(str(n) + " seconds have passed\n")
+    sys.stderr.flush()
+    for key in run_status:
+        if run_status[key].returncode:
+            check_status(run_status[key].returncode, key)
+            rm_keys.append(key)
+            # poll to avoid zombies https://stackoverflow.com/questions/2760652/how-to-kill-or-avoid-zombie-processes-with-subprocess-module
+            run_status[key].poll()
+        else:
+            done = 1
+    for key in rm_keys:
+        del run_status[key]
+    time.sleep(x)
+    n += x
 
 # Run final package builder script
 sys.stderr.write("Creating load packages\n")
@@ -303,10 +318,11 @@ pck_cmd = (
     + " 2> load_package_create.log"
 )
 exit_status = subprocess.call(pck_cmd, shell=True)
-check_status(exit_status, "load package", "load_package_create.log")
+check_status(exit_status, "load package")
 
 # Run cbioportal data validator
 sys.stderr.write("Validating load packages\n")
+sys.stderr.flush()
 validate = (
     config_data["cbioportal_validator"]
     + " -s processed/"
