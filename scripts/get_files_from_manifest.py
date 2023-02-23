@@ -15,22 +15,25 @@ import pdb
 
 def download_aws(file_type):
     """
-    Function to download from AWS to file_type dir if AWS profile was given
+    Function to download from AWS to file_type dir if AWS table was given
     """
-    sub_file_list = list(selected.loc[selected["file_type"] == file_type, "s3_path"])
-    for loc in sub_file_list:
-        out = file_type + "/" + loc.split("/")[-1]
-        parse_url = urllib3.util.parse_url(loc)
-        try:
-            dl_client.download_file(
-                Bucket=parse_url.host, Key=parse_url.path.lstrip("/"), Filename=out
-            )
-        except Exception as e:
-            sys.stderr.write(str(e) + " could not download from " + loc + "\n")
-            sys.stderr.flush()
-            err_types['aws download'] += 1
-    sys.stderr.write("Completed downloading files for " + file_type + "\n")
-    sys.stderr.flush()
+    for key in key_dict:
+        current = key_dict[key]["manifest"]
+        dl_client = key_dict[key]["dl_client"]
+        sub_file_list = list(current.loc[current["file_type"] == file_type, "s3_path"])
+        for loc in sub_file_list:
+            out = file_type + "/" + loc.split("/")[-1]
+            parse_url = urllib3.util.parse_url(loc)
+            try:
+                dl_client.download_file(
+                    Bucket=parse_url.host, Key=parse_url.path.lstrip("/"), Filename=out
+                )
+            except Exception as e:
+                sys.stderr.write(str(e) + " could not download from " + loc + "\n")
+                sys.stderr.flush()
+                err_types['aws download'] += 1
+        sys.stderr.write("Completed downloading files for " + file_type + "\n")
+        sys.stderr.flush()
 
 
 def download_sbg(file_type):
@@ -38,6 +41,9 @@ def download_sbg(file_type):
     Function to download from SBG to file_type dir if SBG profile was given
     """
     sub_file_list = list(selected.loc[selected["file_type"] == file_type, "file_id"])
+    # Sort of a "trust fall" that if aws bucket exists, skip SBG download
+    if args.aws_tbl:
+        sub_file_list = list(selected.loc[(selected["file_type"] == file_type) & (selected["s3_path"] == "None"), "file_id"])
     for loc in sub_file_list:
         try:
             sbg_file = api.files.get(loc)
@@ -67,9 +73,9 @@ def mt_type_download(file_type):
         sys.stderr.write(
             str(e) + " error while making directory for " + file_type + "\n"
         )
-    if args.profile:
+    if args.aws_tbl:
         download_aws(file_type)
-    else:
+    if args.sbg_profile:
         download_sbg(file_type)
 
 
@@ -89,7 +95,7 @@ parser.add_argument(
     help="csv list of workflow types to download",
 )
 parser.add_argument(
-    "-p", "--profile", action="store", dest="profile", help="aws profile name. Leave blank if using sbg instead"
+    "-t", "--aws-tbl", action="store", dest="aws_tbl", help="Table with bucket name and keys to subset on"
 )
 parser.add_argument(
     "-s", "--sbg-profile", action="store", dest="sbg_profile", help="sbg profile name. Leave blank if using AWS instead"
@@ -148,14 +154,27 @@ if args.debug:
     exit(1)
 err_types = { 'aws download': 0, 'sbg get': 0, 'sbg download': 0 }
 # download files by type
-if args.profile is not None:
-    session = boto3.Session(profile_name=args.profile)
-    dl_client = session.client("s3")
-elif args.sbg_profile is not None:
+check = 0
+if args.aws_tbl is not None:
+    check = 1
+    # setting up a key dict that, for each aws key, has an associated sesion and manifest to download with
+    key_dict = {}
+    with open(key_file_list) as kl:
+        for line in kl:
+            (bucket, key) = line.rstrip('\n').split('\t')
+            if key not in key_dict:
+                key_dict[key] = {}
+                key_dict[key]['manifest'] = selected[selected['s3_path'].str.contains(bucket)]
+                key_dict[key]['session'] = boto3.Session(profile_name=key)
+                key_dict[key]['dl_client'] = key_dict[key]['session'].client("s3")
+            else:
+                key_dict[key]['manifest'] = pd.concat([key_dict[key]['manifest'], selected[selected['s3_path'].str.contains(bucket)]], axis=1)
+if args.sbg_profile is not None:
+    check = 1
     config = sbg.Config(profile=args.sbg_profile)
     api = sbg.Api(config=config, error_handlers=[rate_limit_sleeper, maintenance_sleeper])
-else:
-    sys.stderr.write("Please set one of profile or sbg_profile\n")
+if not check:
+    sys.stderr.write("Please provide at least one of aws_tbl or sbg_profile\n")
     exit(1)
 
 with concurrent.futures.ThreadPoolExecutor(16) as executor:

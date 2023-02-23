@@ -91,6 +91,23 @@ if __name__ == "__main__":
             return fusion_data_collapsed
 
 
+
+    def filter_and_format_annots(sample_renamed_df, drop_low):
+        """
+        Applies a filter to remove entries with ARRIBA confidence "low" when set, then formats annots file to include Gene1A_anno and Gene1B_anno
+        """
+        if drop_low:
+            sample_renamed_df = sample_renamed_df[sample_renamed_df.Confidence != 'low']
+        sample_renamed_df["annots"] = sample_renamed_df.apply(
+            lambda row: "Gene1: " + ",".join(
+                set(list(row["Gene1A_anno"].split(", "))))
+                    + "; Gene2: " + ",".join(set(list(row["Gene1B_anno"].split(", ")))
+                ),
+                axis=1
+            ) + ";" + sample_renamed_df["annots"]
+        return sample_renamed_df
+
+
     def init_cbio_master(fusion_results, mode, rna_metadata):
         """
         Use data frame subset on RNA fusion files to find and merge result files
@@ -128,16 +145,7 @@ if __name__ == "__main__":
                    )
             # Also merge existing annotations in Gene 1A, Gene 1B into annots
             # annot_cols = ['Gene1A_anno', 'Gene1B_anno']
-            merged["annots"] = merged.apply(
-                lambda row: "Gene1: " + ",".join(
-                    set(list(row["Gene1A_anno"].split(", "))))
-                     + "; Gene2: " + ",".join(set(list(row["Gene1B_anno"].split(", ")))
-                    ),
-                    axis=1
-                )
-            # remove NA as annot when other annots exist
-            merged["annots"] = merged["annots"].str.replace('NA,', '')
-            merged["annots"] = merged["annots"].str.replace(',NA', '')
+            merged = filter_and_format_annots(merged, False)
             for col in desired:
                 if col in merged.columns:
                     present.append(col)
@@ -152,13 +160,14 @@ if __name__ == "__main__":
             for i in range(0, len(flist), 1):
                 try:
                     # concat annofuse file, rename Sample Column according to cBio name
-                    ann_file = pd.read_csv(fusion_results + "/" + flist[i], sep="\t")
+                    ann_file = pd.read_csv(fusion_results + "/" + flist[i], sep="\t", keep_default_na=False, na_values=[""])
                     ann_file = ann_file.assign(Sample=rna_metadata.at[i, "Cbio_Tumor_Name"])
                     frame_list.append(ann_file)
                 except Exception as e:
                     pdb.set_trace()
                     hold = 1
             concat_frame = pd.concat(frame_list)
+            concat_frame = filter_and_format_annots(concat_frame, True)
             del frame_list
             fusion_data = concat_frame[desired]
             del concat_frame
