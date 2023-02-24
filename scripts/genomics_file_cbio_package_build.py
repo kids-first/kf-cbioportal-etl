@@ -11,6 +11,7 @@ import argparse
 import json
 import subprocess
 import time
+from functools import partial
 import pdb
 
 
@@ -246,29 +247,33 @@ cbio_study_id = config_meta_case["study"]["cancer_study_identifier"]
 # iterate through config file - file should only have keys related to data to be loaded
 script_dir = config_data["script_dir"]
 run_status = {}
+# Store a list of run priorities to ensure historically slower jobs kick off first using partial:
+# https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
+run_priority = ["rsem", "mafs", "fusion", "cnvs"]
+run_queue = {}
 for key in config_meta_case:
     if key.startswith("merged_"):
         data_type = "_".join(key.split("_")[1:])
         if data_type == "mafs":
-            process_maf(
+            run_queue["mafs"] = partial(process_maf,
                 config_data["file_loc_defs"]["mafs"],
                 args.table,
                 args.data_config,
                 args.dgd_status
             )
         elif data_type == "rsem":
-            process_rsem(config_data["file_loc_defs"]["rsem"], args.table)
+            run_queue["rsem"] = partial(process_rsem, config_data["file_loc_defs"]["rsem"], args.table)
         elif data_type == "fusion":
             # Status both works for...both, only when one is specifically picked should one not be run
             if args.dgd_status != "dgd":
                 if not args.legacy:
-                    process_kf_fusion(
+                    run_queue["fusion"]=partial(process_kf_fusion,
                         config_data["file_loc_defs"]["fusion"],
                         args.table,
                         "kfprod"
                         )
                 else:
-                    process_kf_fusion_legacy(
+                    run_queue["fusion"] = partial(process_kf_fusion_legacy, 
                         config_data["file_loc_defs"]["fusion"],
                         args.table,
                         config_data["file_loc_defs"]["fusion_sq_file"],
@@ -281,33 +286,39 @@ for key in config_meta_case:
                 )
                 check_status(exit_status, "dgd fusions", "add_dgd_fusion.log")
         elif data_type == "cnvs":
-            process_cnv(
+            run_queue["cnvs"] = partial(process_cnv,
                 config_data["file_loc_defs"]["cnvs"], args.data_config, args.table
             )
+for job in run_priority:
+    if job in run_queue:
+        run_queue[job]()
 
 # Wait for concurrent processes to finish and report statuses
 x = 30
 n = 0
-done = 1
+done = False
 
-while done:
-    done = 0
+while not done:
+    time.sleep(x)
+    n += x
     # don't need to check the same process over and over again if done
     rm_keys = []
+    done = True
     sys.stderr.write(str(n) + " seconds have passed\n")
     sys.stderr.flush()
     for key in run_status:
-        if run_status[key].returncode:
+        run_status[key].poll()
+        sys.stderr.write("Checking " + key + " status\n")
+        if run_status[key].returncode != None:
             check_status(run_status[key].returncode, key)
             rm_keys.append(key)
-            # poll to avoid zombies https://stackoverflow.com/questions/2760652/how-to-kill-or-avoid-zombie-processes-with-subprocess-module
-            run_status[key].poll()
         else:
-            done = 1
+            done = False
     for key in rm_keys:
+        sys.stderr.write("Removed " + key + " from check queue as task is complete\n")
         del run_status[key]
-    time.sleep(x)
-    n += x
+
+
 
 # Run final package builder script
 sys.stderr.write("Creating load packages\n")
