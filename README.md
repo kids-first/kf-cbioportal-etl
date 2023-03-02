@@ -219,7 +219,7 @@ These are highly specialized cases in which all or most of the data come from a 
 ## OpenTargets
 This project is organized much like OpenPBTA in which all genomics data for each assay-type are collated into one giant table.
 In general, this fits cBioPortal well.
-Input files mostly come from a "subdirectory" from within `s3://kf-openaccess-us-east-1-prd-pbta/`, consisting of:
+Input files mostly come from a "subdirectory" from within `s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/`, consisting of:
  - `histologies.tsv`
  - `snv-consensus-plus-hotspots.maf.tsv.gz`
  - `consensus_wgs_plus_cnvkit_wxs_x_and_y.tsv.gz`
@@ -269,7 +269,7 @@ To create the histologies file, recommended method is to:
 1. Run `Rscript --vanilla pedcbio_sample_name_col.R --hist_dir path-to-hist-dir`. Histologies file must be `histologies.tsv`, modify file name or create sym link if needed. Results will be in `results` as `histologies-formatted-id-added.tsv`
 
 ### Inputs
-Inputs are located in the old Kids First AWS account (`538745987955`) in this general bucket location: `s3://kf-openaccess-us-east-1-prd-pbta/open-targets/`.
+Inputs are located in the old D3b AWS account (`684194535433`) in this general bucket location: `s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/`.
 Clinical data with cBio names are obtained from the `histologies-formatted-id-added.tsv` file, as noted in [Prep Work section](#prep-work).
 Genomic data generally obtained as such:
  - Somatic variant calls: merged maf
