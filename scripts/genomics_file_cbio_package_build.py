@@ -51,8 +51,6 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
     )
     log_cmd(maf_cmd)
     run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
-    # if args.dgd_status == "both":
-    #     status += process_append_dgd_maf(maf_loc_dict, cbio_id_table)
 
 
 def process_append_dgd_maf(maf_loc_dict, cbio_id_table):
@@ -298,6 +296,8 @@ x = 30
 n = 0
 done = False
 
+# cheat flag to add append dgd maf once KF/PBTA maf is done when set to both
+dgd_append = 0
 while not done:
     time.sleep(x)
     n += x
@@ -306,12 +306,23 @@ while not done:
     done = True
     sys.stderr.write(str(n) + " seconds have passed\n")
     sys.stderr.flush()
+    if dgd_append:
+        run_queue["dgd_append"] = partial(process_append_dgd_maf, maf_loc_dict, cbio_id_table)
+        run_queue["dgd_append"]()
+        sys.stderr.write("dgd status was both, appending dgd maf\n")
+        # don't want to restart this job, let regualr logic take over
+        dgd_append = 0
+
     for key in run_status:
         run_status[key].poll()
         sys.stderr.write("Checking " + key + " status\n")
         if run_status[key].returncode != None:
             check_status(run_status[key].returncode, key)
             rm_keys.append(key)
+            if key == 'maf' and args.dgd_status=='both':
+                dgd_append = 1
+                done = False
+
         else:
             done = False
     for key in rm_keys:

@@ -24,6 +24,7 @@ if __name__ == "__main__":
         action="store",
         dest="table",
         help="Table with cbio project, kf bs ids, cbio IDs, and file names",
+        required=True
     )
     parser.add_argument(
         "-f",
@@ -31,6 +32,7 @@ if __name__ == "__main__":
         action="store",
         dest="fusion_results",
         help="annoFuse results dir OR openX merged fusion file",
+        required=True
     )
     parser.add_argument(
         "-o",
@@ -45,13 +47,22 @@ if __name__ == "__main__":
         "--mode",
         action="store",
         dest="mode",
-        help="describe source, openX or kfprod",
-        required=True,
+        help="describe source, openX or kfprod, or dgd",
+        required=True
     )
+    parser.add_argument(
+        "-a",
+        "--append",
+        action='store_true',
+        dest="append",
+        help="Flag to append, meaning print to STDOUT and skipper header",
+        required=False
+    )
+
     args = parser.parse_args()
-    if args.mode != "openX" and args.mode != "kfprod":
+    if args.mode != "openX" and args.mode != "kfprod" and args.mode != "dgd":
         sys.stderr.write(
-            "-m mode argument must be one of openX or kfprod. It is case sensitive. You put "
+            "-m mode argument must be one of openX, kfprod, or dgd. It is case sensitive. You put "
             + args.mode
             + "\n"
         )
@@ -126,7 +137,7 @@ if __name__ == "__main__":
                 "Fusion_anno",
                 "Caller"
             ]
-        if mode == "openX":
+        if mode == "openX" or mode == "dgd":
             openx_data = pd.read_csv(fusion_results, sep="\t", keep_default_na=False, na_values=[""])
             # Merge so that sample names can be cBio names - thanks Natasha!
             merged = pd.merge(
@@ -143,6 +154,8 @@ if __name__ == "__main__":
                     columns={"CalledBy": "Caller"},
                     inplace=True
                    )
+            elif mode == "dgd":
+                merged["Caller"] = "Archer"
             # Also merge existing annotations in Gene 1A, Gene 1B into annots
             # annot_cols = ['Gene1A_anno', 'Gene1B_anno']
             merged = filter_and_format_annots(merged, False)
@@ -184,6 +197,8 @@ if __name__ == "__main__":
     r_ext = "fusion"
     if args.mode == 'openX':
         r_ext = "rsem"
+    elif args.mode == 'dgd':
+        r_ext = "DGD_FUSION"
     all_file_meta = pd.read_csv(args.table, sep="\t")
         
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
@@ -230,11 +245,20 @@ if __name__ == "__main__":
     cbio_master["Connection_Type"] = "5to3"
     cbio_master["RNA_Support"] = "Yes"
     # Split some columns that have 2 cols worth of info
-    cbio_master[['Site1_Chromosome','Site1_Position']] = cbio_master.LeftBreakpoint.str.split(":", expand=True)
-    cbio_master[['Site2_Chromosome','Site2_Position']] = cbio_master.RightBreakpoint.str.split(":", expand=True)
+    if args.mode != "dgd":
+        cbio_master[['Site1_Chromosome','Site1_Position']] = cbio_master.LeftBreakpoint.str.split(":", expand=True)
+        cbio_master[['Site2_Chromosome','Site2_Position']] = cbio_master.RightBreakpoint.str.split(":", expand=True)
+    else:
+        cbio_master['Site1_Chromosome'] = ""
+        cbio_master['Site1_Position'] = ""
+        cbio_master['Site2_Chromosome'] = ""
+        cbio_master['Site2_Position'] = ""
     # Reformat values to fit needs to be ALL CAPS, replace - with _, remove weird chars
-    cbio_master["Site2_Effect_On_Frame"] = cbio_master["Site2_Effect_On_Frame"].str.upper()
-    cbio_master['Site2_Effect_On_Frame'] = cbio_master['Site2_Effect_On_Frame'].str.replace('-','_')
+    if args.mode != "dgd":
+        cbio_master["Site2_Effect_On_Frame"] = cbio_master["Site2_Effect_On_Frame"].str.upper()
+        cbio_master['Site2_Effect_On_Frame'] = cbio_master['Site2_Effect_On_Frame'].str.replace('-','_')
+    else:
+        cbio_master["Site2_Effect_On_Frame"] = ""
     # Drop unneeded cols
     cbio_master.drop(['LeftBreakpoint', 'RightBreakpoint'], axis=1, inplace=True)
 
@@ -281,4 +305,7 @@ if __name__ == "__main__":
         fus_tbl = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]
         fus_tbl.fillna("NA", inplace=True)
         fus_tbl.set_index("Sample_Id", inplace=True)
-        fus_tbl.to_csv(fus_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
+        if not args.append:
+            fus_tbl.to_csv(fus_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
+        else:
+            fus_tbl.to_csv(sys.stdout, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE, header=None)
