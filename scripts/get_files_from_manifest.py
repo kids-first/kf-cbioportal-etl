@@ -171,7 +171,7 @@ if args.aws_tbl is not None:
     check = 1
     # from https://stackoverflow.com/questions/66041582/connection-pool-is-full-warning-while-reading-s3-objects-via-multiple-threads
     client_config = botocore.config.Config(
-    max_pool_connections=16
+    max_pool_connections=128
 )
     # setting up a key dict that, for each aws key, has an associated sesion and manifest to download with
     key_dict = {}
@@ -184,7 +184,7 @@ if args.aws_tbl is not None:
                 key_dict[key]['session'] = boto3.Session(profile_name=key)
                 key_dict[key]['dl_client'] = key_dict[key]['session'].client("s3", config=client_config)
             else:
-                key_dict[key]['manifest'] = key_dict[key]['manifest'].append(selected[selected['s3_path'].str.contains(bucket)], ignore_index=True)
+                key_dict[key]['manifest'] = key_dict[key]['manifest'].append(selected[selected['s3_path'].str.startswith(bucket)], ignore_index=True)
 if args.sbg_profile is not None:
     check = 1
     config = sbg.Config(profile=args.sbg_profile)

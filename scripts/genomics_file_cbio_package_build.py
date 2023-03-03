@@ -161,8 +161,8 @@ def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
     """
     Collate process DGD fusion output
     """
-    dgd_fusion_cmd = "{}add_dgd_fusion.py -t {} -f {}".format(
-        script_dir, cbio_id_table, fusion_dir
+    dgd_fusion_cmd = "{}convert_fusion_as_sv.py -t {} -f {} -m {}".format(
+        script_dir, cbio_id_table, fusion_dir, "dgd"
     )
     if dgd_status == "both":
         sys.stderr.write("Appending DGD fusion calls\n")
@@ -276,13 +276,6 @@ for key in config_meta_case:
                         args.table,
                         config_data["file_loc_defs"]["fusion_sq_file"],
                     )
-            if args.dgd_status != "kf":
-                exit_status = process_dgd_fusion(
-                    args.table,
-                    config_data["file_loc_defs"]["dgd_fusion"],
-                    args.dgd_status,
-                )
-                check_status(exit_status, "dgd fusions", "add_dgd_fusion.log")
         elif data_type == "cnvs":
             run_queue["cnvs"] = partial(process_cnv,
                 config_data["file_loc_defs"]["cnvs"], args.data_config, args.table
@@ -297,7 +290,8 @@ n = 0
 done = False
 
 # cheat flag to add append dgd maf once KF/PBTA maf is done when set to both
-dgd_append = 0
+dgd_maf_append = 0
+dgd_fusion_append = 0
 while not done:
     time.sleep(x)
     n += x
@@ -306,12 +300,18 @@ while not done:
     done = True
     sys.stderr.write(str(n) + " seconds have passed\n")
     sys.stderr.flush()
-    if dgd_append:
-        run_queue["dgd_append"] = partial(process_append_dgd_maf, maf_loc_dict, cbio_id_table)
-        run_queue["dgd_append"]()
+    if dgd_maf_append:
+        run_queue["dgd_maf_append"] = partial(process_append_dgd_maf, config_data["file_loc_defs"]["mafs"], args.table)
+        run_queue["dgd_maf_append"]()
         sys.stderr.write("dgd status was both, appending dgd maf\n")
-        # don't want to restart this job, let regualr logic take over
-        dgd_append = 0
+        # don't want to restart this job, let regular logic take over
+        dgd_maf_append = 0
+    if dgd_fusion_append:
+        run_queue["dgd_fusion_append"] = partial(process_dgd_fusion, args.table, config_data["file_loc_defs"]["dgd_fusion"], args.dgd_status)
+        run_queue["dgd_fusion_append"]()
+        sys.stderr.write("dgd status was both, appending dgd fusions\n")
+        # don't want to restart this job, let regular logic take over
+        dgd_fusion_append = 0
 
     for key in run_status:
         run_status[key].poll()
@@ -320,7 +320,10 @@ while not done:
             check_status(run_status[key].returncode, key)
             rm_keys.append(key)
             if key == 'maf' and args.dgd_status=='both':
-                dgd_append = 1
+                dgd_maf_append = 1
+                done = False
+            elif key == 'fusion' and args.dgd_status=='both':
+                dgd_fusion_append = 1
                 done = False
 
         else:
