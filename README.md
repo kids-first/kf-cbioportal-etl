@@ -8,9 +8,9 @@ Below assumes you have already created the necessary tables from dbt
 1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
-    python3 ~/tools/kf-cbioportal-etl/scripts/get_files_from_manifest.py -m cbtn_genomics_file_manifest.txt,pnoc_genomics_file_manifest.txt,x01_genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg -t aws_bucket_key_pairs.txt -s turbo -c cbio_file_name_id.txt
+    python3 scripts/get_files_from_manifest.py -m cbtn_genomics_file_manifest.txt,pnoc_genomics_file_manifest.txt,x01_genomics_file_manifest.txt,dgd_genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg,annotated_public -t aws_buckets_key_pairs.txt -s turbo -c cbio_file_name_id.txt
    ```
-  `aws_bucket_key_pairs` is a headerless tsv file with bucket name and aws profile name pairs
+  `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name and aws profile name pairs
 
 1. Copy and edit `REFS/data_processing_config.json` and `REFS/pbta_all_case_meta_config.json` as needed
 1. Run pipeline script - ignore manifest section, it is a placeholder for a better function download method
@@ -66,6 +66,12 @@ In case you want to use different reference inputs...
    ```sh
    cat Homo_sapiens.GRCh38.105.chr.gtf | perl -e 'while(<>){@a=split /\t/; if($a[2] eq "gene" && $a[8] =~ /gene_name/){print $_;}}'  | convert2bed -i gtf --attribute-key=gene_name  > Homo_sapiens.GRCh38.105.chr.gtf_genes.bed
    ```
+To get aws bucket prefixes to add key (meaning aws profile names) to:
+```sh
+cat *genomic* | cut -f 15 | cut -f 1-3 -d "/" | sort | uniq > aws_bucket_key_pairs.txt
+```
+Just remove the `s3_path` and `None` entries
+
 
 ## Software Prerequisites
 
@@ -73,7 +79,12 @@ In case you want to use different reference inputs...
   + `numpy`, `pandas`, `scipy`
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
 + `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
-+ access to https://aws-infra-jenkins-service.kf-strides.org to start cbio load into QA and/or prod using the `d3b-center-aws-infra-pedcbioportal-import` task
++ access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo. To start a load job:
+  + Create a branch and edit the `import_studies.txt` file with the study name you which to load. Can be an MSKCC datahub link or a local study name
+  + Push the branch to remote - this will kick off a github action to load into QA
+  + To load into prod, make a PR. On merge, load to prod will kick off
+  + aws `stateMachinePedcbioImportservice` Step function service is used to view and mangage running jobs
+  + To repeat a load, click on the ▶️ icon in the git repo to select the job you want to re-run
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
 + [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
 
@@ -111,6 +122,7 @@ Seemingly redundant, this file contains the file locations, BS IDs, file type, a
 It helps simplify the process to integrate better into the downstream tools.
 This is the file that goes in as the `-t` arg in all the data collating tools
 #### - Sequencing center info resource file
+DEPRECATED and will be removed from future releases
 This is a simple file this BS IDs and sequencing center IDs and locations.
 It is necessary to patch in a required field for the fusion data
 #### - Data gene matrix - *OPTIONAL*
@@ -210,7 +222,7 @@ optional arguments:
 Check the pipeline log output for any errors that might have occurred.
 
 ## Upload the final packages
-Upload all of the directories named as study short names to `s3://kf-cbioportal-studies/public/`. You may need to set and/or copy aws your saml key before uploading. Next, edit the file in that bucket called `importStudies.txt` located at `s3://kf-cbioportal-studies/public/importStudies.txt`, with the names of all of the studies you wish to updated/upload. Lastly, go to https://jenkins.kids-first.io/job/d3b-center-aws-infra-pedcbioportal-import/job/master/, click on build. At the `Promotion kf-aws-infra-pedcbioportal-import-asg to QA` and `Promotion kf-aws-infra-pedcbioportal-import-asg to PRD`, the process will pause, click on the box below it to affirm that you want these changes deployed to QA and/or PROD respectively.  If both, you will have to wait for the QA job to finish first before you get the prompt for PROD.
+Upload all of the directories named as study short names to `s3://kf-cbioportal-studies/public/`. You may need to set and/or copy aws your saml key before uploading. Next, edit the file in that bucket called `importStudies.txt` located at `s3://kf-cbioportal-studies/public/importStudies.txt`, with the names of all of the studies you wish to updated/upload. Lastly, follow the directions reference in [Software Prerequisites](#software-prerequisites) to load the study.
 ## Congratulations, you did it!
 
 # Collaborative and Publication Workflows
