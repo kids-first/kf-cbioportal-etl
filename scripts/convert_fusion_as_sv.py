@@ -24,6 +24,7 @@ if __name__ == "__main__":
         action="store",
         dest="table",
         help="Table with cbio project, kf bs ids, cbio IDs, and file names",
+        required=True
     )
     parser.add_argument(
         "-f",
@@ -31,6 +32,7 @@ if __name__ == "__main__":
         action="store",
         dest="fusion_results",
         help="annoFuse results dir OR openX merged fusion file",
+        required=True
     )
     parser.add_argument(
         "-o",
@@ -45,13 +47,22 @@ if __name__ == "__main__":
         "--mode",
         action="store",
         dest="mode",
-        help="describe source, openX or kfprod",
-        required=True,
+        help="describe source, openX or kfprod, or dgd",
+        required=True
     )
+    parser.add_argument(
+        "-a",
+        "--append",
+        action='store_true',
+        dest="append",
+        help="Flag to append, meaning print to STDOUT and skipper header",
+        required=False
+    )
+
     args = parser.parse_args()
-    if args.mode != "openX" and args.mode != "kfprod":
+    if args.mode != "openX" and args.mode != "kfprod" and args.mode != "dgd":
         sys.stderr.write(
-            "-m mode argument must be one of openX or kfprod. It is case sensitive. You put "
+            "-m mode argument must be one of openX, kfprod, or dgd. It is case sensitive. You put "
             + args.mode
             + "\n"
         )
@@ -91,6 +102,23 @@ if __name__ == "__main__":
             return fusion_data_collapsed
 
 
+
+    def filter_and_format_annots(sample_renamed_df, drop_low):
+        """
+        Applies a filter to remove entries with ARRIBA confidence "low" when set, then formats annots file to include Gene1A_anno and Gene1B_anno
+        """
+        if drop_low:
+            sample_renamed_df = sample_renamed_df[sample_renamed_df.Confidence != 'low']
+        sample_renamed_df["annots"] = sample_renamed_df.apply(
+            lambda row: "Gene1: " + ",".join(
+                set(list(row["Gene1A_anno"].split(", "))))
+                    + "; Gene2: " + ",".join(set(list(row["Gene1B_anno"].split(", ")))
+                ),
+                axis=1
+            ) + ";" + sample_renamed_df["annots"]
+        return sample_renamed_df
+
+
     def init_cbio_master(fusion_results, mode, rna_metadata):
         """
         Use data frame subset on RNA fusion files to find and merge result files
@@ -109,7 +137,7 @@ if __name__ == "__main__":
                 "Fusion_anno",
                 "Caller"
             ]
-        if mode == "openX":
+        if mode == "openX" or mode == "dgd":
             openx_data = pd.read_csv(fusion_results, sep="\t", keep_default_na=False, na_values=[""])
             # Merge so that sample names can be cBio names - thanks Natasha!
             merged = pd.merge(
@@ -126,17 +154,10 @@ if __name__ == "__main__":
                     columns={"CalledBy": "Caller"},
                     inplace=True
                    )
-            # Also merge existing annotations in Gene 1A, Gene 1B into annots
-            annot_cols = ['Gene1A_anno', 'Gene2A_anno']
-            merged["annots"] = merged.apply(
-                lambda row: ",".join(
-                    set(list(row["Gene1A_anno"].split(", ") + row["Gene1B_anno"].split(", ")))
-                    ),
-                    axis=1
-                )
-            # remove NA as annot when other annots exist
-            merged["annots"] = merged["annots"].str.replace('NA,', '')
-            merged["annots"] = merged["annots"].str.replace(',NA', '')
+            elif mode == "dgd":
+                merged["Caller"] = "Archer"
+            # Also merge existing annotations in Gene1A_anno, Gene1B_anno into annots
+            merged = filter_and_format_annots(merged, False)
             for col in desired:
                 if col in merged.columns:
                     present.append(col)
@@ -151,13 +172,14 @@ if __name__ == "__main__":
             for i in range(0, len(flist), 1):
                 try:
                     # concat annofuse file, rename Sample Column according to cBio name
-                    ann_file = pd.read_csv(fusion_results + "/" + flist[i], sep="\t")
+                    ann_file = pd.read_csv(fusion_results + "/" + flist[i], sep="\t", keep_default_na=False, na_values=[""])
                     ann_file = ann_file.assign(Sample=rna_metadata.at[i, "Cbio_Tumor_Name"])
                     frame_list.append(ann_file)
                 except Exception as e:
-                    pdb.set_trace()
-                    hold = 1
+                    sys.stderr.write(str(e) + '\n')
+                    exit(1)
             concat_frame = pd.concat(frame_list)
+            concat_frame = filter_and_format_annots(concat_frame, True)
             del frame_list
             fusion_data = concat_frame[desired]
             del concat_frame
@@ -174,6 +196,8 @@ if __name__ == "__main__":
     r_ext = "fusion"
     if args.mode == 'openX':
         r_ext = "rsem"
+    elif args.mode == 'dgd':
+        r_ext = "DGD_FUSION"
     all_file_meta = pd.read_csv(args.table, sep="\t")
         
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
@@ -220,11 +244,20 @@ if __name__ == "__main__":
     cbio_master["Connection_Type"] = "5to3"
     cbio_master["RNA_Support"] = "Yes"
     # Split some columns that have 2 cols worth of info
-    cbio_master[['Site1_Chromosome','Site1_Position']] = cbio_master.LeftBreakpoint.str.split(":", expand=True)
-    cbio_master[['Site2_Chromosome','Site2_Position']] = cbio_master.RightBreakpoint.str.split(":", expand=True)
+    if args.mode != "dgd":
+        cbio_master[['Site1_Chromosome','Site1_Position']] = cbio_master.LeftBreakpoint.str.split(":", expand=True)
+        cbio_master[['Site2_Chromosome','Site2_Position']] = cbio_master.RightBreakpoint.str.split(":", expand=True)
+    else:
+        cbio_master['Site1_Chromosome'] = ""
+        cbio_master['Site1_Position'] = ""
+        cbio_master['Site2_Chromosome'] = ""
+        cbio_master['Site2_Position'] = ""
     # Reformat values to fit needs to be ALL CAPS, replace - with _, remove weird chars
-    cbio_master["Site2_Effect_On_Frame"] = cbio_master["Site2_Effect_On_Frame"].str.upper()
-    cbio_master['Site2_Effect_On_Frame'] = cbio_master['Site2_Effect_On_Frame'].str.replace('-','_')
+    if args.mode != "dgd":
+        cbio_master["Site2_Effect_On_Frame"] = cbio_master["Site2_Effect_On_Frame"].str.upper()
+        cbio_master['Site2_Effect_On_Frame'] = cbio_master['Site2_Effect_On_Frame'].str.replace('-','_')
+    else:
+        cbio_master["Site2_Effect_On_Frame"] = ""
     # Drop unneeded cols
     cbio_master.drop(['LeftBreakpoint', 'RightBreakpoint'], axis=1, inplace=True)
 
@@ -271,4 +304,7 @@ if __name__ == "__main__":
         fus_tbl = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]
         fus_tbl.fillna("NA", inplace=True)
         fus_tbl.set_index("Sample_Id", inplace=True)
-        fus_tbl.to_csv(fus_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
+        if not args.append:
+            fus_tbl.to_csv(fus_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
+        else:
+            fus_tbl.to_csv(sys.stdout, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE, header=None)
