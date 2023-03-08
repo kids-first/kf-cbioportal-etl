@@ -156,8 +156,7 @@ if __name__ == "__main__":
                    )
             elif mode == "dgd":
                 merged["Caller"] = "Archer"
-            # Also merge existing annotations in Gene 1A, Gene 1B into annots
-            # annot_cols = ['Gene1A_anno', 'Gene1B_anno']
+            # Also merge existing annotations in Gene1A_anno, Gene1B_anno into annots
             merged = filter_and_format_annots(merged, False)
             for col in desired:
                 if col in merged.columns:
