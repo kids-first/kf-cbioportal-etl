@@ -17,7 +17,7 @@
     "_comment": "edit the values based on existing/anticipated source file locations, relative to working directory of the script being run",
     "mafs": {
       "kf": "annotated_public_outputs",
-      "dgd": "DGD_MAF",
+      "dgd": "annotated_public",
       "header": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/maf_KF_CONSENSUS_r105.txt"
     },
     "cnvs": {
@@ -27,8 +27,7 @@
     },
     "rsem": "RSEM_gene",
     "fusion": "annofuse_filtered_fusions_tsv",
-    "dgd_fusion": "DGD_FUSION",
-    "fusion_sq_file": "seq_center_resource.txt"
+    "dgd_fusion": "fusion-dgd.tsv.gz"
   },
   "dl_file_type_list": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs",
     "ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg", "DGD_MAF"],

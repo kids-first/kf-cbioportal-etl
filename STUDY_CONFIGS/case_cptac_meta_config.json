@@ -112,12 +112,12 @@
         }
     },
     "study": {
-        "_comment": "If a big study being split into many, make cancer_study_identifer blank, dx will be used",
-        "description": ["Genomic characterization through proteimics. Samples provided by the <a href=\"http://CBTTC.org\">Children's Brain Tumor Tissue Consortium</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Updated Februrary 1, 2020 from last load, July 2019"],
+        "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
+        "description": "Genomic characterization through proteimics. Samples provided by the <a href=\"http://CBTTC.org\">Children's Brain Tumor Tissue Consortium</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Updated Februrary 1, 2020 from last load, July 2019",
         "groups": "PUBLIC",
         "cancer_study_identifier": "cptac_cbttc",
-        "dir_suffix": "",
-        "name_append": "(CBTTC, PBTA, Provisional)"
+        "reference_genome": "hg38",
+        "display_name": "Proteomics (CBTTC, PBTA, Provisional)"
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",

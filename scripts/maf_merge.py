@@ -8,7 +8,7 @@ import concurrent.futures
 import pdb
 
 
-def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx):
+def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc):
     """
     Only output entries not in exclusion list while dropping ENTREZ ID, but keeping TERT promoter hits
     """
@@ -51,7 +51,7 @@ def process_maf(
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
         results = {
             executor.submit(
-                filter_entry, entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx
+                filter_entry, entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc
             )
             for entry in cur_maf
         }
@@ -115,84 +115,84 @@ def process_tbl(
         print(e)
         sys.exit()
 
-
-parser = argparse.ArgumentParser(
-    description="Merge and filter mafs using cavatica task info and datasheets."
-)
-parser.add_argument(
-    "-t",
-    "--table",
-    action="store",
-    dest="table",
-    help="Table with cbio project, kf bs ids, cbio IDs, and file names",
-)
-parser.add_argument(
-    "-i", "--header", action="store", dest="header", help="File with maf header only"
-)
-parser.add_argument(
-    "-m", "--maf-dir", action="store", dest="maf_dir", help="maf file directory"
-)
-parser.add_argument(
-    "-j",
-    "--config",
-    action="store",
-    dest="config_file",
-    help="json config file with data types and " "data locations",
-)
-parser.add_argument(
-    "-f",
-    "--dgd-status",
-    action="store",
-    dest="dgd_status",
-    help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)",
-    default="both",
-    const="both",
-    nargs="?",
-    choices=["both", "kf", "dgd"],
-)
-
-
-args = parser.parse_args()
-with open(args.config_file) as f:
-    config_data = json.load(f)
-# get maf file ext
-maf_dir = args.maf_dir
-if maf_dir[-1] != "/":
-    maf_dir += "/"
-# If DGD maf only, else if both, dgd maf wil be handled separately, or not at all if no dgd and kf only
-
-file_meta_dict = get_file_metadata(args.table, "DGD_MAF")
-if args.dgd_status != "dgd":
-    file_meta_dict = get_file_metadata(args.table, "maf")
-head_fh = open(args.header)
-
-print_head = next(head_fh)
-cur_head = next(head_fh)
-print_header = cur_head.rstrip("\n").split("\t")
-eid_idx = print_header.index("Entrez_Gene_Id")
-print_header.pop(eid_idx)
-
-head_fh.close()
-print_head += "\t".join(print_header) + "\n"
-maf_exc = {
-    "Silent": 0,
-    "Intron": 0,
-    "IGR": 0,
-    "3'UTR": 0,
-    "5'UTR": 0,
-    "3'Flank": 0,
-    "5'Flank": 0,
-    "RNA": 0,
-}
-out_dir = "merged_mafs/"
-try:
-    os.mkdir(out_dir)
-except:
-    sys.stderr.write("output dir already exists\n")
-
-for cbio_dx in file_meta_dict:
-    process_tbl(
-        cbio_dx, file_meta_dict, print_head
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description="Merge and filter mafs using cavatica task info and datasheets."
+    )
+    parser.add_argument(
+        "-t",
+        "--table",
+        action="store",
+        dest="table",
+        help="Table with cbio project, kf bs ids, cbio IDs, and file names",
+    )
+    parser.add_argument(
+        "-i", "--header", action="store", dest="header", help="File with maf header only"
+    )
+    parser.add_argument(
+        "-m", "--maf-dir", action="store", dest="maf_dir", help="maf file directory"
+    )
+    parser.add_argument(
+        "-j",
+        "--config",
+        action="store",
+        dest="config_file",
+        help="json config file with data types and " "data locations",
+    )
+    parser.add_argument(
+        "-f",
+        "--dgd-status",
+        action="store",
+        dest="dgd_status",
+        help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)",
+        default="both",
+        const="both",
+        nargs="?",
+        choices=["both", "kf", "dgd"],
     )
 
-sys.stderr.write("Done, check logs\n")
+
+    args = parser.parse_args()
+    with open(args.config_file) as f:
+        config_data = json.load(f)
+    # get maf file ext
+    maf_dir = args.maf_dir
+    if maf_dir[-1] != "/":
+        maf_dir += "/"
+    # If DGD maf only, else if both, dgd maf wil be handled separately, or not at all if no dgd and kf only
+
+    file_meta_dict = get_file_metadata(args.table, "DGD_MAF")
+    if args.dgd_status != "dgd":
+        file_meta_dict = get_file_metadata(args.table, "maf")
+    head_fh = open(args.header)
+
+    print_head = next(head_fh)
+    cur_head = next(head_fh)
+    print_header = cur_head.rstrip("\n").split("\t")
+    eid_idx = print_header.index("Entrez_Gene_Id")
+    print_header.pop(eid_idx)
+
+    head_fh.close()
+    print_head += "\t".join(print_header) + "\n"
+    maf_exc = {
+        "Silent": 0,
+        "Intron": 0,
+        "IGR": 0,
+        "3'UTR": 0,
+        "5'UTR": 0,
+        "3'Flank": 0,
+        "5'Flank": 0,
+        "RNA": 0,
+    }
+    out_dir = "merged_mafs/"
+    try:
+        os.mkdir(out_dir)
+    except:
+        sys.stderr.write("output dir already exists\n")
+
+    for cbio_dx in file_meta_dict:
+        process_tbl(
+            cbio_dx, file_meta_dict, print_head
+        )
+
+    sys.stderr.write("Done, check logs\n")
