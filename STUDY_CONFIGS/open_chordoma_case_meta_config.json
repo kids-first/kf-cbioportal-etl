@@ -131,13 +131,13 @@
         "dtypes": {
             "fusion": {
                 "ext": "fusions.txt",
-                "cbio_name": "data_fusions.txt",
+                "cbio_name": "data_sv.txt",
                 "meta_file_attr": {
-                    "stable_id": "fusion",
+                    "stable_id": "structural_variants",
                     "profile_name": "Predicted RNA fusions",
                     "profile_description": "Fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse.",
-                    "genetic_alteration_type": "FUSION",
-                    "datatype": "FUSION",
+                    "genetic_alteration_type": "STRUCTURAL_VARIANT",
+                    "datatype": "SV",
                     "show_profile_in_analysis_tab": "true"
                 }
             }
@@ -242,10 +242,6 @@
         "genomics_etl": {
             "table": "brownm28_dev_schema_cbio.open_chordoma_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
-        },
-        "seq_center": {
-            "table": "brownm28_dev_schema_cbio.open_chordoma_sq_info_etl_resource",
-            "out_file": "seq_center_resource.txt"
         }
     }
 }
