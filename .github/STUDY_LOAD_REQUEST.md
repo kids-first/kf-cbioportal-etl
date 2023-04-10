@@ -47,7 +47,7 @@ Publication is obvious, as `Collaboration` study would be something like OpenPBT
     - [Somatic variant calls in maf format](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#mutation-data)
     - Copy number calls as one or more of the following: [discrete copy number data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#discrete-copy-number-data), [continuous copy number data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#continuous-copy-number-data), [segmented data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#segmented-data)
     - [RNAseq expression](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#expression-data) 
-    - [RNAseq fusion](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data)
+    - [RNAseq fusion](https://docs.cbioportal.org/file-formats/#structural-variant-data)
     - [Protein level data](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#protein-level-data)
 
 

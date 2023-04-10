@@ -126,7 +126,7 @@
         }
     },
     "merged_fusion": {
-        "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data for detailed specifics",
+        "_comment": "see https://docs.cbioportal.org/file-formats/#structural-variant-data for detailed specifics",
         "dir": "merged_fusion",
         "dtypes": {
             "fusion": {
