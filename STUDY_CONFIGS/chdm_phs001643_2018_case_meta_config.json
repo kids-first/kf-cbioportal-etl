@@ -229,18 +229,18 @@
             "table": "bix_workflows.data_clinical_sample_header"
         },
         "sample_file": {
-            "table": "brownm28_dev_schema_cbio.chdm_phs001643_2018_data_clinical_sample",
+            "table": "prod_cbio.chdm_phs001643_2018_data_clinical_sample",
             "out_file": "data_clinical_sample.txt"
         },
         "patient_head": {
             "table": "bix_workflows.data_clinical_patient_header"
         },
         "patient_file": {
-            "table": "brownm28_dev_schema_cbio.chdm_phs001643_2018_data_clinical_patient",
+            "table": "prod_cbio.chdm_phs001643_2018_data_clinical_patient",
             "out_file": "data_clinical_patient.txt"
         },
         "genomics_etl": {
-            "table": "brownm28_dev_schema_cbio.chdm_phs001643_2018_genomics_etl_file",
+            "table": "prod_cbio.chdm_phs001643_2018_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
         }
     }
