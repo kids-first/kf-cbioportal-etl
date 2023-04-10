@@ -136,7 +136,8 @@ for manifest in manifest_list:
         manifest_concat = current.copy()
     else:
         manifest_concat = manifest_concat.append(current, ignore_index=True)
-
+# In the event that s3_path is empty, replace with str to trigger later sbg download
+manifest_concat.s3_path = manifest_concat.s3_path.fillna('None')
 file_types = args.fts.split(",")
 # subset concatenated manifests
 sys.stderr.write("Subsetting concatenated manifest\n")
