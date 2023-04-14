@@ -274,6 +274,12 @@ To create the histologies file, recommended method is to:
     union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.os_sd_zxjffmef_2015_cbio_sample
+	  union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.chdm_sd_7spqtt8m_cbio_sample
+	  union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.chdm_phs001643_2018_cbio_sample
 
     ```
 1. Run an interactive docker, and ensure to mount a volume that will have the repo and whatever input histologies file you end up using, i.e. `docker run -it --mount type=bind,source=/home/ubuntu,target=/WORK pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest /bin/bash`
@@ -289,9 +295,19 @@ Genomic data generally obtained as such:
  - Copy number: tsv file with copy number, ploidy, and GISTIC-style information in maf-like format (each call is a row)
  - RNA expression: tpm values from rsem stored an `.rds` object
  - RNA fusion: annoFuse output
+For example, for v12, bucket s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/v12/:
+```
+consensus_wgs_plus_cnvkit_wxs.tsv.gz
+fusion-dgd.tsv.gz
+fusion-putative-oncogenic.tsv
+gene-expression-rsem-tpm-collapsed.rds
+tcga-gene-expression-rsem-tpm-collapsed.rds
+snv-consensus-plus-hotspots.maf.tsv.gz
+snv-dgd.maf.tsv.gz
+```
 
 ### File Transformation
-It's recommended to datasheets in a dir called `datasheets`, and the rest of the outputs into it's own dir to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
+It's recommended to put datasheets in a dir called `datasheets`, and the rest of the outputs into it's own dir to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
 #### 1. COLLABORATIONS/openTARGETS/clinical_to_datasheets.py
  ```
 usage: clinical_to_datasheets.py [-h] [-f HEAD] [-c CLIN] [-s CL_SUPP]
