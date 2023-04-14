@@ -1,4 +1,39 @@
 {
+    "_doc":{
+        "_description": "This section of the document is meant to help understand the organization of key-value pairs and how it supports the creation of files from  https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats as part of the cBioportal ETL",
+        "sections": {
+            "merged_x": {
+                "_description": "Support information for merged genomic data and supporting meta files. ",
+                "dir": "output directory for merged results. Should match output dir specified by etl conversion script at run time",
+                "dtypes": {
+                    "_description": "Data types - cBio defined data types. _comment has link to detailed specifics in each section.",
+                    "ext": "File extension of merged outputs from etl script",
+                    "cbio_name": "cBio output file name - a soft link to the etl output created inside the study directory",
+                    "meta_file_attributes": "Direct key-value paris used by cBio in a meta_x file used to describe data_x files"
+                }
+            },
+            "study": "Special meta file used to describe the cBio study",
+            "case_x": "cBio case lists - sample lists describing which samples have mutation data, sv data, cnv data, etc. See https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#case-lists for specifics",
+            "data_sheets": "Clinical patient and sample data as well as gene matrix if panel data present. Distinct from other data_x files in that in contains sample and patient metadata and not genomic data",
+            "database_pulls": {
+                "_description": "This section is used to support pulling auto-generated clinical data tables and supporting genomics etl information from the D3b Data Warehouse",
+                "manifests": {
+                    "<manifest descriptor>": {
+                        "_description": "The key for this field is meant to be a convenient descriptor of what sub-study files derive from, as a cBio study make come from many sources",
+                        "table": "D3b warehouse table name with relevant file info",
+                        "file_types": "Manifests typically contain all possible harmonization outputs. Specifying specific file_type(s) limits to relevant outputs. Exception is annotated_public_output, etl will pull only he maf as vcfs are included in that query.",
+                        "out_file": "Desired output file name"
+                    }
+                },
+                "x_head": "Special header file table for data_clinical(sample/patient). cBio data_clinical headers have 5 header rows, and which columns are used are determined by the x_file table",
+                "x_file": "sample or patient tables with corresponding metadata at the sample and patient levels",
+                "genomics_etl": "a helper file with relevant cBio sample names and individual genomic files names for ETL merging",
+                "seq_center": "only if project has RNA data, a helper file to fill in missing sequencing center information for genomics etl",
+                "gene_file": "Only if study has panel data, the source information for gene matrix in the data_sheets section"
+
+            }
+        }
+    },
     "merged_mafs": {
         "dir": "merged_mafs",
         "dtypes": {
@@ -88,17 +123,18 @@
         }
     },
     "merged_fusion": {
+        "_comment": "see https://docs.cbioportal.org/file-formats/#structural-variant-data for detailed specifics",
         "dir": "merged_fusion",
         "dtypes": {
             "fusion": {
                 "ext": "fusions.txt",
-                "cbio_name": "data_fusions.txt",
+                "cbio_name": "data_sv.txt",
                 "meta_file_attr": {
-                    "stable_id": "fusion",
+                    "stable_id": "structural_variants",
                     "profile_name": "Predicted RNA fusions",
                     "profile_description": "Fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse.",
-                    "genetic_alteration_type": "FUSION",
-                    "datatype": "FUSION",
+                    "genetic_alteration_type": "STRUCTURAL_VARIANT",
+                    "datatype": "SV",
                     "show_profile_in_analysis_tab": "true"
                 }
             }
@@ -124,12 +160,11 @@
         }
     },
     "study": {
-        "description": "GMKF X01: Genetic basis of neuroblastoma initiation and progression. Samples, provided by the <a href=\"http://CBTN.org\">Children's Brain Tumor Network</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Children with disseminated neuroblastoma have a very high risk of treatment failure and death despite receiving intensified chemotherapy, radiation therapy and immunotherapy. The long-term goal of our research program is to ultimately improve neuroblastoma cure rates by first comprehensively defining the genetic basis of the disease. The central hypothesis to be tested here is that neuroblastoma arises largely due to the epistatic interaction of common and rare heritable DNA variation. Here we performed whole genome sequencing of 563 quartets of neuroblastoma patient germline and diagnostic tumor DNAs and germline DNAs from both parents. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
+        "description": "GMKF X01: Genetic basis of neuroblastoma initiation and progression. Samples, provided by the <a href=\"http://CBTN.org\">Children's Brain Tumor Network</a> and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. Children with disseminated neuroblastoma have a very high risk of treatment failure and death despite receiving intensified chemotherapy, radiation therapy and immunotherapy. The long-term goal of our research program is to ultimately improve neuroblastoma cure rates by first comprehensively defining the genetic basis of the disease. The central hypothesis to be tested here is that neuroblastoma arises largely due to the epistatic interaction of common and rare heritable DNA variation. Here we performed whole genome sequencing of 563 quartets of neuroblastoma patient germline and diagnostic tumor DNAs and germline DNAs from both parents. Added keywords: KF. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
         "cancer_study_identifier": "x01_fy16_nbl_maris",
         "short_name": "x01_fy16_nbl_maris",
-        "display_name": "Discovering the Genetic Basis of Human Neuroblastoma (Maris/GMKF dbGaP phs001436.v1.p1, Provisional)",
-        "name_append": "(x01_fy16_nbl, Provisional)",
+        "display_name": "Kids First: Discovering the Genetic Basis of Human Neuroblastoma (phs001436, Maris, Provisional)",
         "type_of_cancer": "nbl",
         "reference_genome": "hg38"
     },
@@ -201,10 +236,6 @@
         "genomics_etl": {
             "table": "prod_cbio.x01_fy16_nbl_maris_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
-        },
-        "seq_center": {
-            "table": "prod_cbio.x01_fy16_nbl_maris_sq_info_etl_resource",
-            "out_file": "seq_center_resource.txt"
         }
     }
 }

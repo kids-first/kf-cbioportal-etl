@@ -38,13 +38,13 @@ processed
     ├── data_clinical_patient.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_clinical_patient.txt
     ├── data_clinical_sample.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_clinical_sample.txt
     ├── data_cna.seg.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.merged_seg.txt
-    ├── data_fusions.txt -> /home/ubuntu/mount/pbta_all/merged_fusion/pbta_all.fusions.txt
     ├── data_linear_CNA.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.predicted_cnv.txt
     ├── data_mutations_extended.txt -> /home/ubuntu/mount/pbta_all/merged_mafs/pbta_all.maf
     ├── data_rna_seq_v2_mrna.txt -> /home/ubuntu/mount/pbta_all/merged_rsem/pbta_all.rsem_merged.txt
     ├── data_rna_seq_v2_mrna_median_Zscores.txt -> /home/ubuntu/mount/pbta_all/merged_rsem/pbta_all.rsem_merged_zscore.txt
+    ├── data_sv.txt -> /home/ubuntu/mount/pbta_all/pbta_all.fusions.txt
     ├── meta_CNA.txt
-    ├── meta_FUSION.txt
+    ├── meta_SV.txt
     ├── meta_clinical_patient.txt
     ├── meta_clinical_sample.txt
     ├── meta_cna.seg.txt
@@ -85,6 +85,7 @@ Just remove the `s3_path` and `None` entries
   + To load into prod, make a PR. On merge, load to prod will kick off
   + aws `stateMachinePedcbioImportservice` Step function service is used to view and mangage running jobs
   + To repeat a load, click on the ▶️ icon in the git repo to select the job you want to re-run
+  + *Note*, if your branch importStudies.txt is the same as main, you may have tot rigger it yourself. To do so, go to [actions](https://github.com/d3b-center/aws-infra-pedcbioportal-import/actions), on the left panel choose which action you want, then from the drop down in the right panel, pick which branch you want that action to run on 
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
 + [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
 

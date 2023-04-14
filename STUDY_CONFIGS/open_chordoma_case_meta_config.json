@@ -126,18 +126,18 @@
         }
     },
     "merged_fusion": {
-        "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#fusion-data for detailed specifics",
+        "_comment": "see https://docs.cbioportal.org/file-formats/#structural-variant-data for detailed specifics",
         "dir": "merged_fusion",
         "dtypes": {
             "fusion": {
                 "ext": "fusions.txt",
-                "cbio_name": "data_fusions.txt",
+                "cbio_name": "data_sv.txt",
                 "meta_file_attr": {
-                    "stable_id": "fusion",
+                    "stable_id": "structural_variants",
                     "profile_name": "Predicted RNA fusions",
                     "profile_description": "Fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse.",
-                    "genetic_alteration_type": "FUSION",
-                    "datatype": "FUSION",
+                    "genetic_alteration_type": "STRUCTURAL_VARIANT",
+                    "datatype": "SV",
                     "show_profile_in_analysis_tab": "true"
                 }
             }
@@ -160,6 +160,15 @@
                 "meta_file_attr": {
                     "genetic_alteration_type": "CLINICAL",
                     "datatype": "SAMPLE_ATTRIBUTES"
+                }
+            },
+            "genes": {
+                "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#gene-panel-matrix-file for detailed specifics",
+                "cbio_name": "data_gene_matrix_CHOP.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "GENE_PANEL_MATRIX",
+                    "datatype": "GENE_PANEL_MATRIX",
+                    "data_filename": "data_gene_matrix_CHOP.txt"
                 }
             }
         }
@@ -221,7 +230,7 @@
         "manifests": {
             "open_chordoma": {
                 "table": "brownm28_dev_schema_cbio.open_chordoma_genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","mutect2_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
+                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","mutect2_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg", "annotated_public"],
                 "out_file": "open_chordoma_genomics_file_manifest.txt"
             }
         },
@@ -243,9 +252,9 @@
             "table": "brownm28_dev_schema_cbio.open_chordoma_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
         },
-        "seq_center": {
-            "table": "brownm28_dev_schema_cbio.open_chordoma_sq_info_etl_resource",
-            "out_file": "seq_center_resource.txt"
+        "genes": {
+            "table": "brownm28_dev_schema_cbio.open_chordoma_data_gene_matrix",
+            "out_file": "data_gene_matrix_CHOP.txt"
         }
     }
 }
