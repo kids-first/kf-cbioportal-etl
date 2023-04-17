@@ -287,6 +287,10 @@ To create the histologies file, recommended method is to:
 1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons`
 1. Run `Rscript --vanilla pedcbio_sample_name_col.R --hist_dir path-to-hist-dir`. Histologies file must be `histologies.tsv`, modify file name or create sym link if needed. Results will be in `results` as `histologies-formatted-id-added.tsv`
 
+#### RNA rsem input prep
+TCGA data are kept in a seprate matrix from everything else. We need to merge those. It is collapsed on common genes:
+```Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene-expression-rsem-tpm-collapsed.rds --second_file tcga-gene-expression-rsem-tpm-collapsed.rds --output_fn gene_tcga_expression_common_merge.rds
+```
 ### Inputs
 Inputs are located in the old D3b AWS account (`684194535433`) in this general bucket location: `s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/`.
 Clinical data with cBio names are obtained from the `histologies-formatted-id-added.tsv` file, as noted in [Prep Work section](#prep-work).
@@ -307,7 +311,7 @@ snv-dgd.maf.tsv.gz
 ```
 
 ### File Transformation
-It's recommended to put datasheets in a dir called `datasheets`, and the rest of the outputs into it's own dir to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
+It's recommended to put datasheets in a dir called `datasheets`, downloaded files in it's own dir (in v12 it's `GF_INPUTS`) and the rest of the processed outputs into it's own dir (`study_build` for v12) to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
 #### 1. COLLABORATIONS/openTARGETS/clinical_to_datasheets.py
  ```
 usage: clinical_to_datasheets.py [-h] [-f HEAD] [-c CLIN] [-s CL_SUPP]
@@ -339,6 +343,8 @@ Example run:
 
 #### 2. COLLABORATIONS/openTARGETS/rename_filter_maf.py
 _NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz`
+_NOTE_ for v12 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | cut -f 1-132 | perl -e '$skip = <>;  while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz`
+
 Rename IDs in `Tumor_Sample_Barcode`
 ```
 usage: rename_filter_maf.py [-h] [-m MAPPING_FILE] [-v MAF_FILE]
@@ -406,50 +412,11 @@ Options:
 Example run:
 `Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v11 --computeZscore R 2> rna_convert.errs`
 
-### DEPRECATED
-Leaving here until next major release. Refer to [convert sv as fusion](#5-scriptsconvert_fusion_as_svpy)
-#### 5a. scripts/rna_convert_fusion.py
-Before running, to leverage an existing fusion conversion, I first ran:
-`COLLABORATIONS/openTARGETS/reformat_cbio_sample_index.py -t bs_id_sample_map.txt -n openpedcan_v11 > fusion_sample_name_input.txt`
-to reformat the sample name index. Then actually ran the rna fusion script:
-
-```
-Convert openPBTA fusion table OR list of annofuse files to cbio format.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -t TABLE, --table TABLE
-                        Table with cbio project, kf bs ids, cbio IDs, and file names
-  -f FUSION_RESULTS, --fusion-results FUSION_RESULTS
-                        openPBTA fusion file OR annoFuse results dir
-  -m MODE, --mode MODE  describe source, pbta or annofuse
-  -s SQ_FILE, --center-file SQ_FILE
-                        File with BS IDs and sequencing centers. Should have headered columns: BS_ID SQ_Value
-  -o OUT_DIR, --out-dir OUT_DIR
-                        Result output dir. Default is merged_fusion
-```
-Example run:
-`scripts/rna_convert_fusion.py -t fusion_sample_name_input.txt -f fusion-putative-oncogenic.tsv -m pbta -s COLLABORATIONS/openTARGETS/seq_center_info_updated.txt`
-
-#### 5b. /scripts/add_dgd_fusion.py
-Since dgd was just added, this appends to the existing file as it has different columns and input format
-```
-Output fields DGD fusion - meant to be appended to an existing file!
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -f FUSION_DIR, --fusion-dir FUSION_DIR
-                        Fusion file directory
-  -t TABLE, --table TABLE
-                        Table with cbio project, kf bs ids, cbio IDs, and file names
-  -a, --append          Optional - if given will output to stdout to append, else will create new merged file
-  -m, --merged          If input is already merged, treat fusion dir as file instead
-  -o OUT_DIR, --out-dir OUT_DIR
-                        Result output dir. Default is merged_fusion
-```
-Example run:
-`scripts/add_dgd_fusion.py -f fusion-dgd.tsv.gz -t fusion_sample_name_input.txt -a -m >> merged_fusion/openpedcan_v11.fusions.txt`
 #### 5. scripts/convert_fusion_as_sv.py
+
+Before running, to leverage an existing fusion conversion, I first ran:
+`COLLABORATIONS/openTARGETS/reformat_cbio_sample_index.py -t bs_id_sample_map.txt -n openpedcan_v12 > fusion_sample_name_input.txt`
+to reformat the sample name index.
 ```
 usage: convert_fusion_as_sv.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-o OUT_DIR] -m MODE
 
@@ -466,7 +433,10 @@ optional arguments:
   -m MODE, --mode MODE  describe source, openX or kfprod
 ```
 Example run:
-`python3 ~/tools/kf-cbioportal-etl/scripts/convert_fusion_as_sv.py -t fusion_sample_table.txt -m openX -f ../pbta-fusion-putative-oncogenic.tsv`
+`python3 ~/tools/kf-cbioportal-etl/scripts/convert_fusion_as_sv.py -t fusion_sample_name_input.txt -f fusion-putative-oncogenic.tsv -o ./ -m openX`
+If DGD fusions are to be added, run again with `-a` flag like so:
+`python3 ~/tools/kf-cbioportal-etl/scripts/convert_fusion_as_sv.py -t fusion_sample_name_input.txt -f fusion-dgd.tsv.gz -o ./ -m dgd -a >> openpedcan_v12.fusions.txt`
+
 #### 6. scripts/organize_upload_packages.py
 Leverage the existing meta config and package organizer from kids first to create all relevant meta and case files...except for the added case lists achieved by the next step
 ```
