@@ -55,7 +55,7 @@ if __name__ == "__main__":
         "--append",
         action='store_true',
         dest="append",
-        help="Flag to append, meaning print to STDOUT and skipper header",
+        help="Flag to append, meaning print to STDOUT and skip header",
         required=False
     )
 
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     if args.mode == 'openX':
         r_ext = "rsem"
     elif args.mode == 'dgd':
-        r_ext = "DGD_FUSION"
+        r_ext = "rsem"
     all_file_meta = pd.read_csv(args.table, sep="\t")
         
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
