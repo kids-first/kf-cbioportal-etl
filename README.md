@@ -435,7 +435,7 @@ optional arguments:
 Example run:
 `python3 ~/tools/kf-cbioportal-etl/scripts/convert_fusion_as_sv.py -t fusion_sample_name_input.txt -f fusion-putative-oncogenic.tsv -o ./ -m openX`
 If DGD fusions are to be added, run again with `-a` flag like so:
-`python3 ~/tools/kf-cbioportal-etl/scripts/convert_fusion_as_sv.py -t fusion_sample_name_input.txt -f fusion-dgd.tsv.gz -o ./ -m dgd -a >> openpedcan_v12.fusions.txt`
+`python3 ~/tools/kf-cbioportal-etl/scripts/convert_fusion_as_sv.py -t fusion_sample_name_input.txt -f fusion-dgd.tsv.gz -o ./ -m dgd -a`
 
 #### 6. scripts/organize_upload_packages.py
 Leverage the existing meta config and package organizer from kids first to create all relevant meta and case files...except for the added case lists achieved by the next step
