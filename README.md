@@ -240,15 +240,22 @@ Input files mostly come from a "subdirectory" from within `s3://d3b-openaccess-u
  - `gene-expression-rsem-tpm-collapsed.rds`
  - `fusion-putative-oncogenic.tsv`
 
-See `https://pedcbioportal.kidsfirstdrc.org/study/summary?id=ped_opentargets_2021` for final product.
+See `https://pedcbioportal.kidsfirstdrc.org/study/summary?id=openpedcan_v12` for final product.
 
 ## Prep work
 The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to supress duplicate RNA libraries from different sequencing methods.
 Since we are not handling `Methylation` yet, it is recommended those entries be removed ahead of time.
 To create the histologies file, recommended method is to:
-1. `docker pull pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest` if you haven't already
-1. Pull the OpenPedCan repo (should probably make the script more flexible pulling a 12GB repo for such a small task is a bit overkill): https://github.com/PediatricOpenTargets/OpenPedCan-analysis
-1. Export from D3b Warehouse the latest existing cBio IDs to use for population. Ensure that the output is csv double-quoted. Copy that into the OpenPedCan-analysis repo in `analyses/pedcbio-sample-name/input/cbio_name.csv`. Currently that can be obtained using the sql command:
+1. `docker pull pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest` OR if you have R installed locally, ensure the folliwing libraries are installed:
+    ```R
+    library("optparse")
+    library("tidyverse")
+    library("readr")
+    library("tidyr")
+    ```
+
+1. Pull the OpenPedCan repo (warning, it's 12GB ): https://github.com/PediatricOpenTargets/OpenPedCan-analysis, or just download the script from `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R`
+1. Export from D3b Warehouse the latest existing cBio IDs to use for population. Ensure that the output is csv double-quoted. Currently that can be obtained using the sql command:
     ```sql
 
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
@@ -282,10 +289,16 @@ To create the histologies file, recommended method is to:
     from prod_cbio.chdm_phs001643_2018_cbio_sample
 
     ```
-1. Run an interactive docker, and ensure to mount a volume that will have the repo and whatever input histologies file you end up using, i.e. `docker run -it --mount type=bind,source=/home/ubuntu,target=/WORK pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest /bin/bash`
+1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons
+
+### Run as standalone
+1. Download from https://github.com/PediatricOpenTargets/OpenPedCan-analysis the `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R` or run from repo if you have it
+1. Run `Rscript --vanilla pedcbio_sample_name_col.R -i path-to-histolgies-file.tsv -n path-to-cbio-names.csv -b Methylation`
+OR
+### Run in repo
+1. Either run an interactive docker or using your local R , and ensure to mount a volume that will have the repo and whatever input histologies file you end up using, i.e. `docker run -it --mount type=bind,source=/home/ubuntu,target=/WORK pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest /bin/bash`
 1. In that container, go to the location of `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R`
-1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons`
-1. Run `Rscript --vanilla pedcbio_sample_name_col.R --hist_dir path-to-hist-dir`. Histologies file must be `histologies.tsv`, modify file name or create sym link if needed. Results will be in `results` as `histologies-formatted-id-added.tsv`
+1. Run `pedcbio-sample-name/pedcbio_sample_name_col.R -i ../molecular-subtyping-integrate/results/histologies.tsv -b Methylation`. Results will be in `results` as `histologies-formatted-id-added.tsv`
 
 #### RNA rsem input prep
 TCGA data are kept in a seprate matrix from everything else. We need to merge those. It is collapsed on common genes:
@@ -342,8 +355,6 @@ Example run:
 `python3 COLLABORATIONS/openTARGETS/clinical_to_datasheets.py -f COLLABORATIONS/openTARGETS/header_desc.tsv -c histologies-formatted-id-added.tsv -b cbio_hide_reasons.tsv 2> clin2.errs`
 
 #### 2. COLLABORATIONS/openTARGETS/rename_filter_maf.py
-_NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz`
-_NOTE_ for v12 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | cut -f 1-132 | perl -e '$skip = <>;  while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz`
 
 Rename IDs in `Tumor_Sample_Barcode`
 ```
@@ -362,6 +373,9 @@ optional arguments:
   -n TYPE, --study TYPE
                         study name, like "openpbta"
 ```
+_NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz` to add DGD data
+
+_NOTE_ for v12 input, I ran the following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/add_dgd_maf_to_openpedcan.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v12_header.txt -c openpedcan_v12.maf -t ../bs_id_sample_map.txt -m ../GF_INPUTS/snv-dgd.maf.tsv.gz` to add DGD dada, which is more robust
 
 Example run:
 `python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz -s 1 -n openpedcan_v11`
