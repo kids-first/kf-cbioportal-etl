@@ -8,7 +8,7 @@
                 "meta_file_attr": {
                     "stable_id": "mutations",
                     "profile_name": "Mutations",
-                    "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass, < 0.001 frequeney in gnomAD, and min read depth 8 in normal sample. DGD sample subset is a custom panel.",
+                    "profile_description": "Consensus calls from strelka2, mutect2, lancet, and VarDict Java.  Two or more callers required to pass, < 0.001 frequeney in gnomAD, and min read depth 8 in normal sample.",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
                     "variant_classification_filter": "Silent,Intron,3'UTR,3'Flank,5'UTR,IGR,RNA",
                     "datatype": "MAF",
@@ -108,15 +108,6 @@
                 "meta_file_attr": {
                     "genetic_alteration_type": "CLINICAL",
                     "datatype": "SAMPLE_ATTRIBUTES"
-                }
-            },
-            "genes": {
-                "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#gene-panel-matrix-file for detailed specifics",
-                "cbio_name": "data_gene_matrix_CHOP.txt",
-                "meta_file_attr": {
-                    "genetic_alteration_type": "GENE_PANEL_MATRIX",
-                    "datatype": "GENE_PANEL_MATRIX",
-                    "data_filename": "data_gene_matrix_CHOP.txt"
                 }
             }
 

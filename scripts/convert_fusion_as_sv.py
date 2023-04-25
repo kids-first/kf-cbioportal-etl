@@ -311,7 +311,5 @@ if __name__ == "__main__":
             # append to existing fusion file, use same header
             existing = pd.read_csv(fus_fname, sep="\t", keep_default_na=False, na_values=[""])
             fus_tbl = fus_tbl[existing.columns]
-            pdb.set_trace()
-            hold = 1
             fus_tbl.set_index("Sample_Id", inplace=True)
             fus_tbl.to_csv(fus_fname, sep="\t", mode="a", index=True, quoting=csv.QUOTE_NONE, header=None)
