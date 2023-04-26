@@ -229,18 +229,30 @@ Upload all of the directories named as study short names to `s3://kf-cbioportal-
 # Collaborative and Publication Workflows
 These are highly specialized cases in which all or most of the data come from a third party, and therefore requires specific case-by-case protocols.
 
-## OpenTargets
+## OpenPedCan
 This project is organized much like OpenPBTA in which all genomics data for each assay-type are collated into one giant table.
 In general, this fits cBioPortal well.
-Input files mostly come from a "subdirectory" from within `s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/`, consisting of:
- - `histologies.tsv`
- - `snv-consensus-plus-hotspots.maf.tsv.gz`
- - `consensus_wgs_plus_cnvkit_wxs_x_and_y.tsv.gz`
- - `consensus_wgs_plus_cnvkit_wxs_autosomes.tsv.gz`
- - `gene-expression-rsem-tpm-collapsed.rds`
- - `fusion-putative-oncogenic.tsv`
+A summary example run script can be found here: `COLLABORATIONS/openTARGETS/example_run.sh`
 
 See `https://pedcbioportal.kidsfirstdrc.org/study/summary?id=openpedcan_v12` for final product.
+
+### Inputs
+Inputs are located in the old D3b AWS account (`684194535433`) in this general bucket location: `s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/`.
+Clinical data with cBio names are obtained from the `histologies-formatted-id-added.tsv` file, as noted in [Prep Work section](#prep-work).
+Genomic data generally obtained as such:
+ - Somatic variant calls: merged maf
+ - Copy number: tsv file with copy number, ploidy, and GISTIC-style information in maf-like format (each call is a row)
+ - RNA expression: tpm values from rsem stored an `.rds` object
+ - RNA fusion: annoFuse output
+For example, for v12, bucket s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/v12/:
+```
+consensus_wgs_plus_cnvkit_wxs.tsv.gz
+fusion-dgd.tsv.gz
+fusion-putative-oncogenic.tsv
+gene-expression-rsem-tpm-collapsed.rds
+tcga-gene-expression-rsem-tpm-collapsed.rds
+snv-consensus-plus-hotspots.maf.tsv.gz
+```
 
 ## Prep work
 The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to supress duplicate RNA libraries from different sequencing methods.
@@ -302,26 +314,10 @@ OR
 
 #### RNA rsem input prep
 TCGA data are kept in a seprate matrix from everything else. We need to merge those. It is collapsed on common genes:
-```Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene-expression-rsem-tpm-collapsed.rds --second_file tcga-gene-expression-rsem-tpm-collapsed.rds --output_fn gene_tcga_expression_common_merge.rds
+```sh
+Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene-expression-rsem-tpm-collapsed.rds --second_file tcga-gene-expression-rsem-tpm-collapsed.rds --output_fn gene_tcga_expression_common_merge.rds
 ```
-### Inputs
-Inputs are located in the old D3b AWS account (`684194535433`) in this general bucket location: `s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/`.
-Clinical data with cBio names are obtained from the `histologies-formatted-id-added.tsv` file, as noted in [Prep Work section](#prep-work).
-Genomic data generally obtained as such:
- - Somatic variant calls: merged maf
- - Copy number: tsv file with copy number, ploidy, and GISTIC-style information in maf-like format (each call is a row)
- - RNA expression: tpm values from rsem stored an `.rds` object
- - RNA fusion: annoFuse output
-For example, for v12, bucket s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/v12/:
-```
-consensus_wgs_plus_cnvkit_wxs.tsv.gz
-fusion-dgd.tsv.gz
-fusion-putative-oncogenic.tsv
-gene-expression-rsem-tpm-collapsed.rds
-tcga-gene-expression-rsem-tpm-collapsed.rds
-snv-consensus-plus-hotspots.maf.tsv.gz
-snv-dgd.maf.tsv.gz
-```
+
 
 ### File Transformation
 It's recommended to put datasheets in a dir called `datasheets`, downloaded files in it's own dir (in v12 it's `GF_INPUTS`) and the rest of the processed outputs into it's own dir (`study_build` for v12) to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
@@ -352,7 +348,7 @@ optional arguments:
  Outputs a `data_clinical_sample.txt` and `data_clinical_patient.txt` for the cBio package, and a `bs_id_sample_map.txt` mapping file to link BS IDs to gnerated cBioPortal IDs based on the rules for creating a proper somatic event using column `parent_aliquot_id`
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/clinical_to_datasheets.py -f COLLABORATIONS/openTARGETS/header_desc.tsv -c histologies-formatted-id-added.tsv -b cbio_hide_reasons.tsv 2> clin2.errs`
+`python3 COLLABORATIONS/openTARGETS/clinical_to_datasheets.py -f COLLABORATIONS/openTARGETS/header_desc.tsv -c histologies-formatted-id-added.tsv -b cbio_hide_reasons.tsv 2> clin.errs`
 
 #### 2. COLLABORATIONS/openTARGETS/rename_filter_maf.py
 
@@ -375,7 +371,7 @@ optional arguments:
 ```
 _NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz` to add DGD data
 
-_NOTE_ for v12 input, I ran the following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/add_dgd_maf_to_openpedcan.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v12_header.txt -c openpedcan_v12.maf -t ../bs_id_sample_map.txt -m ../GF_INPUTS/snv-dgd.maf.tsv.gz` to add DGD dada, which is more robust
+_NOTE_ for v12 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/add_dgd_maf_to_openpedcan.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v12_header.txt -c openpedcan_v12.maf -t ../bs_id_sample_map.txt -m ../GF_INPUTS/snv-dgd.maf.tsv.gz` to add DGD data, which is more robust - however, there are data issues with DGD, so it was left out
 
 Example run:
 `python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz -s 1 -n openpedcan_v11`
