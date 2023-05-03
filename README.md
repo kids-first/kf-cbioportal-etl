@@ -8,7 +8,7 @@ Below assumes you have already created the necessary tables from dbt
 1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
-    python3 scripts/get_files_from_manifest.py -m cbtn_genomics_file_manifest.txt,pnoc_genomics_file_manifest.txt,x01_genomics_file_manifest.txt,dgd_genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg,annotated_public -t aws_buckets_key_pairs.txt -s turbo -c cbio_file_name_id.txt
+    python3 scripts/get_files_from_manifest.py -m cbtn_genomics_file_manifest.txt,pnoc_genomics_file_manifest.txt,x01_genomics_file_manifest.txt,dgd_genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg,annotated_public -t aws_buckets_key_pairs.txt -s turbo -c cbio_file_name_id.txt -a
    ```
   `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name and aws profile name pairs
 
