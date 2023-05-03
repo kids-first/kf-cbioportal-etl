@@ -55,7 +55,7 @@ if __name__ == "__main__":
         "--append",
         action='store_true',
         dest="append",
-        help="Flag to append, meaning print to STDOUT and skipper header",
+        help="Flag to append, meaning print to STDOUT and skip header",
         required=False
     )
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
                 df_group["Caller"] = ",".join(set(df_group["Caller"].tolist()))
                 df_group["JunctionReadCount"] = df_group["JunctionReadCount"].mean()
                 df_group["SpanningFragCount"] = df_group["SpanningFragCount"].mean()
-                # Go with the cieling of the mean
+                # Go with the ceiling of the mean
                 df_group["JunctionReadCount"] = df_group["JunctionReadCount"].apply(np.ceil)
                 df_group["SpanningFragCount"] = df_group["SpanningFragCount"].apply(np.ceil)
                 collapsed_list.append(df_group[key_cols + [ "JunctionReadCount","SpanningFragCount","annots", "Fusion_Type", "Caller"]].head(1))
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     if args.mode == 'openX':
         r_ext = "rsem"
     elif args.mode == 'dgd':
-        r_ext = "DGD_FUSION"
+        r_ext = "rsem"
     all_file_meta = pd.read_csv(args.table, sep="\t")
         
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
@@ -291,10 +291,11 @@ if __name__ == "__main__":
     ]
     # again, ensure only present columns are ordered
     present_order = []
-    for col in cbio_master:
-        if col in order_list:
+    for col in order_list:
+        if col in cbio_master:
             present_order.append(col)
     cbio_master = cbio_master[present_order]
+    
     # cbio_master.set_index("Sample_Id", inplace=True)
     for project in project_list:
         sub_sample_list = list(
@@ -303,8 +304,12 @@ if __name__ == "__main__":
         fus_fname = out_dir + project + ".fusions.txt"
         fus_tbl = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]
         fus_tbl.fillna("NA", inplace=True)
-        fus_tbl.set_index("Sample_Id", inplace=True)
         if not args.append:
+            fus_tbl.set_index("Sample_Id", inplace=True)
             fus_tbl.to_csv(fus_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
         else:
-            fus_tbl.to_csv(sys.stdout, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE, header=None)
+            # append to existing fusion file, use same header
+            existing = pd.read_csv(fus_fname, sep="\t", keep_default_na=False, na_values=[""])
+            fus_tbl = fus_tbl[existing.columns]
+            fus_tbl.set_index("Sample_Id", inplace=True)
+            fus_tbl.to_csv(fus_fname, sep="\t", mode="a", index=True, quoting=csv.QUOTE_NONE, header=None)
