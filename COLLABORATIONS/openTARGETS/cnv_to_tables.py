@@ -35,7 +35,8 @@ def collate_data(cnv_fn):
     """
     Read in the cnv table, convert and hash values that are in the mapping dict
     """
-    with (gzip.open if cnv_fn.endswith("gz") else open)(cnv_fn, "rt", encoding="utf-8") as cnv_tbl:
+    with (gzip.open if cnv_fn.endswith(".gz") else open)(cnv_fn, "rt", encoding="utf-8") as cnv_tbl:
+        head = next(cnv_tbl)
         header = head.rstrip('\n').split('\t')
         b_idx = header.index('biospecimen_id')
         s_idx = header.index('status')
