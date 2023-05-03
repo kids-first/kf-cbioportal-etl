@@ -27,7 +27,7 @@ snv-consensus-plus-hotspots.maf.tsv.gz
 The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to supress duplicate RNA libraries from different sequencing methods.
 Since we are not handling `Methylation` yet, it is recommended those entries be removed ahead of time.
 To create the histologies file, recommended method is to:
-1. `docker pull pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest` OR if you have R installed locally, ensure the folliwing libraries are installed:
+1. `docker pull pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest` OR if you have R installed locally, ensure the following libraries are installed:
     ```R
     library("optparse")
     library("tidyverse")
