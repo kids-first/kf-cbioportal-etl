@@ -166,11 +166,11 @@
     },
     "study": {
         "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
-        "description": "Genomic characterization of Pediatric Brain Tumor Atlas samples provided by the <a href=\"http://cbtn.org\">Children's Brain Tumor Network</a>. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
+        "description": "Genomic characterization of Pediatric CNS Tumors contributed by the MiOncoSeq program at the University of Michigan. This is a provisional release of data to be incorporated as part of the Pediatric Brain Tumor Atlas in partnership with the <a href=\"http://cbtn.org\">Children's Brain Tumor Network</a>. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
-        "cancer_study_identifier": "pbta_minocoseq",
+        "cancer_study_identifier": "pbta_mioncoseq",
         "type_of_cancer": "brain",
-        "short_name": "pbta_minocoseq",
+        "short_name": "pbta_mioncoseq",
         "reference_genome": "hg38",
         "display_name": "Pediatric MiOncoSeq CNS Tumors (PBTA, Provisional)",
         "citation": "Mody RJ, Wu YM, Lonigro RJ, et al. Integrative Clinical Sequencing in the Management of Refractory or Relapsed Cancer in Youth. JAMA. 2015; Koschmann C, Wu YM, Kumar-Sinha C, et al. Clinically Integrated Sequencing Alters Therapy in Children and Young Adults With High-Risk Glial Brain Tumors. JCO Precis Oncol. 2018",
@@ -182,7 +182,7 @@
         "case_list_description": "All tumor samples with mutation, CNA, and mRNA data",
         "case_list_category": "all_cases_with_mutation_and_cna_and_mrna_data"
     },
-    "cases_minocoseq": {
+    "cases_mioncoseq": {
         "stable_id": "all",
         "case_list_name": "All Tumors",
         "case_list_description": "All tumor samples",
@@ -231,18 +231,18 @@
             "table": "bix_workflows.data_clinical_sample_header"
         },
         "sample_file": {
-            "table": "prod_cbio.pbta_minocoseq_data_clinical_sample",
+            "table": "prod_cbio.pbta_mioncoseq_data_clinical_sample",
             "out_file": "data_clinical_sample.txt"
         },
         "patient_head": {
             "table": "bix_workflows.data_clinical_patient_header"
         },
         "patient_file": {
-            "table": "prod_cbio.pbta_minocoseq_data_clinical_patient",
+            "table": "prod_cbio.pbta_mioncoseq_data_clinical_patient",
             "out_file": "data_clinical_patient.txt"
         },
         "genomics_etl": {
-            "table": "prod_cbio.pbta_minocoseq_genomics_etl_file",
+            "table": "prod_cbio.pbta_mioncoseq_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
         }
     }
