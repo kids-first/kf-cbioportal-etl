@@ -173,7 +173,7 @@
         "short_name": "pbta_mioncoseq",
         "reference_genome": "hg38",
         "display_name": "Pediatric MiOncoSeq CNS Tumors (PBTA, Provisional)",
-        "citation": "Mody RJ, Wu YM, Lonigro RJ, et al. Integrative Clinical Sequencing in the Management of Refractory or Relapsed Cancer in Youth. JAMA. 2015; Koschmann C, Wu YM, Kumar-Sinha C, et al. Clinically Integrated Sequencing Alters Therapy in Children and Young Adults With High-Risk Glial Brain Tumors. JCO Precis Oncol. 2018",
+        "citation": "Mody RJ, Wu YM, Lonigro RJ, et al. JAMA. 2015; Koschmann C, Wu YM, Kumar-Sinha C, et al. JCO Precis Oncol. 2018",
         "pmid": "26325560,32832832"
     },
     "cases_3way_complete": {
@@ -182,7 +182,7 @@
         "case_list_description": "All tumor samples with mutation, CNA, and mRNA data",
         "case_list_category": "all_cases_with_mutation_and_cna_and_mrna_data"
     },
-    "cases_mioncoseq": {
+    "cases_all": {
         "stable_id": "all",
         "case_list_name": "All Tumors",
         "case_list_description": "All tumor samples",
