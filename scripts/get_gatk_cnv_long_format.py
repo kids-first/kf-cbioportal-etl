@@ -13,7 +13,7 @@ python3 get_gatk_cnv_long_format.py --list wxs_male_vs_male_delme.gatk_cnv.funco
 '''
 
 # Instantiate the parser
-parser = argparse.ArgumentParser(description='Get conitnous & discrete cnv')
+parser = argparse.ArgumentParser(description='Get continuous & discrete cnv')
 
 # Required positional argument
 parser.add_argument('--list', help='List of cnv file ')
@@ -122,14 +122,18 @@ merged_seg_cnv.to_csv("per_sample.txt",sep='\t',index=False)
 
 cnv_discrete_per_sample = merged_seg_cnv[["Hugo_Symbol","chr","START","END","cnv_score_discrete"]]
 cnv_discrete_per_sample=cnv_discrete_per_sample.rename(columns={"cnv_score_discrete":str(sample_ID)})
-cnv_discrete_per_sample['Entrez_Gene_Id']=''
-cnv_discrete_per_sample=cnv_discrete_per_sample[['Hugo_Symbol','Entrez_Gene_Id',"chr","START","END",str(sample_ID)]]
+#cnv_discrete_per_sample['Entrez_Gene_Id']=''
+cnv_discrete_per_sample=cnv_discrete_per_sample[['Hugo_Symbol',str(sample_ID)]]
+#cnv_discrete_per_sample['Hugo_Symbol'].replace('', np.nan,inplace=True)
+cnv_discrete_per_sample=cnv_discrete_per_sample[cnv_discrete_per_sample["Hugo_Symbol"].astype(bool)]
+#cnv_discrete_per_sample.dropna(subset=['Hugo_Symbol'], inplace=True)
 cnv_discrete_per_sample.to_csv("cnv_discrete_per_sample.txt",sep='\t',index=False)
 
 cnv_continuous_per_sample = merged_seg_cnv[["Hugo_Symbol","chr","START","END","cnv_score_continuous"]]
 cnv_continuous_per_sample=cnv_continuous_per_sample.rename(columns={"cnv_score_continuous":str(sample_ID)})
-cnv_continuous_per_sample['Entrez_Gene_Id']=''
-cnv_continuous_per_sample=cnv_continuous_per_sample[['Hugo_Symbol','Entrez_Gene_Id',"chr","START","END",str(sample_ID)]]
+cnv_continuous_per_sample=cnv_continuous_per_sample[cnv_continuous_per_sample["Hugo_Symbol"].astype(bool)]
+#cnv_continuous_per_sample['Entrez_Gene_Id']=''
+cnv_continuous_per_sample=cnv_continuous_per_sample[['Hugo_Symbol',str(sample_ID)]]
 cnv_continuous_per_sample.to_csv("cnv_continuous_per_sample.txt",sep='\t',index=False)
 
 
