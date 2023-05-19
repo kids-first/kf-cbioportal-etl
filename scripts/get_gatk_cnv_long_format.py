@@ -5,27 +5,13 @@ import numpy as np
 import argparse
 from concurrent.futures import ThreadPoolExecutor
 import sys
+import json
+
 '''
 command line
 python3 get_gatk_cnv_long_format.py --segfiles_folder_path gatk_copy_ratio_segments_tumor --manifest manifest.tsv
 
 '''
-
-# Instantiate the parser
-parser = argparse.ArgumentParser(description='Get continuous & discrete cnv')
-
-# Required positional argument
-parser.add_argument('--segfiles_folder_path', help='provide seg file folder to read seg files')
-parser.add_argument('--manifest', help='provide manifest file to map BS IDs with file output in tsv format')
-#parser.add_argument('--seg', help='Seg file for cnv ')
-#parser.add_argument('--absolute_CN',type=int, help='Seg file for cnv ')
-#parser.add_argument('--ploidy', type= int,help='Seg file for cnv ')
-args = parser.parse_args()
-
-absolute_CN=2#args.absolute_CN
-ploidy=4#args.ploidy
-#cnv_dataframe= pd.read_csv(args.list,sep='\t',usecols = ['gene','segment_contig','segment_start','segment_end','segment_mean'], low_memory = True)
-#cnv_dataframe['cnv_score_continuous']=round(pow(2,cnv_dataframe['segment_mean']))
 
 def define_score_metrix(absolute_CN,ploidy): 
     # Converting score to GITSIC style values
@@ -41,6 +27,8 @@ def define_score_metrix(absolute_CN,ploidy):
     return score_matrix        
 
 def convert(x):
+    absolute_CN = 2 
+    ploidy = 4
     score_metrix=define_score_metrix(absolute_CN,ploidy)
     if x in score_metrix:
         x=score_metrix[x]
@@ -53,12 +41,6 @@ def get_seg_data(seg):
     with open(seg, "r") as f:
         switch_on="OFF"
         for line in f:
-            #print (line)
-        #    if "@RG" in line:
-        #        line=line.replace('\n','')
-        #        line_data=line.split("\t")
-        #        sample_id=line_data[2].split(":")[1]
-                #print(sample_id)
             if "START" in line or switch_on =="ON":
                 switch_on ="ON"
                 line=line.replace('\n','')
@@ -92,10 +74,11 @@ def map_genes_seg_to_ref(seg_file_data,ref_gene_bed_list):
     return seg_file_data_df  
 
 def get_ref_bed_data(ref_file_name):
+    #read ref data to map genes
 
     path_current_file=str(os.path.join(os.path.dirname(__file__))).split("/")
     path_current_file[-1]='REFS'
-    path_current_file.append('Homo_sapiens.GRCh38.105.chr.gtf_genes.bed')
+    path_current_file.append(gene_bed_ref_filename)
     path_ref_file='/'.join(path_current_file)
     ref_gene_bed=pd.read_csv(path_ref_file,sep='\t',names=["chr",'start','end','gene'])
     ref_gene_bed['chr']='chr'+ref_gene_bed['chr']
@@ -103,13 +86,42 @@ def get_ref_bed_data(ref_file_name):
 
     return ref_gene_bed_list
 
-#path to ref file to map genes
-def prepare_gat_cnv_from_seg_file(seg_file,sample_ID,ref_gene_bed_list):
-    
+def extract_integer(string_data):
+    return string_data.replace('chr','')
+
+def prepare_seg_output(seg_data,cbio_ID):
+    #seg_data_df=seg_data_df.drop(["CALL"])
+    seg_data["CONTIG"]=seg_data["CONTIG"].map(extract_integer)
+    seg_data=seg_data.drop(['CALL','gene'],axis=1)
+    seg_data["ID"]=str(cbio_ID)
+    seg_data=seg_data.rename(columns={"CONTIG":"chrom","START":"loc.start","END":"loc.end","NUM_POINTS_COPY_RATIO":"num.mark","MEAN_LOG2_COPY_RATIO":"seg.mean"})
+    ID_i = seg_data.pop("ID")
+    seg_data.insert(0, 'ID', ID_i)
+    return seg_data
+
+
+def prepare_gat_cnv_from_seg_file(seg_file,sample_ID,ref_gene_bed_list,map_cbio_BS_IDs):
+    #prepare data in wide format for per seg file
+
     seg_data=get_seg_data(seg_file)
     seg_data_df=map_genes_seg_to_ref(seg_data,ref_gene_bed_list)
     seg_data_df.sort_values(by=['CONTIG','START'],inplace=True)
     seg_data_df=seg_data_df.convert_dtypes()
+
+    #print(sample_ID)
+    #print(seg_file)
+    cbio_ID_list=map_cbio_BS_IDs[map_cbio_BS_IDs['T_CL_BS_ID']==sample_ID]['Cbio_Tumor_Name'].values
+    if len(cbio_ID_list)>0:
+        cbio_ID=cbio_ID_list[0]
+    else:    
+        print("cbio tumor id not found for ", sample_ID, "therefore ignoring this sample")
+        return []
+        
+    #cbio_ID=sample_ID
+
+    seg_processing=seg_data_df.copy()
+    seg_output=prepare_seg_output(seg_processing,cbio_ID)
+    
     seg_data_df['cnv_score_continuous']=round(pow(2,seg_data_df['MEAN_LOG2_COPY_RATIO']))
     seg_data_df["cnv_score_discrete"]=seg_data_df["cnv_score_continuous"].map(convert)
     seg_data_df=seg_data_df.drop(["MEAN_LOG2_COPY_RATIO","CALL","NUM_POINTS_COPY_RATIO",'CONTIG','START','END'],axis=1)
@@ -125,163 +137,127 @@ def prepare_gat_cnv_from_seg_file(seg_file,sample_ID,ref_gene_bed_list):
     df2_gain_cnv = df2_gain_cnv.sort_values('cnv_score_discrete', ascending=False).drop_duplicates('Hugo_Symbol').sort_index() # remove duplicate gene and pick one with max cnv score for gain
     
     df_without_duplicate_gene=pd.concat([df_without_duplicate_gene,df2_loss_cnv,df2_gain_cnv]) #Add duplicate gene back
-    #print(df_without_duplicate_gene)
-    #print(df2_loss_cnv)
-    #print(df2_gain_cnv)
-    #print(df_without_duplicate_gene)
+
+    #print()
+    
     cnv_discrete_per_sample=df_without_duplicate_gene.drop(["cnv_score_continuous"],axis=1) #prepare df for discrete scores
-    cnv_discrete_per_sample=cnv_discrete_per_sample.rename(columns={"cnv_score_discrete":str(sample_ID)})
+    cnv_discrete_per_sample=cnv_discrete_per_sample.rename(columns={"cnv_score_discrete":str(cbio_ID)})
     cnv_continuous_per_sample=df_without_duplicate_gene.drop(['cnv_score_discrete'],axis=1) #prepare df for continuous scores
     cnv_continuous_per_sample['cnv_score_continuous']=cnv_continuous_per_sample["cnv_score_continuous"].astype('int')
-    cnv_continuous_per_sample=cnv_continuous_per_sample.rename(columns={'cnv_score_continuous':str(sample_ID)})
+    cnv_continuous_per_sample=cnv_continuous_per_sample.rename(columns={'cnv_score_continuous':str(cbio_ID)})
 
-    return [cnv_discrete_per_sample,cnv_continuous_per_sample]
 
-def outer_merge_list(df_list):
+    return [cnv_discrete_per_sample,cnv_continuous_per_sample,seg_output]
+
+def outer_merge_list(df_list,on_header):
     merged_list=df_list[0]
     for i in range(1,len(df_list),1):
-        merged_list=pd.merge(merged_list,df_list[i],how='outer',on=["Hugo_Symbol"])
+        merged_list=pd.merge(merged_list,df_list[i],how='outer',on=on_header)
     return merged_list
 
-if not os.path.isfile(args.manifest):
+def run_thread_pool():
+    threads=[]
+    results=[]
+    counter=0
+    with ThreadPoolExecutor(max_workers=100) as executor:
+        for filename in os.listdir(segfiles_folder_path):
+            file_path = os.path.join(segfiles_folder_path, filename)
+            # checking if it is a file
+            if os.path.isfile(file_path) and file_path.endswith(".seg"):
+                file_name=file_path.split('/')[-1] # extract file name from split
+                sample_ID=map_bs_filename[map_bs_filename["filename"]==file_name]['biospecimen_id'].values[0]
+                #file_path='wxs_male_vs_male_delme.tumor.gatk_cnv.called.seg'
+        #        sample_ID='BS_0GS82Q3E'
+        #        file_path='/Users/phuls/tools/kf-cbioportal-etl/scripts/gatk_copy_ratio_segments_tumor/ddc5c5ea-399c-4ded-9fce-48a275d9bbb4.tumor.gatk_cnv.called.seg'
+                threads.append(executor.submit(prepare_gat_cnv_from_seg_file,file_path,sample_ID,ref_gene_bed_list,map_cbio_BS_IDs))
+                
+                counter=counter+1
+                if counter == 100:
+                    break
+        for active_threads in threads:
+            results.append(active_threads.result())        
+        #        results.append(prepare_gat_cnv_from_seg_file(file_path,sample_ID,ref_gene_bed_list,map_cbio_BS_IDs))
+        results_not_empty = [x for x in results if len(x) > 0 ]
+    return results_not_empty  
+import concurrent.futures
+
+def run_process_pool():
+    process=[]
+    results=[]
+    counter=0
+    with concurrent.futures.ProcessPoolExecutor(max_workers=12) as executor:
+        for filename in os.listdir(segfiles_folder_path):
+            file_path = os.path.join(segfiles_folder_path, filename)
+            # checking if it is a file
+            if os.path.isfile(file_path) and file_path.endswith(".seg"):
+                file_name=file_path.split('/')[-1] # extract file name from split
+                sample_ID=map_bs_filename[map_bs_filename["filename"]==file_name]['biospecimen_id'].values[0]
+                #file_path='wxs_male_vs_male_delme.tumor.gatk_cnv.called.seg'
+        #        sample_ID='BS_0GS82Q3E'
+        #        file_path='/Users/phuls/tools/kf-cbioportal-etl/scripts/gatk_copy_ratio_segments_tumor/ddc5c5ea-399c-4ded-9fce-48a275d9bbb4.tumor.gatk_cnv.called.seg'
+                process.append(executor.submit(prepare_gat_cnv_from_seg_file,file_path,sample_ID,ref_gene_bed_list,map_cbio_BS_IDs))
+                
+               # counter=counter+1
+               # if counter == 100:
+               #     break
+        for active_threads in process:
+            results.append(active_threads.result())        
+        #        results.append(prepare_gat_cnv_from_seg_file(file_path,sample_ID,ref_gene_bed_list,map_cbio_BS_IDs))
+        results_not_empty_list = [x for x in results if len(x) > 0 ]
+    return results_not_empty_list     
+
+if __name__=="__main__":
+        # Instantiate the parser
+    parser = argparse.ArgumentParser(description='Get continuous & discrete cnv')
+
+    # Required positional argument
+    parser.add_argument('--config', help='Seg file for cnv ')
+    args = parser.parse_args()
+
+    # Opening JSON file
+    json_file = open(args.config)
+    json_dict = json.load(json_file)
+
+    #read variables from json dict
+    segfiles_folder_path=json_dict['file_loc_defs']['gatk_seg']['segfiles_folder_path']
+    manifest_path=json_dict['file_loc_defs']['gatk_seg']['manifest']
+    gene_bed_ref_filename=json_dict['file_loc_defs']['gatk_seg']['gene_bed_ref_filename']
+    output_folder_path=json_dict['file_loc_defs']['gatk_seg']['output_folder_path']
+    #absolute_CN=json_dict['file_loc_defs']['gatk_seg']['absolute_CN']
+    #ploidy=json_dict['file_loc_defs']['gatk_seg']['ploidy_gain']
+
+    if not os.path.isfile(manifest_path):
         raise TypeError("Cannot find given manifest file") 
-else:
-    manifest=pd.read_csv(args.manifest,sep='\t',header=0)
-    file_name=manifest['s3_path'].str.split("/",expand=True)[5]
-    file_name=file_name.rename("filename")
-    map_bs_filename=pd.concat([manifest['biospecimen_id'],file_name],axis=1)
+    else:
+        manifest=pd.read_csv(manifest_path,sep='\t',header=0)
+        file_name=manifest['s3_path'].str.split("/",expand=True)[5]
+        file_name=file_name.rename("filename")
+        map_bs_filename=pd.concat([manifest['biospecimen_id'],file_name],axis=1)
 
-ref_gene_bed_list=get_ref_bed_data('Homo_sapiens.GRCh38.105.chr.gtf_genes.bed')   #used for gene mapping to seg calls 
+    map_cbio_BS_IDs=pd.read_csv("pbta_all_genomics_etl_file.csv")
+    map_cbio_BS_IDs=map_cbio_BS_IDs[map_cbio_BS_IDs["T_CL_BS_ID"].duplicated()==False]
 
-threads=[]
-results=[]
-counter=0
-with ThreadPoolExecutor(max_workers=100) as executor:
-    for filename in os.listdir(args.segfiles_folder_path):
-        file_path = os.path.join(args.segfiles_folder_path, filename)
-        # checking if it is a file
-        if os.path.isfile(file_path) and file_path.endswith(".seg"):
-            file_name=file_path.split('/')[1] # file name from split
-            sample_ID=map_bs_filename[map_bs_filename["filename"]==file_name]['biospecimen_id'].values[0]
-            file_path='wxs_male_vs_male_delme.tumor.gatk_cnv.called.seg'
-            threads.append(executor.submit(prepare_gat_cnv_from_seg_file,file_path,sample_ID,ref_gene_bed_list))
-            counter=counter+1
-            if counter == 10:
-                break
-    for active_threads in threads:
-        results.append(active_threads.result())              
+    ref_gene_bed_list=get_ref_bed_data(gene_bed_ref_filename)   #used for gene mapping to seg calls 
 
-# code to split it into 2 lists
-discrete_list, continous_list = map(list, zip(*results))
-df_discrete=outer_merge_list(discrete_list)
-df_discrete=df_discrete.replace(np.nan,'', regex=True)
-df_continous=outer_merge_list(continous_list)
-df_continous=df_continous.replace(np.nan,'', regex=True)
-df_continous=df_continous.sort_values("Hugo_Symbol")
-df_discrete=df_discrete.sort_values("Hugo_Symbol")
-df_continous.to_csv("cnv_continous.txt",sep='\t',index=False)
-df_discrete.to_csv("cnv_discrete.txt",sep='\t',index=False)
-#print(df_discrete)
-#print(df_discrete)
-#print(df_continous)
+    #results=run_thread_pool()
+    results=run_process_pool()
 
-#print(cnv_discrete_per_sample)
-#print(cnv_continuous_per_sample)
+    # code to split results list into 2 separeatelists
+    discrete_list, continous_list,seg_list = map(list, zip(*results))
+    df_discrete=outer_merge_list(discrete_list,"Hugo_Symbol")
+    df_discrete=df_discrete.replace(np.nan,'', regex=True)
+    df_continous=outer_merge_list(continous_list,"Hugo_Symbol")
+    df_continous=df_continous.replace(np.nan,'', regex=True)
+    df_continous=df_continous.sort_values("Hugo_Symbol")
+    df_discrete=df_discrete.sort_values("Hugo_Symbol")
 
-'''
-cnv_dataframe.drop(['gene'],axis=1,inplace=True)
-cnv_dataframe.drop_duplicates(inplace=True)
-cnv_dataframe.sort_values(by=['segment_contig','segment_start'],inplace=True)
-merged_seg_cnv=pd.merge(cnv_dataframe,seg_data_df,how='inner',right_on='START', left_on='segment_start')
-merged_seg_cnv.drop(["segment_start","segment_end","CONTIG"],axis=1,inplace=True)
-merged_seg_cnv.rename(columns={"segment_contig":"chr","gene":"Hugo_Symbol"},inplace=True)
-merged_seg_cnv["SAMPLE_ID"]=sample_ID
-merged_seg_cnv=merged_seg_cnv[["SAMPLE_ID","Hugo_Symbol","chr","START","END","segment_mean","cnv_score_continuous","cnv_score_discrete","NUM_POINTS_COPY_RATIO","MEAN_LOG2_COPY_RATIO"]]
-#print(merged_seg_cnv)
-merged_seg_cnv.to_csv("per_sample.txt",sep='\t',index=False)
+    df_seg=pd.concat(seg_list)
+    df_seg=df_seg.replace(np.nan,'', regex=True)
+    df_seg=df_seg.sort_values(["ID","chrom","loc.start"])
 
-cnv_discrete_per_sample = merged_seg_cnv[["Hugo_Symbol","chr","START","END","cnv_score_discrete"]]
-cnv_discrete_per_sample=cnv_discrete_per_sample.rename(columns={"cnv_score_discrete":str(sample_ID)})
-#cnv_discrete_per_sample['Entrez_Gene_Id']=''
-cnv_discrete_per_sample=cnv_discrete_per_sample[['Hugo_Symbol',str(sample_ID)]]
-#cnv_discrete_per_sample['Hugo_Symbol'].replace('', np.nan,inplace=True)
-cnv_discrete_per_sample=cnv_discrete_per_sample[cnv_discrete_per_sample["Hugo_Symbol"].astype(bool)]
-#cnv_discrete_per_sample.dropna(subset=['Hugo_Symbol'], inplace=True)
-cnv_discrete_per_sample.to_csv("cnv_discrete_per_sample.txt",sep='\t',index=False)
-
-cnv_continuous_per_sample = merged_seg_cnv[["Hugo_Symbol","chr","START","END","cnv_score_continuous"]]
-cnv_continuous_per_sample=cnv_continuous_per_sample.rename(columns={"cnv_score_continuous":str(sample_ID)})
-cnv_continuous_per_sample=cnv_continuous_per_sample[cnv_continuous_per_sample["Hugo_Symbol"].astype(bool)]
-#cnv_continuous_per_sample['Entrez_Gene_Id']=''
-cnv_continuous_per_sample=cnv_continuous_per_sample[['Hugo_Symbol',str(sample_ID)]]
-cnv_continuous_per_sample.to_csv("cnv_continuous_per_sample.txt",sep='\t',index=False)
-'''
-
-#cnv_dataframe['cnv_score_continuous']=round(pow(2,cnv_dataframe['segment_mean']))
-#cnv_dataframe["cnv_score_discrete"]=cnv_dataframe["cnv_score_continuous"].map(convert)
-
-#cnv_dataframe_gene=cnv_dataframe[['gene','segment_contig','segment_start','segment_end']].values.tolist()
-#print(len(cnv_dataframe_gene))
-
-#chunks=16
-#list_df = [
-#        cnv_dataframe[i : i + chunks].copy(deep=True) for i in range(0, len(cnv_dataframe), chunks)
-#    ]
-#print(len(list_df))
-#genes=map_genes(cnv_dataframe_gene)
-
-'''
-def pick_gene(row):
-    print(row["segment_start"] > ref_gene_bed["start"] and ref_gene_bed['chr'] == row["segment_contig"])
-    return 1#[ref_gene_bed['chr'] == row["segment_contig"] & int(row["segment_start"]) > int(ref_gene_bed["start"])]
-'''
-'''
-def searching(x):
-    ap=[]
-    for start,end,gene in zip(ref_gene_bed['start'],ref_gene_bed['end'],ref_gene_bed['gene']):
-        if start < x:# and x < end :
-            if x > end:
-                ap.append(True)
-        else:
-            ap.append(False)
-    return ap 
-'''     
-'''
-def map_genes(cnv_data):
-    ref_genes=[]
-    cnv_data_list=cnv_data.values.tolist()
-    for calls in cnv_data_list:
-        gene=''
-        for ref in ref_gene_bed_list:
-            if ref[0] == calls[1] and ref[1] < calls[2] and ref [2] > calls[3]:
-                gene=ref[3]
-                break
-        ref_genes.append(gene) 
-
-    #cnv_data.drop(columns=['gene'],axis=1,inplace=True)
-    cnv_data['gene1']=ref_genes
-         
-    return cnv_data    
-'''
-'''
-from concurrent.futures import ThreadPoolExecutor
-threads=[]
-results=[]
-with ThreadPoolExecutor(max_workers=10) as executor:
-    for i in list_df:
-        threads.append(executor.submit(map_genes,i))
-
-    for t in threads:
-        results.append(t.result())   
-df = pd.concat(results)         
-#print(df)
-'''
-'''
-for calls in cnv_dataframe_gene:
-    gene=''
-    for ref in ref_gene_bed_list:
-        if ref[0] == calls[1] and ref[1] < calls[2] and ref [2] > calls[3]:
-            gene=ref[3]
-            break
-    ref_genes.append(gene)    
-'''    
+    df_continous.to_csv(os.path.join(output_folder_path,'cnv_continous.txt'),sep='\t',index=False)
+    df_discrete.to_csv(os.path.join(output_folder_path,"cnv_discrete.txt"),sep='\t',index=False)
+    df_seg.to_csv(os.path.join(output_folder_path,"cnv_seg.txt"),sep='\t',index=False)
+    #print(df_seg)
+    #print(df_discrete)
+    #print(df_continous)
