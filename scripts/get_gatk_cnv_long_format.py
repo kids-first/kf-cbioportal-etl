@@ -7,7 +7,7 @@ from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
 
 """
-This script will convert Gatk seg file to wide format and generate three output files: cnv_discrete, cnv_continuous and cnv_seg files
+This script will convert Gatk seg file to cbio wide format and generate three output files: cnv_discrete, cnv_continuous and cnv_seg files
 
 command line: python3 get_gatk_cnv_long_format.py --config ../STUDY_CONFIGS/pbta_all_treatment_data_processing_config.json
 
