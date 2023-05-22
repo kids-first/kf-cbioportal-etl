@@ -30,8 +30,7 @@
         "map_cbio_BS_ids": "/Users/phuls/tools/kf-cbioportal-etl/scripts/pbta_all_genomics_etl_file.csv",
         "gene_bed_ref_filename": "Homo_sapiens.GRCh38.105.chr.gtf_genes.bed",
         "output_folder_path": "/Users/phuls/tools/kf-cbioportal-etl/scripts",
-        "absolute_CN": 2,
-        "ploidy_gain": 4
+        "cpus": 12
       },
       "rsem": "RSEM_gene",
       "fusion": "annofuse_filtered_fusions_tsv",
