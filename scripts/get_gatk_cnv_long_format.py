@@ -290,15 +290,19 @@ if __name__ == "__main__":
     # code to split results list into 2 separeatelists
     discrete_list, continous_list, seg_list = map(list, zip(*results))
     df_discrete = outer_merge_list(discrete_list, "Hugo_Symbol")
-    df_discrete = df_discrete.replace(np.nan, "", regex=True)
-    df_continous = outer_merge_list(continous_list, "Hugo_Symbol")
-    df_continous = df_continous.replace(np.nan, "", regex=True)
-    df_continous = df_continous.sort_values("Hugo_Symbol")
+    df_discrete = df_discrete.convert_dtypes()
+    df_discrete = df_discrete.replace(np.nan, 0, regex=True)  # fill nans
     df_discrete = df_discrete.sort_values("Hugo_Symbol")
+
+    # flatten continuous list of list
+    df_continous = outer_merge_list(continous_list, "Hugo_Symbol")
+    df_continous = df_continous.convert_dtypes()
+    df_continous = df_continous.replace(np.nan, 2, regex=True)  # fill nans
+    df_continous = df_continous.sort_values("Hugo_Symbol")
 
     # flatten seg list of list
     df_seg = pd.concat(seg_list)
-    df_seg = df_seg.replace(np.nan, "", regex=True)
+    df_seg = df_seg.replace(np.nan, "", regex=True)  # fill nans
     df_seg = df_seg.sort_values(["ID", "chrom", "loc.start"])
 
     # write output files
