@@ -58,7 +58,7 @@ if __name__ == "__main__":
         sys.stderr.flush()
 
     # Use cbio table to create master table to choose representative gene symbol, calc z scores, output both
-    all_file_meta = pd.read_csv(args.table, sep="\t")
+    all_file_meta = pd.read_csv(args.table, sep="\t", dtype={'Cbio_Tumor_Name': str})
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == "rsem"]
     rsem_list = rna_subset["File_Name"].to_list()
     sys.stderr.write("Creating merged rsem table\n")
