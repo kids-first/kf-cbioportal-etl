@@ -198,6 +198,7 @@ if __name__ == "__main__":
         r_ext = "rsem"
     elif args.mode == 'dgd':
         r_ext = "rsem"
+    # ensure sample name is imported as str
     all_file_meta = pd.read_csv(args.table, sep="\t", dtype={'Cbio_Tumor_Name': str})
         
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
