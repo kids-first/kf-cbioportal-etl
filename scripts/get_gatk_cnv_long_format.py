@@ -9,7 +9,7 @@ from concurrent.futures import as_completed
 """
 This script will convert Gatk seg file to cbio wide format and generate three output files: cnv_discrete, cnv_continuous and cnv_seg files
 
-command line: python3 get_gatk_cnv_long_format.py --config ../STUDY_CONFIGS/pbta_all_treatment_data_processing_config.json
+command line: python3 get_gatk_cnv_long_format.py --config ../STUDY_CONFIGS/pbta_all_treatment_data_processing_config.json --etl_file etl_file.tsv --file_type_key gatk_seg --output_folder processed/
 
 """
 
@@ -80,13 +80,10 @@ def map_genes_seg_to_ref(seg_file_data, ref_gene_bed_list):
     return seg_file_data_df
 
 
-def get_ref_bed_data(ref_file_name):
+def get_ref_bed_data(ref_file_path):
     # read ref data to map genes returns data as a list
 
-    path_current_file = str(os.path.join(os.path.dirname(__file__))).split("/")
-    path_current_file[-1] = "REFS"
-    path_current_file.append(gene_bed_ref_filename)
-    path_ref_file = "/".join(path_current_file)
+    path_ref_file = ref_file_path
     ref_gene_bed = pd.read_csv(
         path_ref_file, sep="\t", names=["chr", "start", "end", "gene"]
     )
@@ -124,10 +121,8 @@ def prepare_gat_cnv_from_seg_file(
     seg_file, sample_ID, ref_gene_bed_list, map_cbio_BS_IDs
 ):
     # prepare data in wide format for per seg file
-
     seg_data = get_seg_data(seg_file)
     seg_data_df = map_genes_seg_to_ref(seg_data, ref_gene_bed_list)
-    seg_data_df.sort_values(by=["CONTIG", "START"], inplace=True)
     seg_data_df = seg_data_df.convert_dtypes()
 
     cbio_ID_list = map_cbio_BS_IDs[map_cbio_BS_IDs["T_CL_BS_ID"] == sample_ID][
@@ -220,37 +215,49 @@ def run_process_pool(cpu_workers):
     process = []
     results = []
     print("Setting pool threads with max CPUs:", cpu_workers)
-    with ProcessPoolExecutor(max_workers=12) as executor:
-        for filename in os.listdir(segfiles_folder_path):
-            file_path = os.path.join(segfiles_folder_path, filename)
-            # checking if it is a file
+
+    # prepare a list with sample ID and file name for multi process
+    run_loop_list = etl_data[[biospecimen_header, "File_Name"]].values.tolist()
+
+    with ProcessPoolExecutor(max_workers=cpu_workers) as executor:
+        for entry in run_loop_list:
+            file_path = segfiles_folder_path + "/" + entry[1]
+            sample_ID = entry[0]
+            print("firing a process for:", sample_ID, "=", file_path)
             if os.path.isfile(file_path) and file_path.endswith(".seg"):
-                file_name = file_path.split("/")[-1]  # extract file name from split
-                sample_ID = map_bs_filename[map_bs_filename["filename"] == file_name][
-                    "biospecimen_id"
-                ].values[0]
                 process.append(
                     executor.submit(
                         prepare_gat_cnv_from_seg_file,
                         file_path,
                         sample_ID,
                         ref_gene_bed_list,
-                        map_cbio_BS_IDs,
+                        etl_data,
                     )
                 )
+        print("Waiting for processes to finish and collecting outputs")
         for active_cpu in as_completed(process):
             result_per_process = active_cpu.result()
             if len(result_per_process) > 0:
                 results.append(result_per_process)
+
     return results
 
 
 if __name__ == "__main__":
     # Instantiate the parser
-    parser = argparse.ArgumentParser(description="Get continuous & discrete cnv")
+    parser = argparse.ArgumentParser(
+        description="Prepare gatk seg file for cbio portal wide format. Output file: continuous, discrete, & seg CNVs"
+    )
 
     # Required positional argument
     parser.add_argument("--config", help="Seg file for cnv ")
+    parser.add_argument("--etl_file", help="Etl file for cnv gatk")
+    parser.add_argument(
+        "--file_type_key", help="Provide file type key to recognize gatk seg files"
+    )
+    parser.add_argument(
+        "--output_folder", help="Provide output folder path relative to current folder"
+    )
     args = parser.parse_args()
 
     # Opening JSON file
@@ -258,28 +265,23 @@ if __name__ == "__main__":
     json_dict = json.load(json_file)
 
     # read variables from json dict
-    segfiles_folder_path = json_dict["file_loc_defs"]["gatk_seg"][
-        "segfiles_folder_path"
-    ]
-    manifest_path = json_dict["file_loc_defs"]["gatk_seg"]["manifest"]
-    gene_bed_ref_filename = json_dict["file_loc_defs"]["gatk_seg"][
-        "gene_bed_ref_filename"
-    ]
-    output_folder_path = json_dict["file_loc_defs"]["gatk_seg"]["output_folder_path"]
-    cpu_workers = json_dict["file_loc_defs"]["gatk_seg"]["cpus"]
+    segfiles_folder_path = json_dict["file_loc_defs"]["cnvs"]["gatk_seg"]
+    gene_bed_ref_filename = json_dict["bed_genes"]
+    cpu_workers = json_dict["cpus"]
+    etl = args.etl_file
+    output_folder_path = os.getcwd() + "/" + args.output_folder  # output dir
 
-    if not os.path.isfile(manifest_path):
+    biospecimen_header = "T_CL_BS_ID"
+    file_type = args.file_type_key
+    if not os.path.isfile(etl):
         raise TypeError("Cannot find given manifest file")
     else:
-        manifest = pd.read_csv(manifest_path, sep="\t", header=0)
-        file_name = manifest["s3_path"].str.split("/", expand=True)[5]
-        file_name = file_name.rename("filename")
-        map_bs_filename = pd.concat([manifest["biospecimen_id"], file_name], axis=1)
+        print("Reading etl file:", etl)
+        etl_data = pd.read_csv(etl, sep="\t", header=0)
 
-    map_cbio_BS_IDs = pd.read_csv("pbta_all_genomics_etl_file.csv")
-    map_cbio_BS_IDs = map_cbio_BS_IDs[
-        map_cbio_BS_IDs["T_CL_BS_ID"].duplicated() == False
-    ]
+    etl_data = etl_data[etl_data["File_Type"] == file_type]
+    etl_data = etl_data[etl_data[biospecimen_header].duplicated() == False]
+
     ref_gene_bed_list = get_ref_bed_data(
         gene_bed_ref_filename
     )  # used for gene mapping to seg calls
