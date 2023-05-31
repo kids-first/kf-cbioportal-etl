@@ -33,10 +33,9 @@ def convert(x):
     ploidy = 4
     score_metrix = define_score_metrix(absolute_CN, ploidy)
     if x in score_metrix:
-        x = score_metrix[x]
+        return score_metrix[x]
     else:
-        x = 2
-    return x
+        return 2
 
 
 def get_seg_data(seg):
