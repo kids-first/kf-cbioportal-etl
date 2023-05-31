@@ -9,7 +9,7 @@ from concurrent.futures import as_completed
 """
 This script will convert Gatk seg file to cbio wide format and generate three output files: cnv_discrete, cnv_continuous and cnv_seg files
 
-command line: python3 get_gatk_cnv_long_format.py --config ../STUDY_CONFIGS/pbta_all_treatment_data_processing_config.json --etl_file etl_file.tsv --file_type_key gatk_seg --output_folder processed/
+command line: python3 get_gatk_cnv_long_format.py --config ../STUDY_CONFIGS/pbta_all_treatment_data_processing_config.json --etl_file etl_file.tsv --file_type_key gatk_seg --output_folder merged_cnv/
 
 """
 
@@ -55,8 +55,7 @@ def get_seg_data(seg):
 
 def map_genes_seg_to_ref(seg_file_data, ref_gene_bed_list):
     # map gene from bed list to seg list
-    header = seg_file_data[0]
-    seg_file_data.pop(0)
+    header = seg_file_data.pop(0)
     ref_genes = []
     for calls in seg_file_data:
         gene = ""
@@ -251,7 +250,7 @@ if __name__ == "__main__":
 
     # Required positional argument
     parser.add_argument("--config", help="Seg file for cnv ")
-    parser.add_argument("--etl_file", help="Etl file for cnv gatk")
+    parser.add_argument("--etl_file", help="Table with cbio project, kf bs ids, cbio IDs, and file names")
     parser.add_argument(
         "--file_type_key", help="Provide file type key to recognize gatk seg files"
     )
