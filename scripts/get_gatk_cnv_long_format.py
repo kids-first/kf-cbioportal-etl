@@ -61,10 +61,10 @@ def map_genes_seg_to_ref(seg_file_data, ref_gene_bed_list):
         gene = ""
         for ref in ref_gene_bed_list:
             if (
-                ref[0] == calls[0]
-                and int(ref[1]) < int(calls[1])  # chr
-                and int(ref[2]) > int(calls[2])  # start
-            ):  # end
+                ref[0] == calls[0]  # chr
+                and int(ref[1]) < int(calls[1])  # start
+                and int(ref[2]) >= int(calls[2])  # end
+            ):
                 gene = ref[3]
                 break
         ref_genes.append(gene)
@@ -82,9 +82,8 @@ def map_genes_seg_to_ref(seg_file_data, ref_gene_bed_list):
 def get_ref_bed_data(ref_file_path):
     # read ref data to map genes returns data as a list
 
-    path_ref_file = ref_file_path
     ref_gene_bed = pd.read_csv(
-        path_ref_file, sep="\t", names=["chr", "start", "end", "gene"]
+        ref_file_path, sep="\t", names=["chr", "start", "end", "gene"]
     )
     ref_gene_bed["chr"] = "chr" + ref_gene_bed["chr"]
     ref_gene_bed_list = ref_gene_bed.values.tolist()
@@ -250,7 +249,10 @@ if __name__ == "__main__":
 
     # Required positional argument
     parser.add_argument("--config", help="Seg file for cnv ")
-    parser.add_argument("--etl_file", help="Table with cbio project, kf bs ids, cbio IDs, and file names")
+    parser.add_argument(
+        "--etl_file",
+        help="Table with cbio project, kf bs ids, cbio IDs, and file names",
+    )
     parser.add_argument(
         "--file_type_key", help="Provide file type key to recognize gatk seg files"
     )
@@ -260,8 +262,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Opening JSON file
-    json_file = open(args.config)
-    json_dict = json.load(json_file)
+    with open(args.config) as json_file:
+        json_dict = json.load(json_file)
 
     # read variables from json dict
     segfiles_folder_path = json_dict["file_loc_defs"]["cnvs"]["gatk_seg"]
