@@ -113,19 +113,55 @@ def prepare_seg_output(seg_data, cbio_ID):
     seg_data.insert(0, "ID", ID_i)
     return seg_data
 
+
 def pick_longest_segment(x):
-    #pick the longest segment call when gene is found in gain and loss CNVs
-    x['dif_x']=x['END_x']-x['START_x']
-    x['dif_y']=x['END_y']-x['START_y']
-    if x['dif_x']>x['dif_y']:
-        x=x[['Hugo_Symbol','cnv_score_continuous_x','cnv_score_discrete_x']]
-    elif x['dif_x']<x['dif_y']:
-       
-        x=x[['Hugo_Symbol','cnv_score_continuous_y','cnv_score_discrete_y']]
+    # pick the longest segment call when gene is found in gain and loss CNVs
+    x["dif_x"] = x["END_x"] - x["START_x"] #segment length (gain)
+    x["dif_y"] = x["END_y"] - x["START_y"] #segment length (loss)
+    if x["dif_x"] > x["dif_y"]:
+        x = x[["Hugo_Symbol", "cnv_score_continuous_x", "cnv_score_discrete_x"]]
+    elif x["dif_x"] < x["dif_y"]:
+        x = x[["Hugo_Symbol", "cnv_score_continuous_y", "cnv_score_discrete_y"]]
+    elif abs(x["cnv_score_discrete_x"]) > abs(x["cnv_score_discrete_y"]):
+        x = x[["Hugo_Symbol", "cnv_score_continuous_x", "cnv_score_discrete_x"]]
+    elif abs(x["cnv_score_discrete_x"]) < abs(x["cnv_score_discrete_y"]):
+        x = x[["Hugo_Symbol", "cnv_score_continuous_y", "cnv_score_discrete_y"]]
     else:
-        x=x[['Hugo_Symbol','cnv_score_continuous_x','cnv_score_discrete_x']]
-    x.index = ['Hugo_Symbol','cnv_score_continuous','cnv_score_discrete']
+        x = x[["Hugo_Symbol", "cnv_score_continuous_x", "cnv_score_discrete_x"]]
+
+    x.index = [
+        "Hugo_Symbol",
+        "cnv_score_continuous",
+        "cnv_score_discrete",
+    ]  # reindex series
     return x
+
+
+def set_longest_segment_call(tmp_df):
+    # this function picks longest segment call among duplicate gene calls (#only loss or only gain cnvs)
+    tmp_df["dif"] = tmp_df["END"] - tmp_df["START"]
+    concat_df = pd.DataFrame(
+        columns=[
+            "START",
+            "END",
+            "Hugo_Symbol",
+            "cnv_score_continuous",
+            "cnv_score_discrete",
+            "dif",
+        ]
+    )
+    unique_gene = set(tmp_df["Hugo_Symbol"])
+    for gene in unique_gene:
+        tmp_pick = (
+            tmp_df[tmp_df["Hugo_Symbol"] == gene]
+            .sort_values("dif", ascending=False)
+            .drop_duplicates(subset="Hugo_Symbol", keep="first")
+        )
+        concat_df = pd.concat([concat_df, tmp_pick])
+    concat_df = concat_df.drop(["dif"], axis=1)
+
+    return concat_df
+
 
 def prepare_gat_cnv_from_seg_file(
     seg_file, sample_ID, ref_gene_bed_list, map_cbio_BS_IDs
@@ -154,14 +190,7 @@ def prepare_gat_cnv_from_seg_file(
     )
     seg_data_df["cnv_score_discrete"] = seg_data_df["cnv_score_continuous"].map(convert)
     seg_data_df = seg_data_df.drop(
-        [
-            "MEAN_LOG2_COPY_RATIO",
-            "CALL",
-            "NUM_POINTS_COPY_RATIO",
-            "CONTIG",
-    #        "START",
-    #        "END",
-        ],
+        ["MEAN_LOG2_COPY_RATIO", "CALL", "NUM_POINTS_COPY_RATIO", "CONTIG"],
         axis=1,
     )
     seg_data_df = seg_data_df[seg_data_df["gene"].astype(bool)]
@@ -171,7 +200,7 @@ def prepare_gat_cnv_from_seg_file(
     df_without_duplicate_gene = cnv_per_sample[
         cnv_per_sample["Hugo_Symbol"].duplicated(keep=False) == False
     ]  # dropping all the duplicate genes
-    
+
     df_duplicate_genes = cnv_per_sample[
         cnv_per_sample["Hugo_Symbol"].duplicated(keep=False) == True
     ]  # extracting duplicate genes
@@ -181,39 +210,28 @@ def prepare_gat_cnv_from_seg_file(
     df2_gain_cnv = df_duplicate_genes[
         df_duplicate_genes["cnv_score_discrete"] > 0
     ]  # creteria for gain
-    df2_loss_cnv = (
-        df2_loss_cnv.sort_values("cnv_score_discrete", ascending=True)
-        .drop_duplicates("Hugo_Symbol")
-        .sort_index()
-    )  # remove duplicate gene and pick one with min cnv score for loss
-    df2_gain_cnv = (
-        df2_gain_cnv.sort_values("cnv_score_discrete", ascending=False)
-        .drop_duplicates("Hugo_Symbol")
-        .sort_index()
-    )  # remove duplicate gene and pick one with max cnv score for gain
-    #print(df2_gain_cnv[df2_gain_cnv['Hugo_Symbol']=='ABR'])
-    #print(df2_loss_cnv[df2_loss_cnv['Hugo_Symbol']=='ABR'])
-    #print("gaining is ")
-    #print(df2_gain_cnv)
-    #print("lossing is ")
-    #print(df2_loss_cnv)
-    # check for common gene is gain and loss cnv
-    #outer = pd.merge(df2_gain_cnv, df2_loss_cnv,on=['Hugo_Symbol'], how='outer', indicator=True)
-    #print(outer)
-    inner=pd.merge(df2_gain_cnv,df2_loss_cnv,on=['Hugo_Symbol'],how='inner')
-    #print(df2_gain_cnv)
-    #print(df2_loss_cnv)
-    #df2_gain_cnv=df2_gain_cnv[df2_gain_cnv['Hugo_Symbol'].isin()]
 
-    gain_plus_loss=pd.concat([df2_loss_cnv, df2_gain_cnv])
-    gain_plus_loss=gain_plus_loss.drop_duplicates(subset=['Hugo_Symbol'],keep=False)
-    gain_plus_loss=gain_plus_loss.drop(['START','END'],axis=1)
-    
+    # remove duplicate and pick longesr segment or high magnitude
+    df2_loss_cnv = set_longest_segment_call(df2_loss_cnv.copy())
+    df2_gain_cnv = set_longest_segment_call(df2_gain_cnv.copy())
+
+    # check for common gene is gain and loss cnv
+    inner = pd.merge(df2_gain_cnv, df2_loss_cnv, on=["Hugo_Symbol"], how="inner")
+
+    gain_plus_loss = pd.concat([df2_loss_cnv, df2_gain_cnv])
+    gain_plus_loss = gain_plus_loss.drop_duplicates(subset=["Hugo_Symbol"], keep=False)
+    gain_plus_loss = gain_plus_loss.drop(["START", "END"], axis=1)
+    df_without_duplicate_gene = df_without_duplicate_gene.drop(["START", "END"], axis=1)
+
     if not inner.empty:
-        inner=inner.apply(pick_longest_segment,axis=1)
-    
+        inner = inner.apply(pick_longest_segment, axis=1)
+    else:
+        inner = pd.DataFrame(
+            columns=["Hugo_Symbol", "cnv_score_continuous", "cnv_score_discrete"]
+        )
+
     df_without_duplicate_gene = pd.concat(
-        [df_without_duplicate_gene, gain_plus_loss,inner]
+        [df_without_duplicate_gene, gain_plus_loss, inner]
     )  # Add duplicate gene back
 
     cnv_discrete_per_sample = df_without_duplicate_gene.drop(
