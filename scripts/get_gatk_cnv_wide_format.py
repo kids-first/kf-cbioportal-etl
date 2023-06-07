@@ -14,11 +14,11 @@ command line: python3 get_gatk_cnv_long_format.py --config ../STUDY_CONFIGS/pbta
 """
 
 
-def define_score_metrix(absolute_CN, ploidy):
+def define_score_metrix(absolute_CN, gain):
     # Converting score to GITSIC style values
     #
     score_matrix = {0: -absolute_CN}
-    for i in range(1, absolute_CN + ploidy + 1, 1):
+    for i in range(1, absolute_CN + gain + 1, 1):
         if i < absolute_CN:
             score_matrix[i] = -1
         elif i == absolute_CN:
@@ -28,10 +28,9 @@ def define_score_metrix(absolute_CN, ploidy):
     return score_matrix
 
 
-def convert(x):
+def convert(x, cnv_gain_threshold):
     absolute_CN = 2
-    ploidy = 4
-    score_metrix = define_score_metrix(absolute_CN, ploidy)
+    score_metrix = define_score_metrix(absolute_CN, cnv_gain_threshold)
     if x in score_metrix:
         return score_metrix[x]
     else:
@@ -116,8 +115,8 @@ def prepare_seg_output(seg_data, cbio_ID):
 
 def pick_longest_segment(x):
     # pick the longest segment call when gene is found in gain and loss CNVs
-    x["dif_x"] = x["END_x"] - x["START_x"] #segment length (gain)
-    x["dif_y"] = x["END_y"] - x["START_y"] #segment length (loss)
+    x["dif_x"] = x["END_x"] - x["START_x"]  # segment length (gain)
+    x["dif_y"] = x["END_y"] - x["START_y"]  # segment length (loss)
     if x["dif_x"] > x["dif_y"]:
         x = x[["Hugo_Symbol", "cnv_score_continuous_x", "cnv_score_discrete_x"]]
     elif x["dif_x"] < x["dif_y"]:
@@ -164,7 +163,7 @@ def set_longest_segment_call(tmp_df):
 
 
 def prepare_gat_cnv_from_seg_file(
-    seg_file, sample_ID, ref_gene_bed_list, map_cbio_BS_IDs
+    seg_file, sample_ID, ref_gene_bed_list, map_cbio_BS_IDs, cnv_gain_threshold
 ):
     # prepare data in wide format for per seg file
     seg_data = get_seg_data(seg_file)
@@ -188,7 +187,9 @@ def prepare_gat_cnv_from_seg_file(
     seg_data_df["cnv_score_continuous"] = round(
         pow(2, seg_data_df["MEAN_LOG2_COPY_RATIO"])
     )
-    seg_data_df["cnv_score_discrete"] = seg_data_df["cnv_score_continuous"].map(convert)
+    seg_data_df["cnv_score_discrete"] = seg_data_df["cnv_score_continuous"].apply(
+        convert, cnv_gain_threshold=cnv_gain_threshold
+    )
     seg_data_df = seg_data_df.drop(
         ["MEAN_LOG2_COPY_RATIO", "CALL", "NUM_POINTS_COPY_RATIO", "CONTIG"],
         axis=1,
@@ -206,7 +207,7 @@ def prepare_gat_cnv_from_seg_file(
     ]  # extracting duplicate genes
     df2_loss_cnv = df_duplicate_genes[
         df_duplicate_genes["cnv_score_discrete"] < 0
-    ]  # creteria for loss
+    ]  # criteria for loss
     df2_gain_cnv = df_duplicate_genes[
         df_duplicate_genes["cnv_score_discrete"] > 0
     ]  # creteria for gain
@@ -281,6 +282,7 @@ def run_process_pool(cpu_workers):
                         sample_ID,
                         ref_gene_bed_list,
                         etl_data,
+                        cnv_gain_threshold,
                     )
                 )
         print("Waiting for processes to finish and collecting outputs")
@@ -320,6 +322,8 @@ if __name__ == "__main__":
     segfiles_folder_path = json_dict["file_loc_defs"]["cnvs"]["gatk_seg"]
     gene_bed_ref_filename = json_dict["bed_genes"]
     cpu_workers = json_dict["cpus"]
+    cnv_gain_threshold = json_dict["cnv_high_gain"]
+
     etl = args.etl_file
     output_folder_path = os.getcwd() + "/" + args.output_folder  # output dir
 
@@ -341,7 +345,7 @@ if __name__ == "__main__":
     # read & process files using multi process to resturn results
     results = run_process_pool(int(cpu_workers))
 
-    # code to split results list into 2 separeatelists
+    # code to split results list into 2 separate lists
     discrete_list, continous_list, seg_list = map(list, zip(*results))
     df_discrete = outer_merge_list(discrete_list, "Hugo_Symbol")
     df_discrete = df_discrete.convert_dtypes()
