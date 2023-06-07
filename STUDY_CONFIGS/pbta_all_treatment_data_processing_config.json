@@ -22,8 +22,9 @@
       "cnvs": {
         "pval": "ctrlfreec_pval",
         "info": "ctrlfreec_info",
-        "seg": "ctrlfreec_bam_seg"
-      },
+        "seg": "ctrlfreec_bam_seg",
+        "gatk_seg": "/home/ubuntu/tools/kf-cbioportal-etl/scripts/gatk_copy_ratio_segments_tumor"
+      },  
       "rsem": "RSEM_gene",
       "fusion": "annofuse_filtered_fusions_tsv",
       "fusion_sq_file": "seq_center_resource.txt"
@@ -37,7 +38,7 @@
     "cnv_high_gain": 4,
     "cnv_min_len": 50000,
     "rna_flag": 1,
-    "cpus": 8,
+    "cpus": 10,
     "threads": 40
   }
   
