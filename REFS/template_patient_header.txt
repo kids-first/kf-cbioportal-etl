@@ -1,0 +1,5 @@
+#PATIENT_ID	GENDER	RACE	ETHNICITY	AGE	OS_MONTHS	OS_STATUS	cancer_predispositions	EXTERNAL_PATIENT_ID	germline_sex_estimate
+#Patient identifier	reported gender	race	ethnicity	Age at which the condition or disease was first diagnosed, in years	Overall survival in months since initial diagnosis	Overall patient survival status	cancer predispositions	External Patient Identifier	germline sex estimate
+#STRING	STRING	STRING	STRING	NUMBER	NUMBER	STRING	STRING	STRING	STRING
+#99	10	7	6	9	3	4	2	11	1
+PATIENT_ID	GENDER	RACE	ETHNICITY	AGE	OS_MONTHS	OS_STATUS	CANCER_PREDISPOSITIONS	EXTERNAL_PATIENT_ID	GERMLINE_SEX_ESTIMATE
