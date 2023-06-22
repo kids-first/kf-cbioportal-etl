@@ -8,6 +8,7 @@ import os
 from configparser import ConfigParser
 import argparse
 import json
+import sys
 import pdb
 
 
@@ -59,7 +60,7 @@ def generic_print(out_file, rows, colnames):
     return 0
 
 
-def get_data_clinical(db_cur, config_dict, prefix):
+def get_data_clinical(db_cur, config_dict, prefix, ref_dir):
     """
     Depending on the prefix of patient or sample, will pull from related tables,
     only use related header info present in table, and print the combined results.
@@ -74,19 +75,22 @@ def get_data_clinical(db_cur, config_dict, prefix):
     (rows, colnames) = generic_pull(db_cur, tbl_name)
 
     # use table header from colnames, and use to select file header
-    head_name = config_dict['database_pulls'][prefix + '_head']['table']
-    # get sample table contents, have to split if format schema.table
-    if '.' not in head_name:
-        head_sql = sql.SQL('SELECT {} FROM {};').format(sql.SQL(',').join(map(sql.Identifier, colnames)), sql.Identifier(head_name))
-    else:
-        (schema, table) = head_name.split('.')
-        head_sql = sql.SQL('SELECT {} FROM {}.{};').format(sql.SQL(',').join(map(sql.Identifier, colnames)), sql.Identifier(schema), sql.Identifier(table))
-    db_cur.execute(head_sql)
-    head = db_cur.fetchall()
+    head_file = open(ref_dir + config_dict['database_pulls'][prefix + '_head']['table'])
+    # get and read head file
+    head_lines = head_file.readlines()
     # create output file and combine results for final product
     out_file = open(datasheet_dir + "/" + config_data['database_pulls'][prefix + '_file']['out_file'], 'w')
-    for row in head:
-        out_file.write("\t".join(row) + "\n")
+    # get indices of matching head lines, then print corresponding cBio header values
+    col_i = []
+    head_search = head_lines[-1].rstrip('\n').split('\t')
+    for col in colnames:
+        col_i.append(head_search.index(col))
+    if len(col_i) != len(colnames):
+        print("ERROR! Number header columns found {} != {} number of columns in {} data clinical sheet. Check your header file!".format(len(col_i), len(colnames), prefix), file=sys.stderr)
+    for i in range(0, len(head_lines) -1, 1):
+        head = [head_lines[i].rstrip('\n').split('\t')[j] for j in col_i]
+        out_file.write("\t".join(head) + "\n")
+    pdb.set_trace()
     generic_print(out_file, rows, colnames)
     return 0
 
@@ -122,7 +126,8 @@ parser = argparse.ArgumentParser(description="Pull clinical data and genomics fi
 
 parser.add_argument("-d", "--db-ini", action="store", dest="db_ini", help="Database config file - formatting like aws or sbg creds")
 parser.add_argument("-p", "--profile", action="store", dest="profile", help="ini profile name", default="postgresql")
-parser.add_argument("-c", "--config", action="store", dest="config_file", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example",)
+parser.add_argument("-c", "--config", action="store", dest="config_file", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example")
+parser.add_argument("-r", "--ref-dir", action="store", dest="ref_dir", help="dir name containing template data_clinical* header files")
 
 args = parser.parse_args()
 # Load database login info
@@ -137,13 +142,15 @@ try:
         
     # dict to track keys with specific database calls
     special_keys = {"sample_head": 0, "sample_file": 0, "patient_head": 0, "patient_file": 0, "manifests": 0}
-
+    ref_dir = args.ref_dir
+    if ref_dir[-1] != '/':
+        ref_dir += '/'
     try:
         os.mkdir(datasheet_dir)
     except Exception as e:
         print(str(e) + ' IGNORE!')
-    get_data_clinical(cur, config_data, 'sample')
-    get_data_clinical(cur, config_data, 'patient')
+    get_data_clinical(cur, config_data, 'sample', ref_dir)
+    get_data_clinical(cur, config_data, 'patient', ref_dir)
     get_manifests(cur, config_data)
 
     # For all other tables to be printed simply, not in special_keys
