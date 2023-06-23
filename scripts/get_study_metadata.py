@@ -82,15 +82,13 @@ def get_data_clinical(db_cur, config_dict, prefix, ref_dir):
     out_file = open(datasheet_dir + "/" + config_data['database_pulls'][prefix + '_file']['out_file'], 'w')
     # get indices of matching head lines, then print corresponding cBio header values
     col_i = []
+    # the last row, and the header of the data clinical table should have overlapping values
     head_search = head_lines[-1].rstrip('\n').split('\t')
     for col in colnames:
         col_i.append(head_search.index(col))
-    if len(col_i) != len(colnames):
-        print("ERROR! Number header columns found {} != {} number of columns in {} data clinical sheet. Check your header file!".format(len(col_i), len(colnames), prefix), file=sys.stderr)
     for i in range(0, len(head_lines) -1, 1):
         head = [head_lines[i].rstrip('\n').split('\t')[j] for j in col_i]
         out_file.write("\t".join(head) + "\n")
-    pdb.set_trace()
     generic_print(out_file, rows, colnames)
     return 0
 

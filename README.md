@@ -4,7 +4,7 @@ Further general loading notes can be found in this [Notion page](https://www.not
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
 ## I have everything and I know I am doing
 Below assumes you have already created the necessary tables from dbt
-1. Run commands as outlined in `scripts/get_study_metadata.py`. Copy/move those files to the cBio loader ec2 instance
+1. Run commands as outlined in [scripts/get_study_metadata.py](#scriptsget_study_metadatapy). Copy/move those files to the cBio loader ec2 instance
 1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
@@ -107,6 +107,8 @@ optional arguments:
                         ini profile name
   -c CONFIG_FILE, --config CONFIG_FILE
                         json config file with meta information; see REFS/pbta_all_case_meta_config.json example
+  -r REF_DIR, --ref-dir REF_DIR
+                        dir name containing template data_clinical* header files
 ```
 
 ### From D3b Warehouse
