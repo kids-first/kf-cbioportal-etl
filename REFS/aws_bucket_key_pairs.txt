@@ -2,4 +2,5 @@ s3://cds-246-phs002517-p30-fy20	NCI-AR
 s3://cds-246-phs002517-sequencefiles-p30-fy20	NCI-AR
 s3://cds-306-phs002517-x01	NCI-X01
 s3://d3b-cds-working-bucket	d3b
+s3://kf-strides-study-us-east-1-prd-sd-bhjxbdqk kf
 s3://kf-study-us-east-1-prd-sd-8y99qzjj	saml

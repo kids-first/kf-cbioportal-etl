@@ -8,8 +8,6 @@ import os
 from configparser import ConfigParser
 import argparse
 import json
-import sys
-import pdb
 
 
 def config(filename='database.ini', section='postgresql'):
@@ -103,11 +101,19 @@ def get_manifests(db_cur, config_dict):
         try:
             tbl_name = manifests[manifest]['table']
             file_types = manifests[manifest]['file_type']
-            if '.' not in tbl_name:
-                manifest_sql = sql.SQL('SELECT * FROM {} WHERE file_type in ({});').format(sql.Identifier(tbl_name), sql.SQL(',').join(map(sql.Literal, file_types)))
+            if args.all:
+                if '.' not in tbl_name:
+                    manifest_sql = sql.SQL('SELECT * FROM {} WHERE file_type in ({});').format(sql.Identifier(tbl_name), sql.SQL(',').join(map(sql.Literal, file_types)))
+                else:
+                    (schema, table) = tbl_name.split('.')
+                    manifest_sql = sql.SQL('SELECT * FROM {}.{} WHERE file_type in ({});').format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(',').join(map(sql.Literal, file_types)), sql.Literal("active"))
             else:
-                (schema, table) = tbl_name.split('.')
-                manifest_sql = sql.SQL('SELECT * FROM {}.{} WHERE file_type in ({});').format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(',').join(map(sql.Literal, file_types)))
+                if '.' not in tbl_name:
+                    manifest_sql = sql.SQL('SELECT * FROM {} WHERE file_type in ({}) and status={};').format(sql.Identifier(tbl_name), sql.SQL(',').join(map(sql.Literal, file_types)))
+                else:
+                    (schema, table) = tbl_name.split('.')
+                    manifest_sql = sql.SQL('SELECT * FROM {}.{} WHERE file_type in ({}) and status={};').format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(',').join(map(sql.Literal, file_types)), sql.Literal("active"))
+
             db_cur.execute(manifest_sql)
             rows = db_cur.fetchall()
             colnames = [desc[0] for desc in db_cur.description]
@@ -126,10 +132,12 @@ parser.add_argument("-d", "--db-ini", action="store", dest="db_ini", help="Datab
 parser.add_argument("-p", "--profile", action="store", dest="profile", help="ini profile name", default="postgresql")
 parser.add_argument("-c", "--config", action="store", dest="config_file", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example")
 parser.add_argument("-r", "--ref-dir", action="store", dest="ref_dir", help="dir name containing template data_clinical* header files")
+parser.add_argument("-a", "--all", action="store_true", dest="all", help="flag to include all relevant files, not just status=active files, NOT RECOMMENDED")
 
 args = parser.parse_args()
 # Load database login info
 params = config(filename=args.db_ini, section=args.profile)
+print(args.all)
 datasheet_dir = 'datasheets'
 # Load json config file with database pull info
 with open(args.config_file) as f:
