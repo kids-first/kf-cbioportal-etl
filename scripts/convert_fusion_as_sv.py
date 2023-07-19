@@ -197,11 +197,14 @@ if __name__ == "__main__":
     if args.mode == 'openX':
         r_ext = "rsem"
     elif args.mode == 'dgd':
-        r_ext = "rsem"
+        r_ext = "DGD_FUSION"
     # ensure sample name is imported as str
     all_file_meta = pd.read_csv(args.table, sep="\t", dtype={'Cbio_Tumor_Name': str})
-        
+    # ext used in pbta vs openpedcan varies
     rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
+    if rna_subset is None:
+        r_ext = 'rsem'
+        rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
     # reset index so that references work later while iterating
     rna_subset = rna_subset.reset_index(drop=True)
     project_list = rna_subset.Cbio_project.unique()

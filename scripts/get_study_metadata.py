@@ -8,7 +8,6 @@ import os
 from configparser import ConfigParser
 import argparse
 import json
-import pdb
 
 
 def config(filename='database.ini', section='postgresql'):
@@ -59,7 +58,7 @@ def generic_print(out_file, rows, colnames):
     return 0
 
 
-def get_data_clinical(db_cur, config_dict, prefix):
+def get_data_clinical(db_cur, config_dict, prefix, ref_dir):
     """
     Depending on the prefix of patient or sample, will pull from related tables,
     only use related header info present in table, and print the combined results.
@@ -74,19 +73,20 @@ def get_data_clinical(db_cur, config_dict, prefix):
     (rows, colnames) = generic_pull(db_cur, tbl_name)
 
     # use table header from colnames, and use to select file header
-    head_name = config_dict['database_pulls'][prefix + '_head']['table']
-    # get sample table contents, have to split if format schema.table
-    if '.' not in head_name:
-        head_sql = sql.SQL('SELECT {} FROM {};').format(sql.SQL(',').join(map(sql.Identifier, colnames)), sql.Identifier(head_name))
-    else:
-        (schema, table) = head_name.split('.')
-        head_sql = sql.SQL('SELECT {} FROM {}.{};').format(sql.SQL(',').join(map(sql.Identifier, colnames)), sql.Identifier(schema), sql.Identifier(table))
-    db_cur.execute(head_sql)
-    head = db_cur.fetchall()
+    head_file = open(ref_dir + config_dict['database_pulls'][prefix + '_head']['table'])
+    # get and read head file
+    head_lines = head_file.readlines()
     # create output file and combine results for final product
     out_file = open(datasheet_dir + "/" + config_data['database_pulls'][prefix + '_file']['out_file'], 'w')
-    for row in head:
-        out_file.write("\t".join(row) + "\n")
+    # get indices of matching head lines, then print corresponding cBio header values
+    col_i = []
+    # the last row, and the header of the data clinical table should have overlapping values
+    head_search = head_lines[-1].rstrip('\n').split('\t')
+    for col in colnames:
+        col_i.append(head_search.index(col))
+    for i in range(0, len(head_lines) -1, 1):
+        head = [head_lines[i].rstrip('\n').split('\t')[j] for j in col_i]
+        out_file.write("\t".join(head) + "\n")
     generic_print(out_file, rows, colnames)
     return 0
 
@@ -101,11 +101,19 @@ def get_manifests(db_cur, config_dict):
         try:
             tbl_name = manifests[manifest]['table']
             file_types = manifests[manifest]['file_type']
-            if '.' not in tbl_name:
-                manifest_sql = sql.SQL('SELECT * FROM {} WHERE file_type in ({});').format(sql.Identifier(tbl_name), sql.SQL(',').join(map(sql.Literal, file_types)))
+            if args.all:
+                if '.' not in tbl_name:
+                    manifest_sql = sql.SQL('SELECT * FROM {} WHERE file_type in ({});').format(sql.Identifier(tbl_name), sql.SQL(',').join(map(sql.Literal, file_types)))
+                else:
+                    (schema, table) = tbl_name.split('.')
+                    manifest_sql = sql.SQL('SELECT * FROM {}.{} WHERE file_type in ({});').format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(',').join(map(sql.Literal, file_types)), sql.Literal("active"))
             else:
-                (schema, table) = tbl_name.split('.')
-                manifest_sql = sql.SQL('SELECT * FROM {}.{} WHERE file_type in ({});').format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(',').join(map(sql.Literal, file_types)))
+                if '.' not in tbl_name:
+                    manifest_sql = sql.SQL('SELECT * FROM {} WHERE file_type in ({}) and status={};').format(sql.Identifier(tbl_name), sql.SQL(',').join(map(sql.Literal, file_types)))
+                else:
+                    (schema, table) = tbl_name.split('.')
+                    manifest_sql = sql.SQL('SELECT * FROM {}.{} WHERE file_type in ({}) and status={};').format(sql.Identifier(schema), sql.Identifier(table), sql.SQL(',').join(map(sql.Literal, file_types)), sql.Literal("active"))
+
             db_cur.execute(manifest_sql)
             rows = db_cur.fetchall()
             colnames = [desc[0] for desc in db_cur.description]
@@ -122,11 +130,14 @@ parser = argparse.ArgumentParser(description="Pull clinical data and genomics fi
 
 parser.add_argument("-d", "--db-ini", action="store", dest="db_ini", help="Database config file - formatting like aws or sbg creds")
 parser.add_argument("-p", "--profile", action="store", dest="profile", help="ini profile name", default="postgresql")
-parser.add_argument("-c", "--config", action="store", dest="config_file", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example",)
+parser.add_argument("-c", "--config", action="store", dest="config_file", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example")
+parser.add_argument("-r", "--ref-dir", action="store", dest="ref_dir", help="dir name containing template data_clinical* header files")
+parser.add_argument("-a", "--all", action="store_true", dest="all", help="flag to include all relevant files, not just status=active files, NOT RECOMMENDED")
 
 args = parser.parse_args()
 # Load database login info
 params = config(filename=args.db_ini, section=args.profile)
+
 datasheet_dir = 'datasheets'
 # Load json config file with database pull info
 with open(args.config_file) as f:
@@ -137,13 +148,15 @@ try:
         
     # dict to track keys with specific database calls
     special_keys = {"sample_head": 0, "sample_file": 0, "patient_head": 0, "patient_file": 0, "manifests": 0}
-
+    ref_dir = args.ref_dir
+    if ref_dir[-1] != '/':
+        ref_dir += '/'
     try:
         os.mkdir(datasheet_dir)
     except Exception as e:
         print(str(e) + ' IGNORE!')
-    get_data_clinical(cur, config_data, 'sample')
-    get_data_clinical(cur, config_data, 'patient')
+    get_data_clinical(cur, config_data, 'sample', ref_dir)
+    get_data_clinical(cur, config_data, 'patient', ref_dir)
     get_manifests(cur, config_data)
 
     # For all other tables to be printed simply, not in special_keys
