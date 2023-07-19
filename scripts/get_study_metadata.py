@@ -137,7 +137,7 @@ parser.add_argument("-a", "--all", action="store_true", dest="all", help="flag t
 args = parser.parse_args()
 # Load database login info
 params = config(filename=args.db_ini, section=args.profile)
-print(args.all)
+
 datasheet_dir = 'datasheets'
 # Load json config file with database pull info
 with open(args.config_file) as f:
