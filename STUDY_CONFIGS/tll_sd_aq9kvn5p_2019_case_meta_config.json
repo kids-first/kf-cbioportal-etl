@@ -226,14 +226,14 @@
             }
         },
         "sample_head": {
-            "table": "bix_workflows.data_clinical_sample_header"
+            "table": "template_sample_header.txt"
         },
         "sample_file": {
             "table": "prod_cbio.tll_sd_aq9kvn5p_2019_data_clinical_sample",
             "out_file": "data_clinical_sample.txt"
         },
         "patient_head": {
-            "table": "bix_workflows.data_clinical_patient_header"
+            "table": "template_patient_header.txt"
         },
         "patient_file": {
             "table": "prod_cbio.tll_sd_aq9kvn5p_2019_data_clinical_patient",
