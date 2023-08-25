@@ -124,7 +124,7 @@
         "type_of_cancer": "os",
         "short_name": "An Integrated Analysis of Treatment Failure in Pediatric OS",
         "reference_genome": "hg38",
-        "display_name": "An Integrated Clinical and Genomic Analysis of Treatment Failure in Pediatric Osteosarcoma (Kids First, Provisional)"
+        "display_name": "Kids First: An Integrated Clinical and Genomic Analysis of Treatment Failure in Pediatric Osteosarcoma (phs001714, Provisional)"
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",
