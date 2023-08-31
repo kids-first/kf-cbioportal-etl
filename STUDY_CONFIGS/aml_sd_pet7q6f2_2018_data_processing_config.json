@@ -1,9 +1,9 @@
 {
   "bedtools": "bedtools",
   "cp_only_script": "/home/ubuntu/tools/kf-cbioportal-etl/scripts/get_cbio_copy_only_num.pl",
-  "bed_genes": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/GRCh38.84.gtf_genes.bed",
-  "hugo_tsv": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/HUGO_EntrezID.tsv",
-  "entrez_tsv": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/EntrezGeneId_HugoGeneSymbol.tsv",
+  "bed_genes": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/Homo_sapiens.GRCh38.105.chr.gtf_genes.bed",
+  "hugo_tsv": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/HUGO_2021-06-01_EntrezID.tsv",
+  "entrez_tsv": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/EntrezGeneId_HugoGeneSymbol_2021-06-01.txt",
   "rna_ext_list": {
     "expression": "rsem.genes.results.gz",
     "fusion": "annoFuse_filter.tsv"
