@@ -118,13 +118,13 @@
     },
     "study": {
         "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
-        "description": "Although the survival of children with relapsed osteosarcoma is very poor, little is known about the etiology of treatment failure in this disease. The purpose of this project is to perform whole genome sequencing on serial samples from patients with osteosarcoma obtained before treatment, after treatment, and at relapse in order to identify the mutations and pathways that are drivers of drug resistance. If successful, our results may help identify patients at high risk for treatment failure and may yield new treatments for children who cannot currently be cured. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
+        "description": "Although the survival of children with relapsed osteosarcoma is very poor, little is known about the etiology of treatment failure in this disease. The purpose of this project is to perform whole genome sequencing on serial samples from patients with osteosarcoma obtained before treatment, after treatment, and at relapse in order to identify the mutations and pathways that are drivers of drug resistance. If successful, our results may help identify patients at high risk for treatment failure and may yield new treatments for children who cannot currently be cured. Additional keywords: GMKF, KF. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
         "cancer_study_identifier": "os_sd_zxjffmef_2015",
         "type_of_cancer": "os",
         "short_name": "An Integrated Analysis of Treatment Failure in Pediatric OS",
         "reference_genome": "hg38",
-        "display_name": "An Integrated Clinical and Genomic Analysis of Treatment Failure in Pediatric Osteosarcoma (Kids First, Provisional)"
+        "display_name": "Kids First: An Integrated Clinical and Genomic Analysis of Treatment Failure in Pediatric Osteosarcoma (phs001714, Onel, Provisional)"
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",
@@ -178,14 +178,14 @@
             }
         },
         "sample_head": {
-            "table": "bix_workflows.data_clinical_sample_header"
+            "table": "template_sample_header.txt"
         },
         "sample_file": {
             "table": "brownm28_dev_schema_cbio.os_sd_zxjffmef_2015_data_clinical_sample",
             "out_file": "data_clinical_sample.txt"
         },
         "patient_head": {
-            "table": "bix_workflows.data_clinical_patient_header"
+            "table": "template_patient_header.txt"
         },
         "patient_file": {
             "table": "brownm28_dev_schema_cbio.os_sd_zxjffmef_2015_data_clinical_patient",
