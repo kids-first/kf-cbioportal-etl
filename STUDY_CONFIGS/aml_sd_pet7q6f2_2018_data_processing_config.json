@@ -15,8 +15,7 @@
       "header": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/maf_KF_CONSENSUS.txt"
     },
     "rsem": "RSEM_gene",
-    "fusion": "annofuse_filtered_fusions_tsv",
-    "fusion_sq_file": "seq_center_resource.txt"
+    "fusion": "annofuse_filtered_fusions_tsv"
   },
   "dl_file_type_list": ["RSEM_gene","annofuse_filtered_fusions_tsv"],
   "ens_gene_list":"/home/ubuntu/tools/kf-cbioportal-etl/REFS/gencode27_gene_list.txt",
