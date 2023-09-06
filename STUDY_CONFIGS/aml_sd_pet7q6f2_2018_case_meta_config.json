@@ -105,13 +105,13 @@
     },
     "study": {
         "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
-        "description": "Although myeloid disorders in children may show morphologic similarities to that seen in adults, TARGET AML initiative (Meshinchi, PI) clearly demonstrated that somatic genomic and transcriptome variants are highly distinct in children and young adults, and in fact there are variants that are uniquely restricted to younger children. TARGET AML initiative, helped identify numerous somatic alterations with high therapeutic potential in younger AML patients. Clinical outcome in children with myeloid disorders have remained poor in part due to lack of deep understanding of the genomic makeup of the disease as well as the host. Comprehensive studies of the host and disease may enable more informed therapies in order to optimize targeting the leukemia while minimizing short and long term toxicities, leading to improved survival with minimal morbidities. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
+        "description": "Although myeloid disorders in children may show morphologic similarities to that seen in adults, TARGET AML initiative (Meshinchi, PI) clearly demonstrated that somatic genomic and transcriptome variants are highly distinct in children and young adults, and in fact there are variants that are uniquely restricted to younger children. TARGET AML initiative, helped identify numerous somatic alterations with high therapeutic potential in younger AML patients. Clinical outcome in children with myeloid disorders have remained poor in part due to lack of deep understanding of the genomic makeup of the disease as well as the host. Comprehensive studies of the host and disease may enable more informed therapies in order to optimize targeting the leukemia while minimizing short and long term toxicities, leading to improved survival with minimal morbidities. Additional keywords: GMKF, KF. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
         "cancer_study_identifier": "aml_sd_pet7q6f2_2018",
         "type_of_cancer": "aml",
         "short_name": "Kids First: Myeloid Malignancies",
         "reference_genome": "hg38",
-        "display_name": "Kids First: Germline and Somatic Variants in Myeloid Malignancies in Children (Kids First, Provisional)"
+        "display_name": "Kids First: Germline and Somatic Variants in Myeloid Malignancies in Children (phs002187, Meshinchi, Provisional)"
     },
     "cases_all": {
         "stable_id": "all",
