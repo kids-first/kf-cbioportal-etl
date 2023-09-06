@@ -157,10 +157,6 @@
         "genomics_etl": {
             "table": "brownm28_dev_schema_cbio.aml_sd_pet7q6f2_2018_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
-        },
-        "seq_center": {
-            "table": "brownm28_dev_schema_cbio.aml_sd_pet7q6f2_2018_sq_info_etl_resource",
-            "out_file": "seq_center_resource.txt"
         }
     }
 }
