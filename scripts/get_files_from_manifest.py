@@ -128,15 +128,12 @@ args = parser.parse_args()
 sys.stderr.write("Concatenating manifests\n")
 sys.stderr.flush()
 manifest_list = args.manifest.split(",")
-manifest_concat = pd.DataFrame()
+manifest_df_list = []
 for manifest in manifest_list:
     sys.stderr.write("Processing " + manifest + "\n")
-    current = pd.read_csv(manifest, sep=None)
-    if manifest_concat.empty:
-        manifest_concat = current.copy()
-    else:
-        manifest_concat = manifest_concat.append(current, ignore_index=True)
+    manifest_df_list.append(pd.read_csv(manifest, sep=None))
 # In the event that s3_path is empty, replace with str to trigger later sbg download
+manifest_concat = pd.concat(manifest_df_list, ignore_index=True)
 manifest_concat.s3_path = manifest_concat.s3_path.fillna('None')
 file_types = args.fts.split(",")
 # subset concatenated manifests
@@ -185,7 +182,7 @@ if args.aws_tbl is not None:
                 key_dict[key]['session'] = boto3.Session(profile_name=key)
                 key_dict[key]['dl_client'] = key_dict[key]['session'].client("s3", config=client_config)
             else:
-                key_dict[key]['manifest'] = key_dict[key]['manifest'].append(selected[selected['s3_path'].str.startswith(bucket)], ignore_index=True)
+                key_dict[key]['manifest'] = pd.concat([key_dict[key]['manifest'], selected[selected['s3_path'].str.startswith(bucket)]], ignore_index=True)
 if args.sbg_profile is not None:
     check = 1
     config = sbg.Config(profile=args.sbg_profile)
