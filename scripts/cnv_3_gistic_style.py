@@ -2,7 +2,6 @@
 
 import sys
 import argparse
-import concurrent.futures
 import json
 import subprocess
 import re
@@ -113,7 +112,6 @@ for fname in fname_list:
     # sample list would be cbio ids
     samp_list = list(data.columns)[1:]
     bs_cbio_dict = {}
-    # fid_dict = {}
     for samp_id in samp_list:
         bs_id = file_meta_dict[cbio_dx][samp_id]["kf_tum_id"]
         bs_cbio_dict[bs_id] = samp_id
@@ -121,18 +119,17 @@ for fname in fname_list:
 
     x = 1
     m = 50
-    with concurrent.futures.ThreadPoolExecutor(config_data["threads"]) as executor:
-        results = {
-            executor.submit(mt_adjust_cn, bs_id): bs_id for bs_id in bs_cbio_dict
-        }
-        for result in concurrent.futures.as_completed(results):
-            if result.result()[0] == 1:
-                "Had trouble processing object " + result.result([1] + "\n")
-                sys.exit(1)
-            if x % m == 0:
-                sys.stderr.write("Processed " + str(x) + " samples\n")
-                sys.stderr.flush()
-            x += 1
+
+    for bs_id in bs_cbio_dict:
+        exit_code, object = mt_adjust_cn(bs_id)
+        if exit_code == 1:
+            sys.stderr.write("Had trouble processing object " + object + "\n")
+            sys.exit(1)
+        if x % m == 0:
+            sys.stderr.write("Processed " + str(x) + " samples\n")
+            sys.stderr.flush()
+        x += 1
+
     sys.stderr.write("Conversion completed.  Writing results to file\n")
     new_fname = cbio_dx = (
         args.merged_cnv_dir + "/" + parts.group(1) + ".discrete_cnvs.txt"
