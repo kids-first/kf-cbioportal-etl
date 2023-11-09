@@ -112,7 +112,6 @@ for fname in fname_list:
     # sample list would be cbio ids
     samp_list = list(data.columns)[1:]
     bs_cbio_dict = {}
-    # fid_dict = {}
     for samp_id in samp_list:
         bs_id = file_meta_dict[cbio_dx][samp_id]["kf_tum_id"]
         bs_cbio_dict[bs_id] = samp_id
@@ -122,9 +121,9 @@ for fname in fname_list:
     m = 50
 
     for bs_id in bs_cbio_dict:
-        result = mt_adjust_cn(bs_id)
-        if result[0] == 1:
-            sys.stderr.write("Had trouble processing object " + result[1] + "\n")
+        exit_code, object = mt_adjust_cn(bs_id)
+        if exit_code == 1:
+            sys.stderr.write("Had trouble processing object " + object + "\n")
             sys.exit(1)
         if x % m == 0:
             sys.stderr.write("Processed " + str(x) + " samples\n")
