@@ -119,7 +119,7 @@
     "study": {
         "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
         "description": "Chordoma is a rare bone tumor, which is believed to originate from notochordal remnants. Based on the United States Surveillance Epidemiology and End Results (SEER) data, the incidence of chordoma varies by gender and race; however, little is known about the etiologic factors that predispose to it. Genomic profiling studies of chordoma are limited, particularly in the Chinese population. We therefore conducted a detailed molecular characterization of paired chordoma tumor/normal tissues using fresh frozen tissues and blood collected from skull-based Chinese chordoma patients. These analyses included whole exome sequencing and RNA sequencing analyses. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
-        "groups": "PUBLIC",
+        "groups": "phs002301",
         "cancer_study_identifier": "chdm_phs002301_2021",
         "type_of_cancer": "chdm",
         "short_name": "chdm_phs002301_2021",

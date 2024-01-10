@@ -135,7 +135,7 @@
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",
-        "case_list_name": "Tumor samples with mutatation, CNA and mRNA data",
+        "case_list_name": "Tumor samples with mutation, CNA and mRNA data",
         "case_list_description": "All tumor samples with mutation, CNA, and mRNA data",
         "case_list_category": "all_cases_with_mutation_and_cna_and_mrna_data"
     },
@@ -147,7 +147,7 @@
     },
     "cases_cnaseq": {
         "stable_id": "cnaseq",
-        "case_list_name": "Tumor samples with mutatation and CNA data",
+        "case_list_name": "Tumor samples with mutation and CNA data",
         "case_list_description": "All tumor samples with mutation and CNA data",
         "case_list_category": "all_cases_with_mutation_and_cna_data"
     },
