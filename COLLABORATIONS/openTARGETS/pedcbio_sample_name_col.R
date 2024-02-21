@@ -59,11 +59,9 @@ cbio_names_list <- lapply(files_list, function(cbio_names){
 histology_df <- readr::read_tsv(hist_file, guess_max = 100000)
 message("Read histologies file")
 if (!is.null(opt$blacklist_strategy)){
-  drop_list <- strsplit(opt$blacklist_strategy, split = ",")
-  for (drop in drop_list){
-    histology_df <- dplyr::filter(histology_df, experimental_strategy != drop)
-    message(paste0("Dropping ", drop," as specified"))
-  }
+  drop_list <- as.list(strsplit(opt$blacklist_strategy, split = ",")[[1]])
+  message(paste0("Dropping ", opt$blacklist_strategy," as specified\n"))
+  histology_df <- histology_df %>% dplyr::filter(!experimental_strategy %in% drop_list)
 }
 # tmp update for broad histology bug, to be fixed in v11
 histology_df <- histology_df %>%
