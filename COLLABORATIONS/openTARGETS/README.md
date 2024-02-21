@@ -13,14 +13,15 @@ Genomic data generally obtained as such:
  - Copy number: tsv file with copy number, ploidy, and GISTIC-style information in maf-like format (each call is a row)
  - RNA expression: tpm values from rsem stored an `.rds` object
  - RNA fusion: annoFuse output
-For example, for v12, bucket s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/v12/:
+For example, for v14, bucket s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/v14/:
 ```
-consensus_wgs_plus_cnvkit_wxs.tsv.gz
+consensus_wgs_plus_cnvkit_wxs_plus_freec_tumor_only.tsv.gz
 fusion-dgd.tsv.gz
 fusion-putative-oncogenic.tsv
 gene-expression-rsem-tpm-collapsed.rds
 tcga-gene-expression-rsem-tpm-collapsed.rds
 snv-consensus-plus-hotspots.maf.tsv.gz
+snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz
 ```
 
 ### Prep work
@@ -68,13 +69,15 @@ To create the histologies file, recommended method is to:
 	  union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.chdm_phs001643_2018_cbio_sample
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.pbta_mioncoseq_cbio_sample
 
     ```
 1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons
 
 ### Run as standalone
 1. Download from https://github.com/PediatricOpenTargets/OpenPedCan-analysis the `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R` or run from repo if you have it
-1. Run `Rscript --vanilla pedcbio_sample_name_col.R -i path-to-histolgies-file.tsv -n path-to-cbio-names.csv -b Methylation`
+1. Run `Rscript --vanilla pedcbio_sample_name_col.R -i path-to-histologies-file.tsv -n path-to-cbio-names.csv -b Methylation`
 OR
 ### Run in repo
 1. Either run an interactive docker or using your local R, and ensure to mount a volume that will have the repo and whatever input histologies file you end up using, i.e. `docker run -it --mount type=bind,source=/home/ubuntu,target=/WORK pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest /bin/bash`
