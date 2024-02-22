@@ -3,7 +3,8 @@ germline_sex_estimate			0	1	STRING	1	Female
 cancer_predispositions			0	1	STRING	2	None documented	
 OS_days	OS_MONTHS	Overall survival in months since initial diagnosis	0	1	NUMBER	3	NA	just convert to months
 OS_status	OS_STATUS	Overall patient survival status	0	1	STRING	4	LIVING	
-PFS_days	PFS_MONTHS	Progression free (months) since initial treatment	0	1	NUMBER	5	Not Reported	just convert to months
+EFS_days	EFS_MONTHS	Event free (months) since initial treatment	0	1	NUMBER	5	Not Reported	just convert to months
+EFS_event_type	EFS_STATUS	Event free status (months) since initial treatment	0	1	STRING	5	Not Reported	
 ethnicity	ETHNICITY		0	1	STRING	6	Not Hispanic or Latino	
 race	RACE		0	1	STRING	7	White	
 primary_site	TUMOR_SITE		0	1	STRING	8		
@@ -18,7 +19,8 @@ harmonized_diagnosis	CANCER_TYPE_DETAILED		1	0	STRING	10	Adenoma
 primary_site	TUMOR_TISSUE_SITE		1	0	STRING	9	Suprasellar/Hypothalamic/Pituitary	
 tumor_descriptor	TUMOR_TYPE		1	0	STRING	8	Initial CNS Tumor	
 composition	SAMPLE_TYPE		1	0	STRING	7	Solid Tissue	
-cohort	COHORT	Source study cohort name	1	0	STRING	6		
+cohort	COHORT	Source study cohort name	1	0	STRING	6	
+sub_cohort	SUB_COHORT	Source study sub-cohort name	1	0	STRING	6	
 CNS_region			1	0	STRING	5	Suprasellar	
 tumor_ploidy			1	0	NUMBER	4	3	
 tumor_fraction			1	0	NUMBER	3	0.476369391	
