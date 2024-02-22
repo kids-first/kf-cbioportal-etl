@@ -119,7 +119,7 @@ message("Collated samples missing a cBio ID")
 #### Handle each cohort at a time - start with PBTA
 # get all sample IDs in the PBTA cohort
 sample_ids_pbta <- histology_df_no_format_id %>% 
-  dplyr::filter(cohort == "PBTA") %>% 
+  dplyr::filter(cohort == "PBTA", sub_cohort != "DGD") %>% 
   pull(sample_id) %>% 
   unique()
 
@@ -267,8 +267,10 @@ message("FINALIZE NAMES")
 no_need_for_tiebreaks <- histology_df %>%
   dplyr::filter(!Kids_First_Biospecimen_ID %in% all_tiebreaks$Kids_First_Biospecimen_ID) %>%
   dplyr::mutate(formatted_sample_id = case_when(
-    cohort == "PBTA" ~ sample_id,
-    cohort == "DGD" ~ gsub("(^.*DGD)_\\w+_(\\d+$)", "\\1_\\2", aliquot_id),
+    (cohort == "PBTA" & sub_cohort != "DGD") ~ sample_id,
+    sub_cohort == "DGD" ~ gsub("(^.*DGD)_\\w+_(\\d+$)", "\\1_\\2", aliquot_id),
+    ((cohort == "Maris" | cohort != "PPTC") & composition == "Derived Cell Line") ~ paste0(Kids_First_Participant_ID,"-CL"),
+    ((cohort == "Maris" | cohort != "PPTC") & composition == "Patient Derived Xenograft") ~ paste0(Kids_First_Participant_ID,"-PDX"),
     TRUE ~ Kids_First_Participant_ID
 ))
 

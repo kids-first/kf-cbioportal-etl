@@ -214,7 +214,7 @@ for data in clin_data:
                         # age_at_last_known = float(value)
                         # age_at_last_known = str(math.floor(age_at_last_known/365.25))
                         value = str(math.floor(float(value)/365.25))
-                elif header[i] == "PFS_days" and value != "NA":
+                elif header[i] == "EFS_days" and value != "NA":
                     value = str(math.floor(float(value)/30.5))
                     # d_free_mos = value
             elif header[i] == "tumor_descriptor":
