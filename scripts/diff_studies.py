@@ -127,13 +127,16 @@ def main():
         "-u", "--url", action="store", dest="url", help="url to search against", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs"
     )
     parser.add_argument(
-        "-s", "--study", action="store", dest="study", help="Cancer study ID to compare on server"
+        "-c", "--study", action="store", dest="study", help="Cancer study ID to compare on server"
     )
     parser.add_argument(
         "-t", "--token", action="store", dest="token", help="Token file obtained from Web API"
     )
     parser.add_argument(
-        "-d", "--datasheet-dir", action="store", dest="data_dir", help="Directory containing data_clinical_*.txt"
+        "-s", "--datasheet-sample", action="store", dest="data_sample", help="File containing cBio-formatted sample metadata, typically named data_clinical_sample.txt"
+    )
+    parser.add_argument(
+        "-p", "--datasheet-patient", action="store", dest="data_patient", help="File containing cBio-formatted patient metadata, typically named data_clinical_patient.txt"
     )
 
     args = parser.parse_args()
@@ -164,7 +167,7 @@ def main():
     attr_key_obj = cbioportal.Clinical_Attributes.fetchClinicalAttributesUsingPOST(studyIds=[args.study], projection='ID').result()
     # gather sample-level metadata
     portal_sample_data = data_clinical_from_study(cbioportal, args.study, "SAMPLE", aggr_list)
-    build_sample_data, build_sample_attr_keys = table_to_dict(args.data_dir + "/data_clinical_sample.txt", "SAMPLE_ID", aggr_list)
+    build_sample_data, build_sample_attr_keys = table_to_dict(args.data_sample, "SAMPLE_ID", aggr_list)
     portal_sample_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if not x.patientAttribute])
     # implicit attributes not returned by function that are required for sample view
     portal_sample_attr_keys.update(portal_sample_attr_implicit)
@@ -175,7 +178,7 @@ def main():
         clinical_diffs(portal_sample_data, build_sample_data, portal_sample_attr_keys, build_sample_attr_keys, "Sample", sample_diff_out)
     # patient-level diffs
     portal_patient_data =  data_clinical_from_study(cbioportal, args.study, "PATIENT", aggr_list)
-    build_patient_data, build_patient_attr_keys = table_to_dict(args.data_dir + "/data_clinical_patient.txt", "PATIENT_ID", aggr_list)
+    build_patient_data, build_patient_attr_keys = table_to_dict(args.data_patient, "PATIENT_ID", aggr_list)
     portal_patient_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if x.patientAttribute])
     # drop attributes that are post-load portal-specific
     portal_patient_attr_keys -= set(portal_patient_attr_skip)
