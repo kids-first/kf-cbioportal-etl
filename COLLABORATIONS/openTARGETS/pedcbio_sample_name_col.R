@@ -269,8 +269,8 @@ no_need_for_tiebreaks <- histology_df %>%
   dplyr::mutate(formatted_sample_id = case_when(
     (cohort == "PBTA" & sub_cohort != "DGD") ~ sample_id,
     sub_cohort == "DGD" ~ gsub("(^.*DGD)_\\w+_(\\d+$)", "\\1_\\2", aliquot_id),
-    ((cohort == "Maris" | cohort != "PPTC") & composition == "Derived Cell Line") ~ paste0(Kids_First_Participant_ID,"-CL"),
-    ((cohort == "Maris" | cohort != "PPTC") & composition == "Patient Derived Xenograft") ~ paste0(Kids_First_Participant_ID,"-PDX"),
+    ((cohort == "Maris" | cohort == "PPTC") & composition == "Derived Cell Line") ~ paste0(sample_id,"-CL"),
+    ((cohort == "Maris" | cohort == "PPTC") & composition == "Patient Derived Xenograft") ~ paste0(sample_id,"-PDX"),
     TRUE ~ Kids_First_Participant_ID
 ))
 

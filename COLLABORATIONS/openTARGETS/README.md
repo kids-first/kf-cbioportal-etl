@@ -25,7 +25,7 @@ snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz
 ```
 
 ### Prep work
-The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to supress duplicate RNA libraries from different sequencing methods.
+The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to suppress duplicate RNA libraries from different sequencing methods.
 Since we are not handling `Methylation` yet, it is recommended those entries be removed ahead of time.
 To create the histologies file, recommended method is to:
 1. `docker pull pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest` OR if you have R installed locally, ensure the following libraries are installed:
@@ -69,6 +69,7 @@ To create the histologies file, recommended method is to:
 	  union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.chdm_phs001643_2018_cbio_sample
+    union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.pbta_mioncoseq_cbio_sample
 
@@ -77,7 +78,7 @@ To create the histologies file, recommended method is to:
 
 ### Run as standalone
 1. Download from https://github.com/PediatricOpenTargets/OpenPedCan-analysis the `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R` or run from repo if you have it
-1. Run `Rscript --vanilla pedcbio_sample_name_col.R -i path-to-histologies-file.tsv -n path-to-cbio-names.csv -b Methylation`
+1. Run `Rscript --vanilla pedcbio_sample_name_col.R -i path-to-histologies-file.tsv -n path-to-cbio-names.csv -b 'Methylation,Phospho-Proteomics,Whole Cell Proteomics,miRNA-Seq'`
 OR
 ### Run in repo
 1. Either run an interactive docker or using your local R, and ensure to mount a volume that will have the repo and whatever input histologies file you end up using, i.e. `docker run -it --mount type=bind,source=/home/ubuntu,target=/WORK pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest /bin/bash`
