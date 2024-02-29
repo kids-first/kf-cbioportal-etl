@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Script to check a study on pedcbioportal for differences against a local build
 """
@@ -17,45 +18,38 @@ def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out):
     build_clinical_ids = set(build.keys())
     portal_only = sorted(portal_clinical_ids - build_clinical_ids)
     build_only = sorted(build_clinical_ids - portal_clinical_ids)
-    common_samp_ids = sorted(portal_clinical_ids & build_clinical_ids)
+    common_clinical_ids = sorted(portal_clinical_ids & build_clinical_ids)
     # gross attribute diffs
     portal_attr_only = list(portal_attr - build_attr)
     build_attr_only = list(build_attr - portal_attr)
     common_attr = list(portal_attr & build_attr)
     # focus on common samp and common attr, as "everything is different for x" is not that useful
-    print("Per " + clin_type + " changes:", file=out)
+    print(clin_type + "\tattribute\tbefore\tafter", file=out)
     attr_cts = {}
-    for samp_id in common_samp_ids:
+    for clinical_id in common_clinical_ids:
         for attr in common_attr:
             # portal will not have a value for that attr in the struct if none
-            portal_value = portal[samp_id].get(attr, "NA")
-            if portal_value != build[samp_id][attr]:
-                print("{} {} attribute {} would change from {} to {}".format(clin_type, samp_id, attr, portal_value, build[samp_id][attr]), file=out)
+            portal_value = portal[clinical_id].get(attr, "NA")
+            if portal_value != build[clinical_id][attr]:
+                print("{}\t{}\t{}\t{}".format(clinical_id, attr, portal_value, build[clinical_id][attr]), file=out)
                 if attr not in attr_cts:
                     attr_cts[attr] = 0
                 attr_cts[attr] += 1
 
-    print("CHANGE SUMMARY:", file=out)
+    # print change summary to STDOUT
+    print(clin_type +" CHANGE SUMMARY:")
     if len(portal_only) > 0:
-        print("{} {}s in portal would be removed: {}".format(len(portal_only), clin_type, ",".join(portal_only)), file=out)
+        print("{} {}s in portal would be removed: {}".format(len(portal_only), clin_type, ",".join(portal_only)))
     if len(build_only) > 0:
-        print("{} {}s in build would be added to the portal: {}".format(len(build_only), clin_type,  ",".join(build_only)), file=out)
+        print("{} {}s in build would be added to the portal: {}".format(len(build_only), clin_type,  ",".join(build_only)))
     if len(portal_attr_only) > 0:
-        print("{} attributes in portal would be removed: {}".format(len(portal_attr_only), ",".join(portal_attr_only)), file=out)
+        print("{} attributes in portal would be removed: {}".format(len(portal_attr_only), ",".join(portal_attr_only)))
     if len(build_attr_only) > 0:
-        print("{} attributes in build would be added to the portal: {}".format(len(build_attr_only), ",".join(build_attr_only)), file=out)
+        print("{} attributes in build would be added to the portal: {}".format(len(build_attr_only), ",".join(build_attr_only)))
     for attr in attr_cts:
-        print("{} has {} change(s)".format(attr, attr_cts[attr]), file=out)
-
-
-def split_sort_field(value, sep):
-    """
-    For ease of comparison, aggregate attributes concatenated by a separator may not be in the same order, but order does not matter.
-    Therefore, sort them so that when compared, no errors are triggered
-    """
-    value_list = value.split(sep)
-    value_list.sort()
-    return sep.join(value_list)
+        print("{} has {} change(s)".format(attr, attr_cts[attr]))
+    # Print extra newline for readability
+    print ("")
 
 
 def table_to_dict(in_file, key, aggr_list):
@@ -74,7 +68,6 @@ def table_to_dict(in_file, key, aggr_list):
                 for aggr in aggr_list:
                     if aggr in header:
                         aggr_head.append(header.index(aggr))
-
                 break
         data_dict = {}
         for entry in f:
@@ -82,9 +75,10 @@ def table_to_dict(in_file, key, aggr_list):
             # Replace empty string with NA as that is how the portal will return it
             data = ["NA" if d == "" else d for d in data]
             data_dict[data[primary]] = {}
-            # sort aggr fields
+            # For ease of comparison, aggregate attributes concatenated by a separator may not be in the same order, but order does not matter
+            # Therefore, sort them so that when compared, no errors are triggered
             for i in aggr_head:
-                data[i] = split_sort_field(data[i], ";")
+                data[i] = ';'.join(sorted(data[i].split(';')))
             # two loops, for up until primary key, then after.
             for i in range(len(data)):
                 if i == primary: continue
@@ -114,6 +108,8 @@ def data_clinical_from_study(cbio_conn, study_id, data_type, aggr_list):
             data_dict[clinical_id] = {"PATIENT_ID": entry.patientId}
         value = entry.value
         attr_id = entry.clinicalAttributeId
+        # For ease of comparison, aggregate attributes concatenated by a separator may not be in the same order, but order does not matter
+        # Therefore, sort them so that when compared, no errors are triggered
         if attr_id in aggr_list:
             value = ';'.join(sorted(value.split(';')))
         # "standardize" status field so that 0:LIVING = LIVING and 1:DECEASED = DECEASED
@@ -159,20 +155,20 @@ def main():
                                                 "validate_swagger_spec": False}
     )
     
-    # hardcode for now names of aggregate fields
+    # hardcode for now names of aggregate fields, implicit, and skip fields
     aggr_list = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
+    portal_sample_attr_implicit = ['PATIENT_ID']
+    portal_patient_attr_skip = ['SAMPLE_COUNT']
+    portal_sample_attr_skip = ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT']
     # get attribute keys
     attr_key_obj = cbioportal.Clinical_Attributes.fetchClinicalAttributesUsingPOST(studyIds=[args.study], projection='ID').result()
     # gather sample-level metadata
     portal_sample_data = data_clinical_from_study(cbioportal, args.study, "SAMPLE", aggr_list)
     build_sample_data, build_sample_attr_keys = table_to_dict(args.data_dir + "/data_clinical_sample.txt", "SAMPLE_ID", aggr_list)
-    sample_diff_out = open('sample_portal_v_build.txt', 'w')
     portal_sample_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if not x.patientAttribute])
     # implicit attributes not returned by function that are required for sample view
-    portal_sample_attr_implicit = ['PATIENT_ID']
     portal_sample_attr_keys.update(portal_sample_attr_implicit)
     # drop attributes that are post-load portal-specific
-    portal_sample_attr_skip = ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT']
     portal_sample_attr_keys -= set(portal_sample_attr_skip)
     # sample-level diffs
     with open('sample_portal_v_build.txt', 'w') as sample_diff_out:
@@ -180,11 +176,9 @@ def main():
     # patient-level diffs
     portal_patient_data =  data_clinical_from_study(cbioportal, args.study, "PATIENT", aggr_list)
     build_patient_data, build_patient_attr_keys = table_to_dict(args.data_dir + "/data_clinical_patient.txt", "PATIENT_ID", aggr_list)
-    patient_diff_out = open('patient_portal_v_build.txt', 'w')
     portal_patient_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if x.patientAttribute])
-    portal_patient_attr_skip = ['SAMPLE_COUNT']
+    # drop attributes that are post-load portal-specific
     portal_patient_attr_keys -= set(portal_patient_attr_skip)
-
     with open('patient_portal_v_build.txt', 'w') as patient_diff_out:
         clinical_diffs(portal_patient_data, build_patient_data, portal_patient_attr_keys, build_patient_attr_keys, "Patient", patient_diff_out)
 
