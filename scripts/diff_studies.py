@@ -15,12 +15,9 @@ def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out):
     # gross ID diffs
     portal_clinical_ids = set(portal.keys())
     build_clinical_ids = set(build.keys())
-    portal_only = list(portal_clinical_ids - build_clinical_ids)
-    portal_only.sort()
-    build_only = list(build_clinical_ids - portal_clinical_ids)
-    build_only.sort()
-    common_samp_ids = list(portal_clinical_ids & build_clinical_ids)
-    common_samp_ids.sort()
+    portal_only = sorted(portal_clinical_ids - build_clinical_ids)
+    build_only = sorted(build_clinical_ids - portal_clinical_ids)
+    common_samp_ids = sorted(portal_clinical_ids & build_clinical_ids)
     # gross attribute diffs
     portal_attr_only = list(portal_attr - build_attr)
     build_attr_only = list(build_attr - portal_attr)
@@ -69,7 +66,7 @@ def table_to_dict(in_file, key, aggr_list):
     with open(in_file) as f:
         # skip lines starting with hash until normal header is reached
         for entry in f:
-            if entry[0] != "#":
+            if not entry.startswith("#"):
                 header = entry.rstrip('\n').split('\t')
                 primary = header.index(key)
                 # get aggregate field indices
@@ -89,9 +86,8 @@ def table_to_dict(in_file, key, aggr_list):
             for i in aggr_head:
                 data[i] = split_sort_field(data[i], ";")
             # two loops, for up until primary key, then after.
-            for i in range(0, primary, 1):
-                data_dict[data[primary]][header[i]] = data[i]
-            for i in range((primary + 1), len(data), 1):
+            for i in range(len(data)):
+                if i == primary: continue
                 data_dict[data[primary]][header[i]] = data[i]
     attr_set = set(header)
     # no need for primary key to be reported as an attribute
@@ -115,12 +111,11 @@ def data_clinical_from_study(cbio_conn, study_id, data_type, aggr_list):
         clinical_id = getattr(entry, attr_dict[data_type])
         if clinical_id not in data_dict:
             # every entry per sample as sampleId and patientId, patient just patientId. Add keys to match
-            data_dict[clinical_id] = {}
-            data_dict[clinical_id]["PATIENT_ID"] = entry.patientId
+            data_dict[clinical_id] = {"PATIENT_ID": entry.patientId}
         value = entry.value
         attr_id = entry.clinicalAttributeId
         if attr_id in aggr_list:
-            value = split_sort_field(value, ";")
+            value = ';'.join(sorted(value.split(';')))
         # "standardize" status field so that 0:LIVING = LIVING and 1:DECEASED = DECEASED
         if attr_id in status:
             value = value[2:]
@@ -178,22 +173,20 @@ def main():
     portal_sample_attr_keys.update(portal_sample_attr_implicit)
     # drop attributes that are post-load portal-specific
     portal_sample_attr_skip = ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT']
-    for attr in portal_sample_attr_skip:
-        portal_sample_attr_keys.remove(attr)
+    portal_sample_attr_keys -= set(portal_sample_attr_skip)
     # sample-level diffs
-    clinical_diffs(portal_sample_data, build_sample_data, portal_sample_attr_keys, build_sample_attr_keys, "Sample", sample_diff_out)
-    sample_diff_out.close()
+    with open('sample_portal_v_build.txt', 'w') as sample_diff_out:
+        clinical_diffs(portal_sample_data, build_sample_data, portal_sample_attr_keys, build_sample_attr_keys, "Sample", sample_diff_out)
     # patient-level diffs
     portal_patient_data =  data_clinical_from_study(cbioportal, args.study, "PATIENT", aggr_list)
     build_patient_data, build_patient_attr_keys = table_to_dict(args.data_dir + "/data_clinical_patient.txt", "PATIENT_ID", aggr_list)
     patient_diff_out = open('patient_portal_v_build.txt', 'w')
     portal_patient_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if x.patientAttribute])
     portal_patient_attr_skip = ['SAMPLE_COUNT']
-    for attr in portal_patient_attr_skip:
-        portal_patient_attr_keys.remove(attr)
+    portal_patient_attr_keys -= set(portal_patient_attr_skip)
 
-    clinical_diffs(portal_patient_data, build_patient_data, portal_patient_attr_keys, build_patient_attr_keys, "Patient", patient_diff_out)
-    patient_diff_out.close()
+    with open('patient_portal_v_build.txt', 'w') as patient_diff_out:
+        clinical_diffs(portal_patient_data, build_patient_data, portal_patient_attr_keys, build_patient_attr_keys, "Patient", patient_diff_out)
 
 
 if __name__ == '__main__':
