@@ -29,7 +29,7 @@ Essentially two change log files, `patient_portal_v_build.txt` and `sample_porta
 For the patient and sample views, each file respectively has:
  - A list, one per line, per ID, per attribute, of what would change if the data were loaded
  - A list of IDs that would be removed from the portal, if any
- - A list of IDs that would be added in any
+ - A list of IDs that would be added if any
  - A summary of the number of changes of each attribute type
 
 ### patient_portal_v_build.txt example:
