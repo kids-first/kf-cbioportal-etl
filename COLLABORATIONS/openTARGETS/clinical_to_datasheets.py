@@ -185,7 +185,7 @@ for data in clin_data:
         # if DGD DNA, add to gene matrix
         elif info[cohort] == 'DGD':
             # parse aliquot for panel type, i.e. ET_242MFKXW_DGD_STNGS_93
-            test = re.match('.*_DGD_(\w+)_\d+', info[a_idx])
+            test = re.match(r'.*_DGD_(\w+)_\d+', info[a_idx])
             data_gene.write(info[cbio_id] + '\tCHOP-' + test.group(1) + '\n')
 
     pt_id = info[header.index("Kids_First_Participant_ID")]
