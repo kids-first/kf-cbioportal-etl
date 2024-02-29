@@ -1,5 +1,5 @@
 # Compare current versus build
-This documentation addresses a [QC script](../scripts/diff_studies.py) for clinical metadata. It streamlines the process of identifying and summarizing changes slated to be made
+This documentation addresses a [QC script](../scripts/diff_studies.py) for clinical metadata. It streamlines the process of identifying and summarizing changes slated to be made.
 
 ```sh
 python3 scripts/diff_studies.py --help
