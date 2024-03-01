@@ -1,10 +1,11 @@
-# Outline on ETL for converting data from cavatica and data service to pedcbioportal format
+# Outline on ETL for converting data from CAVATICA and Data Warehouse to PedcBioportal format
 In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
 Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee).
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
 ## I have everything and I know I am doing
 Below assumes you have already created the necessary tables from dbt
 1. Run commands as outlined in [scripts/get_study_metadata.py](#scriptsget_study_metadatapy). Copy/move those files to the cBio loader ec2 instance
+1. Recommended, but not required: run [scripts/diff_studies.py](docs/DIFF_STUDY_CLINICAL.md). It will give a summary of metadata changes between what is currently loaded and what you plan to load, to potentially flag any suspicious changes
 1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
