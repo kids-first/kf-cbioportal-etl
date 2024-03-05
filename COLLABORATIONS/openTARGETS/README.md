@@ -19,7 +19,7 @@ consensus_wgs_plus_cnvkit_wxs_plus_freec_tumor_only.tsv.gz
 fusion-dgd.tsv.gz
 fusion-putative-oncogenic.tsv
 gene-expression-rsem-tpm-collapsed.rds
-tcga-gene-expression-rsem-tpm-collapsed.rds
+tcga_gene-expression-rsem-tpm-collapsed.rds
 snv-consensus-plus-hotspots.maf.tsv.gz
 snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz
 ```
@@ -44,7 +44,7 @@ To create the histologies file, recommended method is to:
     from prod_cbio.aml_sd_pet7q6f2_2018_cbio_sample
     union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
-    from prod_cbio.aml_sd_z6mwd3h0_2018_cbio_sample
+    from prod_cbio.bllnos_sd_z6mwd3h0_2018_cbio_sample
     union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.x01_fy16_nbl_maris_cbio_sample
