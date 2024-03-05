@@ -1,6 +1,5 @@
 import sys
 import argparse
-import json
 import math
 import re
 import pdb
@@ -153,17 +152,17 @@ tumor_descriptor_dict = {
 
 # track some sample info so that somatic events can be collapsed
 samp_dict = {}
-s_type = header.index('sample_type')
-comp = header.index('composition')
-bs_id = header.index('Kids_First_Biospecimen_ID')
-exp = header.index('experimental_strategy')
+s_type_index = header.index('sample_type')
+comp_index = header.index('composition')
+bs_id_index = header.index('Kids_First_Biospecimen_ID')
+exp_index = header.index('experimental_strategy')
 
 # experimental strategy may be too vague, use to tell if RNA
 # related to recent addition of DGD samples, need gene matrix file
-rna_lib = header.index('RNA_library')
-cohort = header.index('cohort')
+rna_lib_index = header.index('RNA_library')
+cohort_index = header.index('cohort')
 a_idx = header.index('aliquot_id')
-cbio_id = header.index('formatted_sample_id')
+cbio_id_index = header.index('formatted_sample_id')
 data_gene = open('data_gene_matrix_CHOP.txt', 'w')
 data_gene.write('SAMPLE_ID\tmutations\n')
 
@@ -173,20 +172,20 @@ bs_type = {}
 
 for data in clin_data:
     info = data.rstrip('\n').split('\t')
-    if info[s_type] == "Normal" and info[exp] != 'RNA-Seq':
+    if info[s_type_index] == "Normal" and info[exp_index] != 'RNA-Seq':
         continue
-    if info[bs_id] in blacklist_dict:
-        sys.stderr.write('Skipping output of ' + info[bs_id] + ' because in blacklist for reason ' + blacklist_dict[info[bs_id]] + '\n')
+    if info[bs_id_index] in blacklist_dict:
+        sys.stderr.write('Skipping output of ' + info[bs_id_index] + ' because in blacklist for reason ' + blacklist_dict[info[bs_id_index]] + '\n')
         continue
     # adjust exp value if targeted sequencing
-    if info[exp] == 'Targeted Sequencing':
-        if info[rna_lib] != 'NA':
-            info[exp] = 'RNA-Seq'
+    if info[exp_index] == 'Targeted Sequencing':
+        if info[rna_lib_index] != 'NA':
+            info[exp_index] = 'RNA-Seq'
         # if DGD DNA, add to gene matrix
-        elif info[cohort] == 'DGD':
+        elif info[cohort_index] == 'DGD':
             # parse aliquot for panel type, i.e. ET_242MFKXW_DGD_STNGS_93
             test = re.match(r'.*_DGD_(\w+)_\d+', info[a_idx])
-            data_gene.write(info[cbio_id] + '\tCHOP-' + test.group(1) + '\n')
+            data_gene.write(info[cbio_id_index] + '\tCHOP-' + test.group(1) + '\n')
 
     pt_id = info[header.index("Kids_First_Participant_ID")]
     if pt_id in pt_id_dict:
@@ -238,11 +237,11 @@ for data in clin_data:
     if samp_id not in samp_dict:
         samp_dict[samp_id] = sample_to_print
         id_mapping[samp_id] = []
-    id_mapping[samp_id].append(info[bs_id])
-    if info[exp] == "RNA-Seq":
-        bs_type[info[bs_id]] = "RNA"
+    id_mapping[samp_id].append(info[bs_id_index])
+    if info[exp_index] == "RNA-Seq":
+        bs_type[info[bs_id_index]] = "RNA"
     else:
-        bs_type[info[bs_id]] = "DNA"
+        bs_type[info[bs_id_index]] = "DNA"
 # cycle through sample IDs to see if there's matched DNA/RNA and if one can be made
 check = {}
 for samp_id in id_mapping:
@@ -256,8 +255,18 @@ for samp_id in id_mapping:
             spec = id_mapping[samp_id][1] + ";" + id_mapping[samp_id][0]
         samp_dict[samp_id][0] = spec
     elif len(id_mapping[samp_id]) > 2:
-        # QC check, only one or two biospec per sample ID
+        # QC check, only one or two biospec per sample ID, unless it's new DGD RNA + separate fusion biospecimen
         sys.stderr.write("Saw more than two biospecimens for " + samp_id + ": " + ",".join(id_mapping[samp_id]) + "\n")
+        if "DGD" in samp_id:
+            # If two RNA types and is DGD, throw a note to check
+            check_type = {"DNA": [], "RNA": []}
+            for bs_id in id_mapping[samp_id]:
+                check_type[bs_type[bs_id]].append(bs_id)
+            if len(check_type["DNA"]) == 1 and len(check_type["RNA"]) == 2:
+                spec = ";".join(check_type["DNA"] + check_type["RNA"])
+                samp_dict[samp_id][0] = spec
+                sys.stderr.write("Could be a DGD fusion + bulk RNA, may be ok\n")
+
         # exit(1)
     else:
         # skip cell line re-matching
@@ -272,9 +281,9 @@ for samp_id in samp_dict:
 mapping_file = open("bs_id_sample_map.txt", "w")
 mapping_file.write("BS_ID\tSample Type\tCbio ID\n")
 for samp_id in id_mapping:
-    for bs_id in id_mapping[samp_id]:
+    for bs_id_index in id_mapping[samp_id]:
         try:
-            mapping_file.write("\t".join([bs_id, bs_type[bs_id], samp_id]) + "\n")
+            mapping_file.write("\t".join([bs_id_index, bs_type[bs_id_index], samp_id]) + "\n")
         except Exception as e:
             sys.stderr.write(str(e) + "\n")
             pdb.set_trace()
