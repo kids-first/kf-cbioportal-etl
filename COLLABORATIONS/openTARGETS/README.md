@@ -74,7 +74,7 @@ To create the histologies file, recommended method is to:
     from prod_cbio.pbta_mioncoseq_cbio_sample
 
     ```
-1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons
+1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons`
 
 ### Run as standalone
 1. Download from https://github.com/PediatricOpenTargets/OpenPedCan-analysis the `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R` or run from repo if you have it
@@ -144,7 +144,7 @@ optional arguments:
 ```
 _NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz` to add DGD data
 
-_NOTE_ for v12 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/add_dgd_maf_to_openpedcan.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v12_header.txt -c openpedcan_v12.maf -t ../bs_id_sample_map.txt -m ../GF_INPUTS/snv-dgd.maf.tsv.gz` to add DGD data, which is more robust - however, there are data issues with DGD, so it was left out
+_NOTE_ for v15 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/append_maf_to_existing.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v15_header.txt -c openpedcan_v15.maf -t ../bs_id_sample_map.txt -m ...INPUT_PREP/snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz` to add tumor-only data, which is more robust
 
 Example run:
 `python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz -s 1 -n openpedcan_v12`

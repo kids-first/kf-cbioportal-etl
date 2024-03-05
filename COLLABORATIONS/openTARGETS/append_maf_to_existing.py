@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Helper script to append DGD data to an existing merged maf file.
+Helper script to append a maf to an existing  maf file.
 Uses filter_entry to filter out undesired calls like in other mafs
 """
 import sys
@@ -100,6 +100,6 @@ with (gzip.open if maf_fn.endswith("gz") else open)(maf_fn, "rt", encoding="utf-
         else:
             skipped += 1
     sys.stderr.write("Processed " + maf_fn + "\n")
-    sys.stderr.write("Skipped " + str(skipped) + " entries meeting exlusion criteria\n")
+    sys.stderr.write("Skipped " + str(skipped) + " entries meeting exclusion criteria\n")
 
 append_maf.close()
