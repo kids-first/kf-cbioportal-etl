@@ -82,6 +82,12 @@ with (gzip.open if maf_fn.endswith("gz") else open)(maf_fn, "rt", encoding="utf-
     v_idx = m_header.index("Variant_Classification")
     h_idx = m_header.index("Hugo_Symbol")
 
+    # need to also pop entrez ID if exists, as process_maf_entry() will do that to data
+    try:
+        m_header.pop(m_header.index("Entrez_Gene_Id"))
+    except Exception as e:
+        print(e, file=sys.stderr)
+
     for i in range(len(m_header)):
         if m_header[i] in h_dict:
             h_dict[m_header[i]] = i
@@ -90,15 +96,20 @@ with (gzip.open if maf_fn.endswith("gz") else open)(maf_fn, "rt", encoding="utf-
         to_print = []
         datum = process_maf_entry(data, maf_exc, v_idx, h_idx, tid_idx, eid_idx, bs_cbio_key)
         # Set tumor barcode to cBio ID
-        if datum:
-            for item in header:
-                if h_dict[item] != None:
-                    to_print.append(datum[h_dict[item]])
-                else:
-                    to_print.append("")
-            print("\t".join(to_print), file=append_maf)
-        else:
-            skipped += 1
+        try:
+            if datum:
+                for item in header:
+                    if h_dict[item] != None:
+                        to_print.append(datum[h_dict[item]])
+                    else:
+                        to_print.append("")
+                print("\t".join(to_print), file=append_maf)
+            else:
+                skipped += 1
+        except Exception as e:
+            print (e)
+            pdb.set_trace()
+            hold = 1
     sys.stderr.write("Processed " + maf_fn + "\n")
     sys.stderr.write("Skipped " + str(skipped) + " entries meeting exclusion criteria\n")
 
