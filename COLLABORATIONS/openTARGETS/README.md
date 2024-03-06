@@ -39,7 +39,7 @@ To create the histologies file, recommended method is to:
 1. Pull the OpenPedCan repo (warning, it's 12GB ): https://github.com/PediatricOpenTargets/OpenPedCan-analysis, or just download the script from `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R`
 1. Export from D3b Warehouse the latest existing cBio IDs to use for population. Ensure that the output is csv double-quoted. Currently that can be obtained using the sql command:
     ```sql
-
+    with custom as (
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.aml_sd_pet7q6f2_2018_cbio_sample
     union
@@ -72,6 +72,8 @@ To create the histologies file, recommended method is to:
     union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.pbta_mioncoseq_cbio_sample
+    )
+    select * from custom
 
     ```
 1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons`
@@ -144,7 +146,7 @@ optional arguments:
 ```
 _NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz` to add DGD data
 
-_NOTE_ for v15 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/append_maf_to_existing.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v15_header.txt -c openpedcan_v15.maf -t ../bs_id_sample_map.txt -m ...INPUT_PREP/snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz` to add tumor-only data, which is more robust
+_NOTE_ for v15 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/append_maf_to_existing.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v15_header.txt -c openpedcan_v15.maf -t ../INPUT_PREP/bs_id_sample_map.txt -m ../INPUTS/snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz` to add tumor-only data, which is more robust
 
 Example run:
 `python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz -s 1 -n openpedcan_v12`
