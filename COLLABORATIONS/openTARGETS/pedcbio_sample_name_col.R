@@ -119,7 +119,7 @@ message("Collated samples missing a cBio ID")
 #### Handle each cohort at a time - start with PBTA
 # get all sample IDs in the PBTA cohort
 sample_ids_pbta <- histology_df_no_format_id %>% 
-  dplyr::filter(cohort == "PBTA", sub_cohort != "DGD") %>% 
+  dplyr::filter(cohort == "PBTA" & sub_cohort != "DGD") %>% 
   pull(sample_id) %>% 
   unique()
 
@@ -132,7 +132,7 @@ for (i in 1:length(sample_ids_pbta)){
   
   # find the number of compositions
   each_specimen_need_tiebreak <- histology_df_no_format_id %>% 
-    dplyr::filter(sample_type == "Tumor") %>% 
+    dplyr::filter(sample_type == "Tumor" & sub_cohort != "DGD") %>% 
     dplyr::filter(sample_id == sample_id_of_interest) %>% 
     group_by(experimental_strategy) %>% 
     dplyr::mutate(n_sample_type = n()) %>%
