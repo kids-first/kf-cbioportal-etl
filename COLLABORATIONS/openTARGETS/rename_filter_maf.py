@@ -67,6 +67,9 @@ if __name__ == '__main__':
     h_idx = header.index('Hugo_Symbol')
     eid_idx = header.index('Entrez_Gene_Id')
     header.pop(eid_idx)
+    # bug fix for OpenPedCan, position will be one less after process_maf_entry
+    n_ref_ct_idx = header.index('n_ref_count')
+    n_ref_alt_idx = header.index('n_alt_count')
     print("\t".join(header), file=maf_out)
 
     sys.stderr.write("Filtering entries and renaming samples\n")
@@ -74,6 +77,10 @@ if __name__ == '__main__':
     for line in maf_file:
         to_print = process_maf_entry(line.decode(), maf_exc, v_idx, h_idx, tid_idx, eid_idx, map_dict)
         if to_print:
+            # bug fix for maf format in OpenPedCan
+            for i in [n_ref_ct_idx, n_ref_alt_idx]:
+                if to_print[i] == "NA":
+                    to_print[i] = ""
             print("\t".join(to_print), file=maf_out)
 
     sys.stderr.write("Fin.\n")
