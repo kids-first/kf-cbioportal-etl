@@ -94,7 +94,7 @@
         }
     },
     "data_sheets": {
-        "dir": "datasheets",
+        "dir": "study_build",
         "dtypes": {
             "patient": {
                 "cbio_name": "data_clinical_patient.txt",
