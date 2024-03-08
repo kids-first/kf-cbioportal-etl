@@ -219,6 +219,13 @@ for data in clin_data:
             elif header[i] == "tumor_descriptor":
                 if value in tumor_descriptor_dict:
                     value = tumor_descriptor_dict[value]
+            elif header[i] == "EFS_event_type":
+                if value == "Not Applicable":
+                    value = "0:No Event"
+                elif value == "Not Reported":
+                    value = "NA"
+                else:
+                    value = "1:" + value
             # replace status with NA if value not acceptable
             elif header[i] == "OS_status":
                 if value not in ["LIVING", "DECEASED", "NA"]:
@@ -253,7 +260,7 @@ for samp_id in id_mapping:
         spec = id_mapping[samp_id][0] + ";" + id_mapping[samp_id][1]
         if bs_type[id_mapping[samp_id][0]] == "RNA":
             spec = id_mapping[samp_id][1] + ";" + id_mapping[samp_id][0]
-        samp_dict[samp_id][0] = spec
+        samp_dict[samp_id][1] = spec
     elif len(id_mapping[samp_id]) > 2:
         # QC check, only one or two biospec per sample ID, unless it's new DGD RNA + separate fusion biospecimen
         sys.stderr.write("Saw more than two biospecimens for " + samp_id + ": " + ",".join(id_mapping[samp_id]) + "\n")
@@ -264,7 +271,7 @@ for samp_id in id_mapping:
                 check_type[bs_type[bs_id]].append(bs_id)
             if len(check_type["DNA"]) == 1 and len(check_type["RNA"]) == 2:
                 spec = ";".join(check_type["DNA"] + check_type["RNA"])
-                samp_dict[samp_id][0] = spec
+                samp_dict[samp_id][1] = spec
                 sys.stderr.write("Could be a DGD fusion + bulk RNA, may be ok\n")
 
         # exit(1)
