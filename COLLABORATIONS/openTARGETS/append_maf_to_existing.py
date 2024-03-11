@@ -87,6 +87,9 @@ with (gzip.open if maf_fn.endswith("gz") else open)(maf_fn, "rt", encoding="utf-
         m_header.pop(m_header.index("Entrez_Gene_Id"))
     except Exception as e:
         print(e, file=sys.stderr)
+    # bug fix for OpenPedCan, position will be one less after process_maf_entry
+    n_ref_ct_idx = m_header.index('n_ref_count')
+    n_alt_ct_idx = m_header.index('n_alt_count')    
 
     for i in range(len(m_header)):
         if m_header[i] in h_dict:
@@ -103,6 +106,10 @@ with (gzip.open if maf_fn.endswith("gz") else open)(maf_fn, "rt", encoding="utf-
                         to_print.append(datum[h_dict[item]])
                     else:
                         to_print.append("")
+                # bug fix for maf format in OpenPedCan
+                for i in [n_ref_ct_idx, n_alt_ct_idx]:
+                    if to_print[i] == "NA":
+                        to_print[i] = ""
                 print("\t".join(to_print), file=append_maf)
             else:
                 skipped += 1
