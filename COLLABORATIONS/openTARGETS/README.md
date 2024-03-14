@@ -20,6 +20,7 @@ fusion-dgd.tsv.gz
 fusion-putative-oncogenic.tsv
 gene-expression-rsem-tpm-collapsed.rds
 tcga_gene-expression-rsem-tpm-collapsed.rds
+gtex_gene-expression-rsem-tpm-collapsed.rds
 snv-consensus-plus-hotspots.maf.tsv.gz
 snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz
 ```
@@ -92,7 +93,11 @@ TCGA data are kept in a seprate matrix from everything else. We need to merge th
 ```sh
 Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene-expression-rsem-tpm-collapsed.rds --second_file tcga-gene-expression-rsem-tpm-collapsed.rds --output_fn gene_tcga_expression_common_merge.rds
 ```
-
+UPDATE: GTEx is also in a seprate matrix, so run again currently to make the "final" merge before conversion
+```sh
+Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene_tcga_expression_common_merge.rds --second_file gtex_gene-expression-rsem-tpm-collapsed.rds --output_fn gene_tcga_gtex_expression_common_merge.rds
+```
+```
 
 ### File Transformation
 It's recommended to put datasheets in a dir called `datasheets`, downloaded files in it's own dir (in v12 it's `GF_INPUTS`) and the rest of the processed outputs into it's own dir (`study_build` for v12) to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
@@ -195,7 +200,7 @@ Options:
 		Show this help message and exit
 ```
 Example run:
-`Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v11 --computeZscore R 2> rna_convert.errs`
+`Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_gtex_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v15 --computeZscore R 2> rna_convert.errs`
 
 #### 5. scripts/convert_fusion_as_sv.py
 

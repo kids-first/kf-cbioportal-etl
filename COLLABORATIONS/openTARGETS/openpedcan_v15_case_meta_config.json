@@ -119,7 +119,7 @@
         "groups": "PUBLIC",
         "cancer_study_identifier": "openpedcan_v15",
         "reference_genome": "hg38",
-        "display_name": "Open Pediatric Cancer (OpenPedCan) Project v14",
+        "display_name": "Open Pediatric Cancer (OpenPedCan) Project v15",
         "type_of_cancer": "mixed",
         "short_name": "openpedcan_v15"
 
