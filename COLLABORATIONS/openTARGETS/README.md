@@ -13,18 +13,20 @@ Genomic data generally obtained as such:
  - Copy number: tsv file with copy number, ploidy, and GISTIC-style information in maf-like format (each call is a row)
  - RNA expression: tpm values from rsem stored an `.rds` object
  - RNA fusion: annoFuse output
-For example, for v12, bucket s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/v12/:
+For example, for v14, bucket s3://d3b-openaccess-us-east-1-prd-pbta/open-targets/v14/:
 ```
-consensus_wgs_plus_cnvkit_wxs.tsv.gz
+consensus_wgs_plus_cnvkit_wxs_plus_freec_tumor_only.tsv.gz
 fusion-dgd.tsv.gz
 fusion-putative-oncogenic.tsv
 gene-expression-rsem-tpm-collapsed.rds
-tcga-gene-expression-rsem-tpm-collapsed.rds
+tcga_gene-expression-rsem-tpm-collapsed.rds
+gtex_gene-expression-rsem-tpm-collapsed.rds
 snv-consensus-plus-hotspots.maf.tsv.gz
+snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz
 ```
 
 ### Prep work
-The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to supress duplicate RNA libraries from different sequencing methods.
+The histologies file needs `formatted_sample_id` added and likely a blacklist from the D3b Warehouse or some other source to suppress duplicate RNA libraries from different sequencing methods.
 Since we are not handling `Methylation` yet, it is recommended those entries be removed ahead of time.
 To create the histologies file, recommended method is to:
 1. `docker pull pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest` OR if you have R installed locally, ensure the following libraries are installed:
@@ -38,12 +40,12 @@ To create the histologies file, recommended method is to:
 1. Pull the OpenPedCan repo (warning, it's 12GB ): https://github.com/PediatricOpenTargets/OpenPedCan-analysis, or just download the script from `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R`
 1. Export from D3b Warehouse the latest existing cBio IDs to use for population. Ensure that the output is csv double-quoted. Currently that can be obtained using the sql command:
     ```sql
-
+    with custom as (
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.aml_sd_pet7q6f2_2018_cbio_sample
     union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
-    from prod_cbio.aml_sd_z6mwd3h0_2018_cbio_sample
+    from prod_cbio.bllnos_sd_z6mwd3h0_2018_cbio_sample
     union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.x01_fy16_nbl_maris_cbio_sample
@@ -68,13 +70,18 @@ To create the histologies file, recommended method is to:
 	  union
     select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
     from prod_cbio.chdm_phs001643_2018_cbio_sample
+    union
+    select participant_id, formatted_sample_id, specimen_id, analyte_types, normal_bs_id, normal_sample_id
+    from prod_cbio.pbta_mioncoseq_cbio_sample
+    )
+    select * from custom
 
     ```
-1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons
+1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons`
 
 ### Run as standalone
 1. Download from https://github.com/PediatricOpenTargets/OpenPedCan-analysis the `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R` or run from repo if you have it
-1. Run `Rscript --vanilla pedcbio_sample_name_col.R -i path-to-histolgies-file.tsv -n path-to-cbio-names.csv -b Methylation`
+1. Run `Rscript --vanilla pedcbio_sample_name_col.R -i path-to-histologies-file.tsv -n path-to-cbio-names.csv -b 'Methylation,Phospho-Proteomics,Whole Cell Proteomics,miRNA-Seq'`
 OR
 ### Run in repo
 1. Either run an interactive docker or using your local R, and ensure to mount a volume that will have the repo and whatever input histologies file you end up using, i.e. `docker run -it --mount type=bind,source=/home/ubuntu,target=/WORK pgc-images.sbgenomics.com/d3b-bixu/open-pedcan:latest /bin/bash`
@@ -86,7 +93,11 @@ TCGA data are kept in a seprate matrix from everything else. We need to merge th
 ```sh
 Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene-expression-rsem-tpm-collapsed.rds --second_file tcga-gene-expression-rsem-tpm-collapsed.rds --output_fn gene_tcga_expression_common_merge.rds
 ```
-
+UPDATE: GTEx is also in a seprate matrix, so run again currently to make the "final" merge before conversion
+```sh
+Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene_tcga_expression_common_merge.rds --second_file gtex_gene-expression-rsem-tpm-collapsed.rds --output_fn gene_tcga_gtex_expression_common_merge.rds
+```
+```
 
 ### File Transformation
 It's recommended to put datasheets in a dir called `datasheets`, downloaded files in it's own dir (in v12 it's `GF_INPUTS`) and the rest of the processed outputs into it's own dir (`study_build` for v12) to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
@@ -140,7 +151,7 @@ optional arguments:
 ```
 _NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz` to add DGD data
 
-_NOTE_ for v12 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/add_dgd_maf_to_openpedcan.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v12_header.txt -c openpedcan_v12.maf -t ../bs_id_sample_map.txt -m ../GF_INPUTS/snv-dgd.maf.tsv.gz` to add DGD data, which is more robust - however, there are data issues with DGD, so it was left out
+_NOTE_ for v15 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/append_maf_to_existing.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v15_header.txt -c openpedcan_v15.maf -t ../INPUT_PREP/bs_id_sample_map.txt -m ../INPUTS/snv-mutect2-tumor-only-plus-hotspots.maf.tsv.gz` to add tumor-only data, which is more robust
 
 Example run:
 `python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz -s 1 -n openpedcan_v12`
@@ -189,7 +200,7 @@ Options:
 		Show this help message and exit
 ```
 Example run:
-`Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v11 --computeZscore R 2> rna_convert.errs`
+`Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_gtex_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v15 --computeZscore R 2> rna_convert.errs`
 
 #### 5. scripts/convert_fusion_as_sv.py
 

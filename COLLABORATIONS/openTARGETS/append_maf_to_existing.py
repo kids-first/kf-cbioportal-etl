@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Helper script to append DGD data to an existing merged maf file.
+Helper script to append a maf to an existing  maf file.
 Uses filter_entry to filter out undesired calls like in other mafs
 """
 import sys
@@ -82,6 +82,15 @@ with (gzip.open if maf_fn.endswith("gz") else open)(maf_fn, "rt", encoding="utf-
     v_idx = m_header.index("Variant_Classification")
     h_idx = m_header.index("Hugo_Symbol")
 
+    # need to also pop entrez ID if exists, as process_maf_entry() will do that to data
+    try:
+        m_header.pop(m_header.index("Entrez_Gene_Id"))
+    except Exception as e:
+        print(e, file=sys.stderr)
+    # bug fix for OpenPedCan, position will be one less after process_maf_entry
+    n_ref_ct_idx = m_header.index('n_ref_count')
+    n_alt_ct_idx = m_header.index('n_alt_count')    
+
     for i in range(len(m_header)):
         if m_header[i] in h_dict:
             h_dict[m_header[i]] = i
@@ -90,16 +99,25 @@ with (gzip.open if maf_fn.endswith("gz") else open)(maf_fn, "rt", encoding="utf-
         to_print = []
         datum = process_maf_entry(data, maf_exc, v_idx, h_idx, tid_idx, eid_idx, bs_cbio_key)
         # Set tumor barcode to cBio ID
-        if datum:
-            for item in header:
-                if h_dict[item] != None:
-                    to_print.append(datum[h_dict[item]])
-                else:
-                    to_print.append("")
-            print("\t".join(to_print), file=append_maf)
-        else:
-            skipped += 1
+        try:
+            if datum:
+                for item in header:
+                    if h_dict[item] != None:
+                        to_print.append(datum[h_dict[item]])
+                    else:
+                        to_print.append("")
+                # bug fix for maf format in OpenPedCan
+                for i in [n_ref_ct_idx, n_alt_ct_idx]:
+                    if to_print[i] == "NA":
+                        to_print[i] = ""
+                print("\t".join(to_print), file=append_maf)
+            else:
+                skipped += 1
+        except Exception as e:
+            print (e)
+            pdb.set_trace()
+            hold = 1
     sys.stderr.write("Processed " + maf_fn + "\n")
-    sys.stderr.write("Skipped " + str(skipped) + " entries meeting exlusion criteria\n")
+    sys.stderr.write("Skipped " + str(skipped) + " entries meeting exclusion criteria\n")
 
 append_maf.close()

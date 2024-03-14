@@ -75,6 +75,5 @@ if __name__ == '__main__':
         to_print = process_maf_entry(line.decode(), maf_exc, v_idx, h_idx, tid_idx, eid_idx, map_dict)
         if to_print:
             print("\t".join(to_print), file=maf_out)
-
     sys.stderr.write("Fin.\n")
     maf_out.close()

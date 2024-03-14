@@ -59,11 +59,9 @@ cbio_names_list <- lapply(files_list, function(cbio_names){
 histology_df <- readr::read_tsv(hist_file, guess_max = 100000)
 message("Read histologies file")
 if (!is.null(opt$blacklist_strategy)){
-  drop_list <- strsplit(opt$blacklist_strategy, split = ",")
-  for (drop in drop_list){
-    histology_df <- dplyr::filter(histology_df, experimental_strategy != drop)
-    message(paste0("Dropping ", drop," as specified"))
-  }
+  drop_list <- as.list(strsplit(opt$blacklist_strategy, split = ",")[[1]])
+  message(paste0("Dropping ", opt$blacklist_strategy," as specified\n"))
+  histology_df <- histology_df %>% dplyr::filter(!experimental_strategy %in% drop_list)
 }
 # tmp update for broad histology bug, to be fixed in v11
 histology_df <- histology_df %>%
@@ -121,7 +119,7 @@ message("Collated samples missing a cBio ID")
 #### Handle each cohort at a time - start with PBTA
 # get all sample IDs in the PBTA cohort
 sample_ids_pbta <- histology_df_no_format_id %>% 
-  dplyr::filter(cohort == "PBTA") %>% 
+  dplyr::filter(cohort == "PBTA" & sub_cohort != "DGD") %>% 
   pull(sample_id) %>% 
   unique()
 
@@ -134,7 +132,7 @@ for (i in 1:length(sample_ids_pbta)){
   
   # find the number of compositions
   each_specimen_need_tiebreak <- histology_df_no_format_id %>% 
-    dplyr::filter(sample_type == "Tumor") %>% 
+    dplyr::filter(sample_type == "Tumor" & sub_cohort != "DGD") %>% 
     dplyr::filter(sample_id == sample_id_of_interest) %>% 
     group_by(experimental_strategy) %>% 
     dplyr::mutate(n_sample_type = n()) %>%
@@ -269,8 +267,10 @@ message("FINALIZE NAMES")
 no_need_for_tiebreaks <- histology_df %>%
   dplyr::filter(!Kids_First_Biospecimen_ID %in% all_tiebreaks$Kids_First_Biospecimen_ID) %>%
   dplyr::mutate(formatted_sample_id = case_when(
-    cohort == "PBTA" ~ sample_id,
-    cohort == "DGD" ~ gsub("(^.*DGD)_\\w+_(\\d+$)", "\\1_\\2", aliquot_id),
+    (cohort == "PBTA" & sub_cohort != "DGD") ~ sample_id,
+    sub_cohort == "DGD" ~ gsub("(^.*DGD)_\\w+_(\\d+$)", "\\1_\\2", aliquot_id),
+    ((cohort == "Maris" | cohort == "PPTC") & composition == "Derived Cell Line") ~ paste0(sample_id,"-CL"),
+    ((cohort == "Maris" | cohort == "PPTC") & composition == "Patient Derived Xenograft") ~ paste0(sample_id,"-PDX"),
     TRUE ~ Kids_First_Participant_ID
 ))
 
