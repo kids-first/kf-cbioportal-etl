@@ -52,12 +52,13 @@ def collate_data(cnv_fn):
                 ploidy = data[p_idx]
                 cn = data[c_idx]
                 try:
-                    gistic = qual_to_gistic[data[s_idx]]
+                    qual = data[s_idx]
+                    if qual != "NA":
+                        qual = qual.lower()
+                    gistic = qual_to_gistic[qual]
                 except Exception as e:
-                    sys.stderr.write(str(e) + "\nInvalid value for gistic, skipping " + line.decode())
+                    sys.stderr.write(str(e) + "\nInvalid value for gistic, skipping " + line)
                     continue
-                    # pdb.set_trace()
-                    # hold=1
                 if samp_id not in ploidy_dict:
                     ploidy_dict[samp_id] = ploidy
                 if gene not in cn_dict:

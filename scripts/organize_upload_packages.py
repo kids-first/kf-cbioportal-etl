@@ -244,8 +244,8 @@ except:
     sys.stderr.write(out_dir + " already exists.\n")
 
 try:
+    study_id = config_data["study"]["cancer_study_identifier"]
     if os.path.isdir(config_data["data_sheets"]["dir"]):
-        study_id = config_data["study"]["cancer_study_identifier"]
         cur_dir = out_dir + config_data["study"]["cancer_study_identifier"] + "/"
         try:
             os.mkdir(cur_dir)
