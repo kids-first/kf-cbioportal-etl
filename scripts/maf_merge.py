@@ -24,9 +24,7 @@ def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc
         return None
 
 
-def process_maf(
-    maf_fn, new_maf, maf_exc, tum_id, norm_id
-):
+def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id):
     """
     Iterate over maf file, skipping header lines since the files are being merged.
     With possiblility of mixed source, search headers
@@ -69,9 +67,7 @@ def process_maf(
     cur_maf.close()
 
 
-def process_tbl(
-    cbio_dx, file_meta_dict, print_head
-):
+def process_tbl(cbio_dx, file_meta_dict, print_head):
     """
     Probaby a less likely scenario, but can split out into multiple projects based on dict
     """
@@ -84,28 +80,10 @@ def process_tbl(
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             cbio_norm_id = file_meta_dict[cbio_dx][cbio_tum_id]["cbio_norm_id"]
             fname = file_meta_dict[cbio_dx][cbio_tum_id]["fname"]
-            sys.stderr.write(
-                "Found relevant maf to process for "
-                + " "
-                + cbio_tum_id
-                + " "
-                + cbio_norm_id
-                + " "
-                + file_meta_dict[cbio_dx][cbio_tum_id]["kf_tum_id"]
-                + " "
-                + file_meta_dict[cbio_dx][cbio_tum_id]["kf_norm_id"]
-                + " "
-                + fname
-                + "\n"
-            )
-            sys.stderr.flush()
-            process_maf(
-                maf_dir + fname,
-                new_maf,
-                maf_exc,
-                cbio_tum_id,
-                cbio_norm_id,
-            )
+            print("Found relevant maf to process for {} {} {} {} {}".format(
+                cbio_tum_id, cbio_norm_id, file_meta_dict[cbio_dx][cbio_tum_id]["kf_tum_id"], file_meta_dict[cbio_dx][cbio_tum_id]["kf_norm_id"], fname),
+                file=sys.stderr)
+            process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id)
             x += 1
         sys.stderr.write(
             "Completed processing " + str(x) + " entries in " + cbio_dx + "\n"
@@ -130,7 +108,7 @@ if __name__ == '__main__':
         "-i", "--header", action="store", dest="header", help="File with maf header only"
     )
     parser.add_argument(
-        "-m", "--maf-dir", action="store", dest="maf_dir", help="maf file directory"
+        "-m", "--maf-dirs", action="store", dest="maf_dirs", help="csv of maf file directories"
     )
     parser.add_argument(
         "-j",
@@ -155,10 +133,21 @@ if __name__ == '__main__':
     args = parser.parse_args()
     with open(args.config_file) as f:
         config_data = json.load(f)
-    # get maf file ext
-    maf_dir = args.maf_dir
-    if maf_dir[-1] != "/":
-        maf_dir += "/"
+    # Create symlinks to mafs in one place for ease of processing
+    maf_dir = "MAFS/"
+    maf_dirs_in = args.maf_dirs
+    print("Symlinking maf files from {} to {}".format(maf_dirs_in, maf_dir), file=sys.stderr)
+    os.makedirs("MAFS", exist_ok=True)
+    for dirname in maf_dirs_in.split(","):
+        abs_path = os.path.abspath(dirname)
+        for fname in os.listdir(dirname):
+            try:
+                src = os.path.join(abs_path, fname)
+                dest = os.path.join(maf_dir, fname)
+                os.symlink(src, dest)
+            except Exception as e:
+                print(e, file=sys.stderr)
+                print("Could not sym link {} in {}".format(fname, dirname))
     # If DGD maf only, else if both, dgd maf wil be handled separately, or not at all if no dgd and kf only
 
     file_meta_dict = get_file_metadata(args.table, "DGD_MAF")
