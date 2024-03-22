@@ -8,6 +8,7 @@ import re
 from get_file_metadata_helper import get_file_metadata
 import pandas as pd
 import numpy as np
+import pdb
 
 parser = argparse.ArgumentParser(
     description="Convert merged cnv values to discrete coded values."
@@ -107,7 +108,12 @@ if fname_list[-1] == "":
 for fname in fname_list:
     parts = re.search("^" + args.merged_cnv_dir + "/(.*).predicted_cnv.txt", fname)
     cbio_dx = parts.group(1)
-    data = pd.read_csv(fname, sep="\t")
+    try:
+        data = pd.read_csv(fname, sep="\t")
+    except Exception as e:
+        print(e, file=sys.stderr)
+        pdb.set_trace()
+        hold=1
     data.set_index("Hugo_Symbol")
     # sample list would be cbio ids
     samp_list = list(data.columns)[1:]
