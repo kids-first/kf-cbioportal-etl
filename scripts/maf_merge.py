@@ -108,7 +108,7 @@ if __name__ == '__main__':
         "-i", "--header", action="store", dest="header", help="File with maf header only"
     )
     parser.add_argument(
-        "-m", "--maf-dirs", action="store", dest="maf_dirs", help="csv of maf file directories"
+        "-m", "--maf-dirs", action="store", dest="maf_dirs", help="comma-separated list of maf file directories"
     )
     parser.add_argument(
         "-j",
