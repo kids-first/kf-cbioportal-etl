@@ -16,7 +16,7 @@
     "file_loc_defs": {
       "_comment": "edit the values based on existing/anticipated source file locations, relative to working directory of the script being run",
       "mafs": {
-        "kf": "annotated_public_outputs",
+        "kf": ["annotated_public_outputs"],
         "header": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/maf_KF_CONSENSUS_r105.txt"
       },
       "cnvs": {
