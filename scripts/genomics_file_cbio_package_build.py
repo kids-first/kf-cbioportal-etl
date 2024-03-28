@@ -45,6 +45,9 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
     maf_dir = maf_loc_dict["kf"]
     if args.dgd_status == "dgd":
         maf_dir = maf_loc_dict["dgd"]
+    else:
+        # KF can be in multiple palces
+        maf_dir = ",".join(maf_dir)
     maf_header = maf_loc_dict["header"]
     maf_cmd = "{}maf_merge.py -t {} -i {} -m {} -j {} -f {} 2> collate_mafs.log".format(
         script_dir, cbio_id_table, maf_header, maf_dir, data_config_file, dgd_status

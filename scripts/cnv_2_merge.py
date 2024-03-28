@@ -3,12 +3,10 @@ import sys
 import os
 import argparse
 import json
-import subprocess
 import concurrent.futures
 import pandas as pd
 import re
 from get_file_metadata_helper import get_file_metadata
-import pdb
 
 
 def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
@@ -43,7 +41,6 @@ def get_ploidy(obj):
 
 def process_table(cbio_dx, file_meta_dict):
     try:
-
         # project/disease name should be name of directory hosting datasheet
         sys.stderr.write("Processing " + cbio_dx + " project" + "\n")
         new_cnv = open(out_dir + cbio_dx + ".predicted_cnv.txt", "w")
@@ -86,9 +83,10 @@ def process_table(cbio_dx, file_meta_dict):
                     new_cnv.write("\t" + ploidy_dict[samp])
             new_cnv.write("\n")
         new_cnv.close()
+        return 0, cbio_tum_id
     except Exception as e:
-        print(e)
-        exit(1)
+        print(e, file=sys.stderr)
+        return 1, cbio_tum_id
 
 
 
@@ -149,10 +147,12 @@ except:
     sys.stderr.write("output dir already exists\n")
 file_meta_dict = get_file_metadata(args.table, "cnv")
 with concurrent.futures.ProcessPoolExecutor(config_data["cpus"]) as executor:
-    results = {
-        executor.submit(process_table, cbio_dx, file_meta_dict): cbio_dx
-        for cbio_dx in file_meta_dict
-    }
+    results = { executor.submit(process_table, cbio_dx, file_meta_dict): cbio_dx for cbio_dx in file_meta_dict }
+    for result in concurrent.futures.as_completed(results):
+        if result.result()[0]:
+            print("Failed processing " + result.result()[1], file=sys.stderr)
+            exit(1)
+
 # for cbio_dx in file_meta_dict:
 #     process_table(cbio_dx, file_meta_dict)
 # sys.stderr.write("Done, check logs\n")
