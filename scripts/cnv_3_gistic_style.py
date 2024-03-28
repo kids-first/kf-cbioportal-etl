@@ -112,8 +112,6 @@ for fname in fname_list:
         data = pd.read_csv(fname, sep="\t")
     except Exception as e:
         print(e, file=sys.stderr)
-        pdb.set_trace()
-        hold=1
     data.set_index("Hugo_Symbol")
     # sample list would be cbio ids
     samp_list = list(data.columns)[1:]
