@@ -56,8 +56,6 @@ def process_meta_data(meta_data, output_dir, canc_study_id):
             subprocess.call(cmd, shell=True)
         except Exception as e:
             sys.stderr.write(str(e) + " failed processing meta data file\n")
-            pdb.set_trace()
-            hold = 1
 
 
 def process_clinical_data(meta_data, output_dir, canc_study_id):
