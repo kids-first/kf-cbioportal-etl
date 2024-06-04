@@ -52,7 +52,7 @@ def generic_print(out_file, rows, colnames):
     out_file.write("\t".join(colnames) + "\n")
     for row in rows:
         # convert None to empty str
-        new_row = [str(i or '') for i in row]
+        new_row = [str(i) if i is not None else "" for i in row]
         out_file.write("\t".join(new_row) + "\n")
     out_file.close()
     return 0
