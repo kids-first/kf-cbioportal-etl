@@ -14,7 +14,7 @@ cohort_participant_id	EXTERNAL_PATIENT_ID	External Patient Identifier	0	1	STRING
 formatted_sample_id	SAMPLE_ID		1	0	STRING	98	7316-1069-T-353281.WGS	
 Kids_First_Biospecimen_ID	SPECIMEN_ID	KFDRC tumor biopsecimen ID	1	0	STRING	13	BS_A9S5HT6P	
 broad_histology	CANCER_TYPE		1	0	STRING	12	Benign tumor	
-molecular_subtype		Molecular subtype defined by WHO 2021 guidelines	1	0	STRING	12	EPN, PF A	
+molecular_subtype	MOLECULAR_SUBTYPE	Molecular subtype defined by WHO 2021 guidelines	1	0	STRING	12	EPN, PF A	
 cancer_group	HISTOLOGY		1	0	STRING	11	Adenoma	
 harmonized_diagnosis	CANCER_TYPE_DETAILED		1	0	STRING	10	Adenoma	
 primary_site	TUMOR_TISSUE_SITE		1	0	STRING	9	Suprasellar/Hypothalamic/Pituitary	
