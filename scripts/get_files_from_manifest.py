@@ -9,7 +9,6 @@ import urllib3
 import os
 import pandas as pd
 import sevenbridges as sbg
-from sevenbridges.errors import SbgError
 from sevenbridges.http.error_handlers import rate_limit_sleeper, maintenance_sleeper
 import pdb
 
@@ -173,6 +172,7 @@ if args.aws_tbl is not None:
 )
     # setting up a key dict that, for each aws key, has an associated sesion and manifest to download with
     key_dict = {}
+    bucket_errs = 0
     with open(args.aws_tbl) as kl:
         for line in kl:
             (bucket, key) = line.rstrip('\n').split('\t')
@@ -183,6 +183,16 @@ if args.aws_tbl is not None:
                 key_dict[key]['dl_client'] = key_dict[key]['session'].client("s3", config=client_config)
             else:
                 key_dict[key]['manifest'] = pd.concat([key_dict[key]['manifest'], selected[selected['s3_path'].str.startswith(bucket)]], ignore_index=True)
+            # Test bucket access with that key, if it fails, print error then kill to not waste time
+            parse_url = urllib3.util.parse_url(bucket)
+            try:
+                key_dict[key]['dl_client'].list_objects(Bucket=parse_url.host)
+            except Exception as e:
+                bucket_errs = 1
+                print(e, file=sys.stderr)
+                print("Bucket access ERROR: {}\t{}".format(bucket, key), file=sys.stderr)
+    if bucket_errs:
+        exit(1)
 if args.sbg_profile is not None:
     check = 1
     config = sbg.Config(profile=args.sbg_profile)
