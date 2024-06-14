@@ -2,7 +2,9 @@
 """
 Script that can be cleaned up.
 Removes entries from a table using a list of banned values.
-inputs are id_list colname out_flag(SKIP_THIS as value if not to use) in_file
+Usage:
+  python subtract_by_id.py <id_list> <colname> <out_flag> <in_file>
+  To have no out_flag, provide "SKIP_THIS" as the value
 """
 
 import sys
