@@ -165,7 +165,8 @@ try:
             tbl_name = config_data['database_pulls'][key]['table']
             (rows, colnames) = generic_pull(cur, tbl_name)
             out_fn = config_data['database_pulls'][key]['out_file']
-            if key == 'gene_file':
+            # all data_clinical sheets go in this dir
+            if out_fn.startswith('data_clinical_'):
                 out_fn = datasheet_dir + "/" + out_fn
             out_file = open(out_fn, 'w')
             generic_print(out_file, rows, colnames)
