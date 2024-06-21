@@ -183,21 +183,24 @@
                 "cbio_name": "data_clinical_timeline_specimen.txt",
                 "meta_file_attr": {
                     "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"                }
+                    "datatype": "TIMELINE"
+                }
             },
             "surgery": {
                 "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
                 "cbio_name": "data_clinical_timeline_surgery.txt",
                 "meta_file_attr": {
                     "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"                }
+                    "datatype": "TIMELINE"
+                }
             },
             "treatment": {
                 "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
                 "cbio_name": "data_clinical_timeline_treatment.txt",
                 "meta_file_attr": {
                     "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"                }
+                    "datatype": "TIMELINE"
+                }
             }
         }
     },
@@ -309,10 +312,6 @@
             "table": "brownm28_dev_schema_cbio.pbta_all_timeline_treatment",
             "out_file": "data_clinical_timeline_treatment.txt"
 
-        },
-        "genomics_etl": {
-            "table": "brownm28_dev_schema_cbio.pbta_all_treatment_genomics_etl_file",
-            "out_file": "cbio_file_name_id.txt"
         }
     }
 }

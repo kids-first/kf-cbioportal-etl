@@ -28,33 +28,44 @@ In the end, if you named your output dir `processed`, you'll end up with this ex
 processed
 └── pbta_all
     ├── case_lists
-    │   ├── cases_3way_complete.txt
-    │   ├── cases_RNA_Seq_v2_mRNA.txt
-    │   ├── cases_all.txt
-    │   ├── cases_cna.txt
-    │   ├── cases_cnaseq.txt
-    │   ├── cases_sequenced.txt
-    │   └── cases_sv.txt
-    ├── data_CNA.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.discrete_cnvs.txt
-    ├── data_clinical_patient.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_clinical_patient.txt
-    ├── data_clinical_sample.txt -> /home/ubuntu/mount/pbta_all/datasheets/data_clinical_sample.txt
-    ├── data_cna.seg.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.merged_seg.txt
-    ├── data_linear_CNA.txt -> /home/ubuntu/mount/pbta_all/merged_cnvs/pbta_all.predicted_cnv.txt
-    ├── data_mutations_extended.txt -> /home/ubuntu/mount/pbta_all/merged_mafs/pbta_all.maf
-    ├── data_rna_seq_v2_mrna.txt -> /home/ubuntu/mount/pbta_all/merged_rsem/pbta_all.rsem_merged.txt
-    ├── data_rna_seq_v2_mrna_median_Zscores.txt -> /home/ubuntu/mount/pbta_all/merged_rsem/pbta_all.rsem_merged_zscore.txt
-    ├── data_sv.txt -> /home/ubuntu/mount/pbta_all/pbta_all.fusions.txt
-    ├── meta_CNA.txt
-    ├── meta_SV.txt
-    ├── meta_clinical_patient.txt
-    ├── meta_clinical_sample.txt
-    ├── meta_cna.seg.txt
-    ├── meta_linear_CNA.txt
-    ├── meta_mutations_extended.txt
-    ├── meta_rna_seq_v2_mrna.txt
-    ├── meta_rna_seq_v2_mrna_median_Zscores.txt
-    └── meta_study.txt
+│   ├── cases_3way_complete.txt
+│   ├── cases_RNA_Seq_v2_mRNA.txt
+│   ├── cases_all.txt
+│   ├── cases_cna.txt
+│   ├── cases_cnaseq.txt
+│   ├── cases_sequenced.txt
+│   └── cases_sv.txt
+├── data_CNA.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_cnvs/pbta_all.discrete_cnvs.txt
+├── data_clinical_patient.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_patient.txt
+├── data_clinical_sample.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_sample.txt
+├── data_clinical_timeline_clinical_event.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_clinical_event.txt
+├── data_clinical_timeline_imaging.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_imaging.txt
+├── data_clinical_timeline_specimen.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_specimen.txt
+├── data_clinical_timeline_surgery.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_surgery.txt
+├── data_clinical_timeline_treatment.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_treatment.txt
+├── data_cna.seg.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_cnvs/pbta_all.merged_seg.txt
+├── data_linear_CNA.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_cnvs/pbta_all.predicted_cnv.txt
+├── data_mutations_extended.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_mafs/pbta_all.maf
+├── data_rna_seq_v2_mrna.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_rsem/pbta_all.rsem_merged.txt
+├── data_rna_seq_v2_mrna_median_Zscores.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_rsem/pbta_all.rsem_merged_zscore.txt
+├── data_sv.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_fusion/pbta_all.fusions.txt
+├── meta_CNA.txt
+├── meta_clinical_patient.txt
+├── meta_clinical_sample.txt
+├── meta_clinical_timeline_clinical_event.txt
+├── meta_clinical_timeline_imaging.txt
+├── meta_clinical_timeline_specimen.txt
+├── meta_clinical_timeline_surgery.txt
+├── meta_clinical_timeline_treatment.txt
+├── meta_cna.seg.txt
+├── meta_linear_CNA.txt
+├── meta_mutations_extended.txt
+├── meta_rna_seq_v2_mrna.txt
+├── meta_rna_seq_v2_mrna_median_Zscores.txt
+├── meta_study.txt
+└── meta_sv.txt
 ```
+Note! Most other studies won't have a timeline set of files.
 # Details
 Use this section as a reference in case your overconfidence got the best of you
 
