@@ -162,14 +162,6 @@
                     "datatype": "SAMPLE_ATTRIBUTES"
                 }
             },
-            "imaging": {
-                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
-                "cbio_name": "data_clinical_timeline_imaging.txt",
-                "meta_file_attr": {
-                    "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"
-                }
-            },
             "clinical_event": {
                 "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
                 "cbio_name": "data_clinical_timeline_clinical_event.txt",
@@ -181,22 +173,6 @@
             "specimen": {
                 "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
                 "cbio_name": "data_clinical_timeline_specimen.txt",
-                "meta_file_attr": {
-                    "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"
-                }
-            },
-            "surgery": {
-                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
-                "cbio_name": "data_clinical_timeline_surgery.txt",
-                "meta_file_attr": {
-                    "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"
-                }
-            },
-            "treatment": {
-                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
-                "cbio_name": "data_clinical_timeline_treatment.txt",
                 "meta_file_attr": {
                     "genetic_alteration_type": "CLINICAL",
                     "datatype": "TIMELINE"
