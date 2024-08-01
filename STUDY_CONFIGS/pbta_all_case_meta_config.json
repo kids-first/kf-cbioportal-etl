@@ -315,7 +315,7 @@
             "out_file": "data_clinical_patient.txt"
         },
         "imaging_timeline": {
-            "table": "prod_cbio.pbta_all_treatment_data_clinical_timeline_imaging",
+            "table": "prod_cbio.pbta_all_timeline_imaging",
             "out_file": "data_clinical_timeline_imaging.txt"
         },
         "specimen_timeline": {

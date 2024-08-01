@@ -25,7 +25,7 @@
                         "out_file": "Desired output file name"
                     }
                 },
-                "x_head": "Special header file table for data_clinical(sample/patient). cBio data_clinical headers have 5 header rows, and which columns are used are determined by the x_file table",
+                "x_head": "Special header tsv file for data_clinical(sample/patient). cBio data_clinical headers have 5 header rows, and which columns are used are determined by the x_file table. Should be just the file name",
                 "x_file": "sample or patient tables with corresponding metadata at the sample and patient levels",
                 "genomics_etl": "a helper file with relevant cBio sample names and individual genomic files names for ETL merging",
                 "seq_center": "only if project has RNA data, a helper file to fill in missing sequencing center information for genomics etl",
@@ -44,7 +44,7 @@
                 "meta_file_attr": {
                     "stable_id": "mutations",
                     "profile_name": "Mutations",
-                    "profile_description": "PBTA consensus calls from strelka2, mutect2, lancet, and VarDict Java. Two or more callers required to pass, < 0.001 frequency in gnomAD, and min read depth 8 in normal sample, unless in a TERT promoter region or in a hotspot region (see https://www.cancerhotspots.org)",
+                    "profile_description": "PNOC consensus calls from strelka2, mutect2, lancet, and VarDict Java. Two or more callers required to pass, < 0.001 frequency in gnomAD, and min read depth 8 in normal sample, unless in a TERT promoter region or in a hotspot region (see https://www.cancerhotspots.org)",
                     "genetic_alteration_type": "MUTATION_EXTENDED",
                     "datatype": "MAF",
                     "variant_classification_filter": "Silent,Intron,3'UTR,3'Flank,5'UTR,IGR,RNA",
@@ -135,7 +135,7 @@
                 "meta_file_attr": {
                     "stable_id": "structural_variants",
                     "profile_name": "Predicted RNA fusions",
-                    "profile_description": "PBTA fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse. Also contains DGD custom filtered fusions",
+                    "profile_description": "PNOC fusion data using arriba and STAR Fusion, annotated and filtered using annoFuse.",
                     "genetic_alteration_type": "STRUCTURAL_VARIANT",
                     "datatype": "SV",
                     "show_profile_in_analysis_tab": "true"
@@ -162,14 +162,6 @@
                     "datatype": "SAMPLE_ATTRIBUTES"
                 }
             },
-            "imaging": {
-                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
-                "cbio_name": "data_clinical_timeline_imaging.txt",
-                "meta_file_attr": {
-                    "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"
-                }
-            },
             "clinical_event": {
                 "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
                 "cbio_name": "data_clinical_timeline_clinical_event.txt",
@@ -185,34 +177,18 @@
                     "genetic_alteration_type": "CLINICAL",
                     "datatype": "TIMELINE"
                 }
-            },
-            "surgery": {
-                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
-                "cbio_name": "data_clinical_timeline_surgery.txt",
-                "meta_file_attr": {
-                    "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"
-                }
-            },
-            "treatment": {
-                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
-                "cbio_name": "data_clinical_timeline_treatment.txt",
-                "meta_file_attr": {
-                    "genetic_alteration_type": "CLINICAL",
-                    "datatype": "TIMELINE"
-                }
             }
         }
     },
     "study": {
         "_comment": "see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics",
-        "description": "Genomic characterization of Pediatric Brain Tumor Atlas samples provided by the <a href=\"http://cbtn.org\">Children's Brain Tumor Network</a>, the <a href=\"http://www.pnoc.us/\">Pacific Neuro-Oncology Consortium (PNOC)</a>, and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
+        "description": "Genomic characterization of Pacific Pediatric Neuro-Oncology Consortium Clinical Genomics Atlas samples provided by the <a href=\"https://pnoc.us/\">Pacific Pediatric Neuro-Oncology Consortium (PNOC)</a>, and its partners via the <a href=\"http://kidsfirstdrc.org\">Gabriella Miller Kids First Data Resource Center</a>. PNOC has generated and provided WGS and WXS for subjects enrolled in a PNOC clinical trial. This data set is part of the OpenDIPG Initiative that has collected, generated, harmonized and annotated the largest cohort of DIPG genome data to date. For updates, please see here: <a href=\"https://tinyurl.com/55cxz9am\">Release Notes</a>",
         "groups": "PUBLIC",
-        "cancer_study_identifier": "pbta_all_treatment",
+        "cancer_study_identifier": "pbta_pnoc",
         "type_of_cancer": "brain",
-        "short_name": "pbta_all_treatment",
+        "short_name": "pbta_pnoc",
         "reference_genome": "hg38",
-        "display_name": "Pediatric Brain Tumor Atlas with Treatments (PBTA, Provisional)"
+        "display_name": "Pacific Pediatric Neuro-Oncology Consortium Clinical Genomics Atlas (PNOC, PBTA, Provisional)"
     },
     "cases_3way_complete": {
         "stable_id": "3way_complete",
@@ -259,16 +235,6 @@
     "database_pulls": {
         "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
         "manifests": {
-            "cbtn": {
-                "table": "bix_genomics_file.sd_bhjxbdqk-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "cbtn_genomics_file_manifest.txt"
-            },
-            "x01": {
-                "table": "bix_genomics_file.sd_bhjxbdqk_x01-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "x01_genomics_file_manifest.txt"
-            },
             "pnoc": {
                 "table": "bix_genomics_file.sd_8y99qzjj-genomics_file_manifest",
                 "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
@@ -279,39 +245,29 @@
             "table": "template_sample_header.txt"
         },
         "sample_file": {
-            "table": "brownm28_dev_schema_cbio.pbta_all_data_clinical_sample",
+            "table": "prod_cbio.pbta_pnoc_data_clinical_sample",
             "out_file": "data_clinical_sample.txt"
         },
         "patient_head": {
             "table": "template_patient_header.txt"
         },
         "patient_file": {
-            "table": "brownm28_dev_schema_cbio.pbta_all_data_clinical_patient",
+            "table": "prod_cbio.pbta_pnoc_data_clinical_patient",
             "out_file": "data_clinical_patient.txt"
         },
-        "imaging_timeline": {
-            "table": "brownm28_dev_schema_cbio.pbta_all_treatment_data_clinical_timeline_imaging",
-            "out_file": "data_clinical_timeline_imaging.txt"
-        },
         "specimen_timeline": {
-            "table": "brownm28_dev_schema_cbio.pbta_all_timeline_specimen",
+            "table": "prod_cbio.pbta_pnoc_timeline_specimen",
             "out_file": "data_clinical_timeline_specimen.txt"
 
         },
         "clinical_event_timeline": {
-            "table": "brownm28_dev_schema_cbio.pbta_all_timeline_clinical_event",
+            "table": "prod_cbio.pbta_pnoc_timeline_clinical_event",
             "out_file": "data_clinical_timeline_clinical_event.txt"
 
         },
-        "surgery_timeline": {
-            "table": "brownm28_dev_schema_cbio.pbta_all_timeline_surgery",
-            "out_file": "data_clinical_timeline_surgery.txt"
-
-        },
-        "treatment_timeline": {
-            "table": "brownm28_dev_schema_cbio.pbta_all_timeline_treatment",
-            "out_file": "data_clinical_timeline_treatment.txt"
-
+        "genomics_etl": {
+            "table": "prod_cbio.pbta_pnoc_genomics_etl_file",
+            "out_file": "cbio_file_name_id.txt"
         }
     }
 }
