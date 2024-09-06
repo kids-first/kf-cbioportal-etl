@@ -102,7 +102,7 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
     )
     if info_dir != "":
         gistic_style_cmd += " -i " + info_dir
-    gistic_style_cmd += " 2> merge_cnv_gene.log"
+    gistic_style_cmd += " 2> merge_cnv_gistic.log"
     log_cmd(gistic_style_cmd)
     run_status["gistic"] = subprocess.Popen(gistic_style_cmd, shell=True)
 
