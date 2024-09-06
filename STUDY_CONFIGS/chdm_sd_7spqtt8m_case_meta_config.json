@@ -221,13 +221,8 @@
         "manifests": {
             "chdm_sd_7spqtt8m": {
                 "table": "bix_genomics_file.Chordoma_fundation-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "chdm_sd_7spqtt8m_genomics_file_manifest.txt"
-            },
-            "chdm_sd_7spqtt8m_tumor_only": {
-                "table": "bix_workflows.Chordoma_fundation_tumor_only-genomics_file_manifest",
                 "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","mutect2_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "chdm_sd_7spqtt8m_tumor_only_genomics_file_manifest.txt"
+                "out_file": "chdm_sd_7spqtt8m_genomics_file_manifest.txt"
             }
         },
         "sample_head": {
