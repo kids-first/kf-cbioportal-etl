@@ -50,8 +50,7 @@ def process_table(cbio_dx, file_meta_dict):
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             orig_fname = file_meta_dict[cbio_dx][cbio_tum_id]["fname"]
             kf_bs_id = file_meta_dict[cbio_dx][cbio_tum_id]["kf_tum_id"]
-            parts = re.search("^(.*)\." + orig_suffix, orig_fname)
-            gene_fname = parts.group(1) + w_gene_suffix
+            gene_fname = orig_fname + w_gene_suffix
             sys.stderr.write(
                 "Found relevant cnv to process "
                 + " "
@@ -138,7 +137,6 @@ if info_dir is not None:
 
 else:
     sys.stderr.write("No info file given, will assume ploidy 2\n")
-orig_suffix = config_data["dna_ext_list"]["copy_number"]
 w_gene_suffix = ".CNVs.Genes.copy_number"
 out_dir = "merged_cnvs/"
 try:

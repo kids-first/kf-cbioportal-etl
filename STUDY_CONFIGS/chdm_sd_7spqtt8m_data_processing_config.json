@@ -10,7 +10,7 @@
     },
     "dna_ext_list": {
       "mutation": ["consensus_somatic.norm.annot.public.maf", "mutect2.tumor_only.norm.annot.public.maf"], 
-      "copy_number": "controlfreec.CNVs.p.value.txt",
+      "copy_number": "CNVs.p.value.txt",
       "seg": "controlfreec.seg"
     },
     "file_loc_defs": {
