@@ -97,7 +97,6 @@ UPDATE: GTEx is also in a seprate matrix, so run again currently to make the "fi
 ```sh
 Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene_tcga_expression_common_merge.rds --second_file gtex_gene-expression-rsem-tpm-collapsed.rds --output_fn gene_tcga_gtex_expression_common_merge.rds
 ```
-```
 
 ### File Transformation
 It's recommended to put datasheets in a dir called `datasheets`, downloaded files in it's own dir (in v12 it's `GF_INPUTS`) and the rest of the processed outputs into it's own dir (`study_build` for v12) to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`

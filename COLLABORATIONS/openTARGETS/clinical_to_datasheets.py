@@ -180,7 +180,11 @@ for data in clin_data:
     # adjust exp value if targeted sequencing
     if info[exp_index] == 'Targeted Sequencing':
         if info[rna_lib_index] != 'NA':
-            info[exp_index] = 'RNA-Seq'
+            # for DGD FUSIP panel, set to DGD_FUSION, else default RNA-Seq
+            if "FUSIP" in info[a_idx]:
+                info[exp_index] = "DGD_FUSION"
+            else:
+                info[exp_index] = 'RNA-Seq'
         # if DGD DNA, add to gene matrix
         elif info[cohort_index] == 'DGD':
             # parse aliquot for panel type, i.e. ET_242MFKXW_DGD_STNGS_93
@@ -247,6 +251,8 @@ for data in clin_data:
     id_mapping[samp_id].append(info[bs_id_index])
     if info[exp_index] == "RNA-Seq":
         bs_type[info[bs_id_index]] = "RNA"
+    elif info[exp_index] == "DGD_FUSION":
+        bs_type[info[bs_id_index]] = "DGD_FUSION"
     else:
         bs_type[info[bs_id_index]] = "DNA"
 # cycle through sample IDs to see if there's matched DNA/RNA and if one can be made
@@ -258,7 +264,7 @@ for samp_id in id_mapping:
             sys.stderr.write("Duplicate assay types for  " + samp_id + ": " + ",".join(id_mapping[samp_id]) + "\n")
             # exit(1)
         spec = id_mapping[samp_id][0] + ";" + id_mapping[samp_id][1]
-        if bs_type[id_mapping[samp_id][0]] == "RNA":
+        if bs_type[id_mapping[samp_id][0]] == "RNA" or bs_type[id_mapping[samp_id][0]] == "DGD_FUSION":
             spec = id_mapping[samp_id][1] + ";" + id_mapping[samp_id][0]
         samp_dict[samp_id][1] = spec
     elif len(id_mapping[samp_id]) > 2:
@@ -266,13 +272,15 @@ for samp_id in id_mapping:
         sys.stderr.write("Saw more than two biospecimens for " + samp_id + ": " + ",".join(id_mapping[samp_id]) + "\n")
         if "DGD" in samp_id:
             # If two RNA types and is DGD, throw a note to check
-            check_type = {"DNA": [], "RNA": []}
+            check_type = {"DNA": [], "RNA": [], "DGD_FUSION": []}
             for bs_id in id_mapping[samp_id]:
                 check_type[bs_type[bs_id]].append(bs_id)
-            if len(check_type["DNA"]) == 1 and len(check_type["RNA"]) == 2:
-                spec = ";".join(check_type["DNA"] + check_type["RNA"])
+            if len(check_type["DNA"]) == 1 and len(check_type["RNA"]) == 1 and len(check_type["DGD_FUSION"]) == 1:
+                spec = ";".join(check_type["DNA"] + check_type["RNA"] + check_type["DGD_FUSION"])
                 samp_dict[samp_id][1] = spec
                 sys.stderr.write("Could be a DGD fusion + bulk RNA, may be ok\n")
+            else:
+                print("Something ins't right for DGD sample " + samp_id, file=sys.stderr)
 
         # exit(1)
     else:
