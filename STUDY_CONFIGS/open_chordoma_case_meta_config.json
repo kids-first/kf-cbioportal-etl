@@ -221,7 +221,7 @@
         "manifests": {
             "open_chordoma": {
                 "table": "prod_cbio.open_chordoma_genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","mutect2_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg", "annotated_public"],
+                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","consensus_public_outputs", "mutect2_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg", "annotated_public"],
                 "out_file": "open_chordoma_genomics_file_manifest.txt"
             }
         },
