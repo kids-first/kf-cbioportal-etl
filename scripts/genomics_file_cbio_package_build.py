@@ -322,7 +322,8 @@ while not done:
         if run_status[key].returncode != None:
             check_status(run_status[key].returncode, key)
             rm_keys.append(key)
-            if key == 'maf' and args.dgd_status=='both':
+            # not all studies that have DGD fusion have maf
+            if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
                 dgd_maf_append = 1
                 done = False
             elif key == 'fusion' and args.dgd_status=='both':
