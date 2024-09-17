@@ -9,14 +9,14 @@
       "fusion": "annoFuse_filter.tsv"
     },
     "dna_ext_list": {
-      "mutation": ["consensus_somatic.norm.annot.public.maf", "mutect2.tumor_only.norm.annot.public.maf"], 
+      "mutation": ["consensus_somatic.norm.annot.public.maf"], 
       "copy_number": "CNVs.p.value.txt",
       "seg": "controlfreec.seg"
     },
     "file_loc_defs": {
       "_comment": "edit the values based on existing/anticipated source file locations, relative to working directory of the script being run",
       "mafs": {
-        "kf": ["annotated_public_outputs","mutect2_public_outputs"],
+        "kf": ["annotated_public_outputs"],
         "header": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/maf_KF_CONSENSUS_r105.txt"
       },
       "cnvs": {
@@ -28,7 +28,7 @@
       "fusion": "annofuse_filtered_fusions_tsv",
       "dgd_fusion": "DGD_FUSION"
     },
-    "dl_file_type_list": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","mutect2_public_outputs",
+    "dl_file_type_list": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs",
       "ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
     "ens_gene_list":"/home/ubuntu/tools/kf-cbioportal-etl/REFS/gencode27_gene_list.txt",
     "script_dir": "/home/ubuntu/tools/kf-cbioportal-etl/scripts/",
