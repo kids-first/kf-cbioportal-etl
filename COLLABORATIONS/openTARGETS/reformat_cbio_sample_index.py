@@ -5,7 +5,7 @@ This is to reduce repeat work
 import argparse
 
 parser = argparse.ArgumentParser(
-    description="Reformat sample table to fit unput required for other scripts."
+    description="Reformat sample table to fit input required for other scripts."
 )
 parser.add_argument(
     "-t",

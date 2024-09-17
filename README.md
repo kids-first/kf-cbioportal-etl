@@ -2,6 +2,15 @@
 In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
 Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee).
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
+## Software Prerequisites
++ `python3` v3.5.3+
+  + `numpy`, `pandas`, `scipy`
++ `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
++ `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
++ Access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo for server loading:
++ Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
++ [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
+
 ## I have everything and I know I am doing
 Below assumes you have already created the necessary tables from dbt
 1. Run commands as outlined in [scripts/get_study_metadata.py](#scriptsget_study_metadatapy). Copy/move those files to the cBio loader ec2 instance
@@ -11,9 +20,9 @@ Below assumes you have already created the necessary tables from dbt
    ```sh
     python3 scripts/get_files_from_manifest.py -m cbtn_genomics_file_manifest.txt,pnoc_genomics_file_manifest.txt,x01_genomics_file_manifest.txt,dgd_genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg,annotated_public -t aws_buckets_key_pairs.txt -s turbo -c cbio_file_name_id.txt -a
    ```
-  `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name and aws profile name pairs
+  `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name + object prefixes and aws profile name pairs
 
-1. Copy and edit `REFS/data_processing_config.json` and `REFS/pbta_all_case_meta_config.json` as needed
+1. Copy and edit `STUDY_CONFIGS/pbta_all_data_processing_config.json` and `STUDY_CONFIGS/pbta_all_case_meta_config.json` as needed
 1. Run pipeline script - ignore manifest section, it is a placeholder for a better function download method
 
    ```sh
@@ -66,6 +75,16 @@ processed
 └── meta_sv.txt
 ```
 Note! Most other studies won't have a timeline set of files.
+## Upload the final packages
+Upload all of the directories named as study short names to `s3://kf-strides-232196027141-cbioportal-studies/studies/`. You may need to set and/or copy your aws saml key before uploading. See "access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo" bullet point in [Software Prerequisites](#software-prerequisites) to load the study.
+### Load into QA/PROD
+An AWS step function exists to load studies on to the QA and PROD servers.
+  + Create a branch in the `d3b-center/aws-infra-pedcbioportal-import` git repo (**MUST START WITH `feature/`**) and edit the `import_studies.txt` file with the study name you which to load. Can be an MSKCC datahub link or a local study name
+  + Push the branch to remote - this will kick off a github action to load into QA
+  + To load into prod, make a PR. On merge, load to prod will kick off
+  + aws `stateMachinePedcbioImportservice` Step function service is used to view and manage running jobs
+  + To repeat a load, click on the ▶️ icon in the git repo to select the job you want to re-run
+  + *Note*, if your branch importStudies.txt is the same as main, you may have tot rigger it yourself. To do so, go to [actions](https://github.com/d3b-center/aws-infra-pedcbioportal-import/actions), on the left panel choose which action you want, then from the drop down in the right panel, pick which branch you want that action to run on 
 # Details
 Use this section as a reference in case your overconfidence got the best of you
 
@@ -83,23 +102,6 @@ To get aws bucket prefixes to add key (meaning aws profile names) to:
 cat *genomic* | cut -f 15 | cut -f 1-3 -d "/" | sort | uniq > aws_bucket_key_pairs.txt
 ```
 Just remove the `s3_path` and `None` entries
-
-
-## Software Prerequisites
-
-+ `python3` v3.5.3+
-  + `numpy`, `pandas`, `scipy`
-+ `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
-+ `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
-+ access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo. To start a load job:
-  + Create a branch and edit the `import_studies.txt` file with the study name you which to load. Can be an MSKCC datahub link or a local study name
-  + Push the branch to remote - this will kick off a github action to load into QA
-  + To load into prod, make a PR. On merge, load to prod will kick off
-  + aws `stateMachinePedcbioImportservice` Step function service is used to view and mangage running jobs
-  + To repeat a load, click on the ▶️ icon in the git repo to select the job you want to re-run
-  + *Note*, if your branch importStudies.txt is the same as main, you may have tot rigger it yourself. To do so, go to [actions](https://github.com/d3b-center/aws-infra-pedcbioportal-import/actions), on the left panel choose which action you want, then from the drop down in the right panel, pick which branch you want that action to run on 
-+ Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
-+ [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
 
 ## Starting file inputs
 Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `scripts/export_clinical.sh`, we now use `scripts/get_study_metadata.py` to get the files.
@@ -136,17 +138,13 @@ This is the cBioportal-formatted patient sheet that follows guidelines from [her
 Seemingly redundant, this file contains the file locations, BS IDs, file type, and cBio-formatted sample IDs of all inputs.
 It helps simplify the process to integrate better into the downstream tools.
 This is the file that goes in as the `-t` arg in all the data collating tools
-#### - Sequencing center info resource file
-DEPRECATED and will be removed from future releases
-This is a simple file this BS IDs and sequencing center IDs and locations.
-It is necessary to patch in a required field for the fusion data
 #### - Data gene matrix - *OPTIONAL*
 This is only required if you have a custom panel - like the DGD does
 ### User-edited
 #### - Data processing config file
 
 This is a json formatted file that has tool paths, reference paths, and run time params.
-An example is given in `REFS/data_processing_config.json`.
+An example is given in `STUDY_CONFIGS/pbta_all_data_processing_config.json`.
 This section here:
 ```json
 "file_loc_defs": {
@@ -172,7 +170,7 @@ Will likely need the most editing existing based on your input, and should only 
 #### - Metadata processing config file
 
 This is a json config file with file descriptions and case lists required by the cbioportal.
-An example is given in `REFS/pbta_all_case_meta_config.json`.
+An example is given in `STUDY_CONFIGS/pbta_all_case_meta_config.json`.
 Within this file is a `_doc` section with a decent explanation of the file format and layout.
 Be sure to review all data types to be loaded by review all `meta_*` to see if they match incoming data.
 Likely personalized edits would occur in the following fields:
@@ -236,8 +234,7 @@ optional arguments:
 
 Check the pipeline log output for any errors that might have occurred.
 
-## Upload the final packages
-Upload all of the directories named as study short names to `s3://kf-cbioportal-studies/public/`. You may need to set and/or copy aws your saml key before uploading. Next, edit the file in that bucket called `importStudies.txt` located at `s3://kf-cbioportal-studies/public/importStudies.txt`, with the names of all of the studies you wish to updated/upload. Lastly, follow the directions reference in [Software Prerequisites](#software-prerequisites) to load the study.
+
 ## Congratulations, you did it!
 
 # Collaborative and Publication Workflows

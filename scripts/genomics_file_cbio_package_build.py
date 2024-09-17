@@ -102,7 +102,7 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
     )
     if info_dir != "":
         gistic_style_cmd += " -i " + info_dir
-    gistic_style_cmd += " 2> merge_cnv_gene.log"
+    gistic_style_cmd += " 2> merge_cnv_gistic.log"
     log_cmd(gistic_style_cmd)
     run_status["gistic"] = subprocess.Popen(gistic_style_cmd, shell=True)
 
@@ -322,7 +322,8 @@ while not done:
         if run_status[key].returncode != None:
             check_status(run_status[key].returncode, key)
             rm_keys.append(key)
-            if key == 'maf' and args.dgd_status=='both':
+            # not all studies that have DGD fusion have maf
+            if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
                 dgd_maf_append = 1
                 done = False
             elif key == 'fusion' and args.dgd_status=='both':

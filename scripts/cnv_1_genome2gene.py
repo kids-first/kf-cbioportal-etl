@@ -15,7 +15,7 @@ def process_cnv(cpath):
             bed_file = config_data["bed_genes"]
             hugo_tsv = config_data["hugo_tsv"]
             sys.stderr.write("Processing " + cpath + "\n")
-            root = os.path.basename(cpath).split(".")[0]
+            root = os.path.basename(cpath)
             limit = config_data["cnv_min_len"]
             temp_len = root + ".CNVs_" + str(limit) + "_filtered.bed"
             len_fh = open(out_dir + temp_len, "w")
@@ -91,9 +91,8 @@ with open(args.config_file) as f:
 
 limit = config_data["cnv_min_len"]
 suffix = config_data["dna_ext_list"]["copy_number"]
-f_cmd = "find " + args.cnv_dir + ' -name "*.' + suffix + '"'
-sys.stderr.write("Getting cnv list " + f_cmd + "\n")
-flist = subprocess.check_output(f_cmd, shell=True)
+sys.stderr.write("Getting cnv list\n")
+flist =[os.path.join(args.cnv_dir, f) for f in os.listdir(args.cnv_dir) if os.path.isfile(os.path.join(args.cnv_dir, f))]
 out_dir = "converted_cnvs/"
 try:
     os.mkdir(out_dir)
@@ -104,7 +103,7 @@ ct_dict = {"total_cnvs": 0, "short_cnvs": 0}
 with concurrent.futures.ThreadPoolExecutor(config_data["cpus"]) as executor:
     results = {
         executor.submit(process_cnv, cpath): cpath
-        for cpath in flist.decode().split("\n")
+        for cpath in flist
     }
 sys.stderr.write(str(ct_dict["total_cnvs"]) + " total cnv calls processed\n")
 sys.stderr.write(

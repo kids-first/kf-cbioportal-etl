@@ -10,6 +10,7 @@ import os
 import pandas as pd
 import sevenbridges as sbg
 from sevenbridges.http.error_handlers import rate_limit_sleeper, maintenance_sleeper
+from time import sleep
 import pdb
 
 
@@ -52,9 +53,15 @@ def download_sbg(file_type):
         try:
             sbg_file = api.files.get(loc)
         except Exception as e:
-            sys.stderr.write('Failed to get file with id ' + loc + '\n')
+            sys.stderr.write('Failed to get file with id ' + loc + '. Will try once more in 3 seconds\n')
             sys.stderr.write(str(e) + '\n')
-            err_types['sbg get'] += 1
+            try:
+                sleep(3)
+                sbg_file = api.files.get(loc)
+                print("Success on second try!", file=sys.stderr)
+            except Exception as e:
+                print("Failed on second attempt", file=sys.stderr)
+                err_types['sbg get'] += 1
         out = file_type + "/" + sbg_file.name
         if args.overwrite or not os.path.isfile(out):
             try:
