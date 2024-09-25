@@ -14,7 +14,7 @@ def process_cnv(cpath):
             cnv_cp_only = config_data["cp_only_script"]
             bed_file = config_data["bed_genes"]
             hugo_tsv = config_data["hugo_tsv"]
-            sys.stderr.write("Processing " + cpath + "\n")
+            print("Processing " + cpath, file=sys.stderr)
             root = os.path.basename(cpath)
             temp_filtered_fname = root + ".CNVs_0.05_filtered.bed"
             with open(out_dir + temp_filtered_fname, "w") as temp_filtered:
