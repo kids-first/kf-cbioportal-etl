@@ -18,20 +18,20 @@ def process_cnv(cpath):
             root = os.path.basename(cpath)
             temp_filtered_fname = root + ".CNVs_0.05_filtered.bed"
             with open(out_dir + temp_filtered_fname, "w") as temp_filtered:
-                in_cnv = open(cpath)
-                head = next(in_cnv)
-                header = head.rstrip('\n').split('\t')
-                wilcox_idx = header.index('WilcoxonRankSumTestPvalue')
-                ks_idx = header.index('KolmogorovSmirnovPvalue')
-                for cnv in in_cnv:
-                    ct_dict["total_cnvs"] += 1
-                    cnv_data = cnv.rstrip("\n").split("\t")
-                    if cnv_data[wilcox_idx] == "NA" or cnv_data[ks_idx] == "NA":
-                        ct_dict["NA"] += 1
-                    elif float(cnv_data[wilcox_idx]) < 0.05 and float(cnv_data[ks_idx]) < 0.05:
-                        print("\t".join(cnv_data[0:5]), file=temp_filtered)
-                    else:
-                        ct_dict["p_value_filter"] += 1
+                with open(cpath) as in_cnv:
+                    head = next(in_cnv)
+                    header = head.rstrip('\n').split('\t')
+                    wilcox_idx = header.index('WilcoxonRankSumTestPvalue')
+                    ks_idx = header.index('KolmogorovSmirnovPvalue')
+                    for cnv in in_cnv:
+                        ct_dict["total_cnvs"] += 1
+                        cnv_data = cnv.rstrip("\n").split("\t")
+                        if cnv_data[wilcox_idx] == "NA" or cnv_data[ks_idx] == "NA":
+                            ct_dict["NA"] += 1
+                        elif float(cnv_data[wilcox_idx]) < 0.05 and float(cnv_data[ks_idx]) < 0.05:
+                            print("\t".join(cnv_data[0:5]), file=temp_filtered)
+                        else:
+                            ct_dict["p_value_filter"] += 1
             temp_genes_fname = root + ".CNVs.Genes"
             to_genes_cmd = "{} intersect -a {}{} -b {} -wb > {}{}".format(bedtools, out_dir, temp_filtered_fname, bed_file, out_dir, temp_genes_fname)
             subprocess.call(to_genes_cmd, shell=True)
