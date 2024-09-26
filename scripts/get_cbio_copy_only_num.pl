@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/usr/bin/env perl
 # Script to output a headerless TSV with hugo gene symbol <tab> entrez ID <tab> copy number for downstrema processing
 # Positional args, file 1 is a Hugo <tab> entrez ID TSV, file 2 is output from cnv_1_genome2gene.py
 use strict;
