@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Likely a one-off script. Compare CN matrices from a previous load to a new one, summarize difference, and output number of hotspot changes
+Usage:
+  python3 compare_cn_files.py old.tsv new.tsv hotspots.txt
 """
 
 import pandas as pd
