@@ -234,13 +234,6 @@
     },
     "database_pulls": {
         "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
-        "manifests": {
-            "pnoc": {
-                "table": "bix_genomics_file.sd_8y99qzjj-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file":  "pnoc_genomics_file_manifest.txt"
-            }
-        },
         "sample_head": {
             "table": "template_sample_header.txt"
         },
