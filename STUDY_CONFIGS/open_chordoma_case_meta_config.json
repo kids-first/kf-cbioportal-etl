@@ -63,7 +63,7 @@
                 "meta_file_attr": {
                     "stable_id": "linear_CNA",
                     "profile_name": "copy-number values",
-                    "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls smaller than 50KB",
+                    "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls with p values less than 0.05",
                     "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
                     "datatype": "CONTINUOUS",
                     "show_profile_in_analysis_tab": "false"
@@ -161,6 +161,46 @@
                     "genetic_alteration_type": "CLINICAL",
                     "datatype": "SAMPLE_ATTRIBUTES"
                 }
+            },
+            "imaging": {
+                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
+                "cbio_name": "data_clinical_timeline_imaging.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "CLINICAL",
+                    "datatype": "TIMELINE"
+                }
+            },
+            "clinical_event": {
+                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
+                "cbio_name": "data_clinical_timeline_clinical_event.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "CLINICAL",
+                    "datatype": "TIMELINE"
+                }
+            },
+            "specimen": {
+                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
+                "cbio_name": "data_clinical_timeline_specimen.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "CLINICAL",
+                    "datatype": "TIMELINE"
+                }
+            },
+            "surgery": {
+                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
+                "cbio_name": "data_clinical_timeline_surgery.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "CLINICAL",
+                    "datatype": "TIMELINE"
+                }
+            },
+            "treatment": {
+                "_comment": "see https://docs.cbioportal.org/file-formats/#event-types for detailed specifics",
+                "cbio_name": "data_clinical_timeline_treatment.txt",
+                "meta_file_attr": {
+                    "genetic_alteration_type": "CLINICAL",
+                    "datatype": "TIMELINE"
+                }
             }
         }
     },
@@ -242,6 +282,30 @@
         "genomics_etl": {
             "table": "prod_cbio.open_chordoma_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
+        },
+        "imaging_timeline": {
+            "table": "prod_cbio.open_chordoma_timeline_imaging",
+            "out_file": "data_clinical_timeline_imaging.txt"
+        },
+        "specimen_timeline": {
+            "table": "prod_cbio.open_chordoma_timeline_specimen",
+            "out_file": "data_clinical_timeline_specimen.txt"
+
+        },
+        "clinical_event_timeline": {
+            "table": "prod_cbio.open_chordoma_timeline_clinical_event",
+            "out_file": "data_clinical_timeline_clinical_event.txt"
+
+        },
+        "surgery_timeline": {
+            "table": "prod_cbio.open_chordoma_timeline_surgery",
+            "out_file": "data_clinical_timeline_surgery.txt"
+
+        },
+        "treatment_timeline": {
+            "table": "prod_cbio.open_chordoma_timeline_treatment",
+            "out_file": "data_clinical_timeline_treatment.txt"
+
         }
     }
 }

@@ -63,7 +63,7 @@
                 "meta_file_attr": {
                     "stable_id": "linear_CNA",
                     "profile_name": "copy-number values",
-                    "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls smaller than 50KB",
+                    "profile_description": "Predicted copy number values from WGS (Continuous) and WXS. Copy number calls obtained using ControlFreeC, filtering calls with p values less than 0.05",
                     "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
                     "datatype": "CONTINUOUS",
                     "show_profile_in_analysis_tab": "false"
@@ -76,7 +76,7 @@
                 "meta_file_attr": {
                     "stable_id": "cna",
                     "profile_name": "Binned copy-number values",
-                    "profile_description": "Predicted copy number values from WGS (Discrete). Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification",
+                    "profile_description": "Predicted copy number values from WGS (Discrete) and WXS. Values: -2 = homozygous deletion; -1 = hemizygous deletion; 0 = neutral / no change; 1 = gain; 2 = high level amplification",
                     "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
                     "datatype": "DISCRETE",
                     "show_profile_in_analysis_tab": "true"
@@ -291,12 +291,12 @@
             },
             "dgd_cbtn_panel": {
                 "table": "bix_genomics_file.sd_bhjxbdqk_dgd_panel-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
+                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg","mutect2_public_outputs"],
                 "out_file": "dgd_cbtn_panel_genomics_file_manifest.txt"
             },
-            "dgd__panel": {
+            "dgd_panel": {
                 "table": "bix_genomics_file.sd_6g58hhsx_dgd_panel-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
+                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg","mutect2_public_outputs"],
                 "out_file": "dgd_panel_genomics_file_manifest.txt"
             }
         },

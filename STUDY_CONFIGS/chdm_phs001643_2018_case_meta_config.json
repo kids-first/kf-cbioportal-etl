@@ -63,7 +63,7 @@
                 "meta_file_attr": {
                     "stable_id": "linear_CNA",
                     "profile_name": "copy-number values",
-                    "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls smaller than 50KB",
+                    "profile_description": "Predicted copy number values from WGS (Continuous). Copy number calls obtained using ControlFreeC, filtering calls with p values less than 0.05",
                     "genetic_alteration_type": "COPY_NUMBER_ALTERATION",
                     "datatype": "CONTINUOUS",
                     "show_profile_in_analysis_tab": "false"
