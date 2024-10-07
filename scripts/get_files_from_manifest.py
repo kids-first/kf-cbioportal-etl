@@ -79,16 +79,19 @@ def mt_type_download(file_type):
     """
     Download files from each desired file type at the same time
     """
-    print("Downloading " + file_type + " files", file=sys.stderr)
+    if len(selected.loc[selected["file_type"] == file_type]):
+        print("Downloading " + file_type + " files", file=sys.stderr)
+        try:
+            os.mkdir(file_type)
+        except Exception as e:
+            print("{} error while making directory for {}".format(e, file_type), file=sys.stderr)
+        if args.aws_tbl:
+            download_aws(file_type)
+        if args.sbg_profile:
+            download_sbg(file_type)
+    else:
+        print("WARN: No files of type " + file_type + " in which file_id and s3_path is not NA. Skipping!", file=sys.stderr)
     sys.stderr.flush()
-    try:
-        os.mkdir(file_type)
-    except Exception as e:
-        print("{} error while making directory for {}".format(e, file_type), file=sys.stderr)
-    if args.aws_tbl:
-        download_aws(file_type)
-    if args.sbg_profile:
-        download_sbg(file_type)
 
 
 parser = argparse.ArgumentParser(description="Get all files for a project.")
@@ -117,6 +120,10 @@ parser.add_argument(
 )
 parser.add_argument(
     "-a", "--active-only", default=False, action="store_true", dest="active_only", help="Set to grab only active files. Recommended."
+)
+parser.add_argument(
+    "-r", "--rm-na", default=False, action="store_true", dest="rm_na", help="Remove entries where file_id and s3_path are NA. \
+    Useful for studies (like pbta_all) with external files not to be downloaded when using cbio_file_name input file as manifest"
 )
 parser.add_argument(
     "-d", "--debug", default=False, action="store_true", dest="debug", help="Just output manifest subset to see what would be grabbed"
@@ -157,6 +164,9 @@ selected = manifest_concat[manifest_concat["file_type"].isin(file_types)]
 if args.active_only:
     print("active only flag given, will limit to that", file=sys.stderr)
     selected = selected[selected["status"] == 'active']
+if args.rm_na:
+    drop_na_if = ['file_id', 's3_path']
+    selected = selected[selected['file_id'].isna() & selected['s3_path'].isna()]
 # if cbio manifest given, limit to that
 if args.cbio:
     print("cBio manifest provided, limiting downloads to matching IDs", file=sys.stderr)

@@ -258,48 +258,6 @@
     },
     "database_pulls": {
         "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
-        "manifests": {
-            "cbtn": {
-                "table": "bix_genomics_file.sd_bhjxbdqk-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","consensus_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "cbtn_genomics_file_manifest.txt"
-            },
-            "x01": {
-                "table": "bix_genomics_file.sd_bhjxbdqk_x01-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","consensus_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "x01_genomics_file_manifest.txt"
-            },
-            "cbtn_extra": {
-                "table": "bix_genomics_file.sd_bhjxbdqk_x01_extra-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","consensus_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "cbtn_extra_genomics_file_manifest.txt"
-            },
-            "pnoc": {
-                "table": "bix_genomics_file.sd_8y99qzjj-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file":  "pnoc_genomics_file_manifest.txt"
-            },
-            "oligo": {
-                "table": "bix_genomics_file.sd_bhjxbdqk_oligo-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "oligo_nation_genomics_file_manifest.txt"
-            },
-            "mioncoseq": {
-                "table": "bix_genomics_file.sd_bhjxbdqk_mioncoseq-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "mioncoseq_genomics_file_manifest.txt"
-            },
-            "dgd_cbtn_panel": {
-                "table": "bix_genomics_file.sd_bhjxbdqk_dgd_panel-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg","mutect2_public_outputs"],
-                "out_file": "dgd_cbtn_panel_genomics_file_manifest.txt"
-            },
-            "dgd_panel": {
-                "table": "bix_genomics_file.sd_6g58hhsx_dgd_panel-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg","mutect2_public_outputs"],
-                "out_file": "dgd_panel_genomics_file_manifest.txt"
-            }
-        },
         "sample_head": {
             "table": "template_sample_header.txt"
         },
