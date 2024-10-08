@@ -48,7 +48,7 @@ def download_sbg(file_type):
     sub_file_list = list(selected.loc[selected["file_type"] == file_type, "file_id"])
     # Sort of a "trust fall" that if aws bucket exists, skip SBG download
     if args.aws_tbl:
-        sub_file_list = list(selected.loc[(selected["file_type"] == file_type) & (selected["s3_path"] == "None"), "file_id"])
+        sub_file_list = list(selected.loc[(selected["file_type"] == file_type) & (selected["s3_path"].isna()), "file_id"])
     for loc in sub_file_list:
         try:
             sbg_file = api.files.get(loc)
@@ -141,10 +141,9 @@ manifest_list = args.manifest.split(",")
 manifest_df_list = []
 for manifest in manifest_list:
     sys.stderr.write("Processing " + manifest + "\n")
-    manifest_df_list.append(pd.read_csv(manifest, sep=None))
+    manifest_df_list.append(pd.read_csv(manifest, sep=None, na_values=['NA']))
 # In the event that s3_path is empty, replace with str to trigger later sbg download
 manifest_concat = pd.concat(manifest_df_list, ignore_index=True)
-manifest_concat.s3_path = manifest_concat.s3_path.fillna('None')
 # if using a cbio name file as manifest, drop conflicting column
 if "File_Type" in manifest_concat.columns:
     del manifest_concat["File_Type"]
@@ -165,12 +164,12 @@ if args.active_only:
     print("active only flag given, will limit to that", file=sys.stderr)
     selected = selected[selected["status"] == 'active']
 if args.rm_na:
-    drop_na_if = ['file_id', 's3_path']
-    selected = selected[selected['file_id'].isna() & selected['s3_path'].isna()]
+    print("Drop na flag given. Will drop rows in which file_id and s3_path are NA", file=sys.stderr)
+    selected = selected[ ~(selected['file_id'].isna() & selected['s3_path'].isna()) ]
 # if cbio manifest given, limit to that
 if args.cbio:
     print("cBio manifest provided, limiting downloads to matching IDs", file=sys.stderr)
-    cbio_data = pd.read_csv(args.cbio, sep=None)
+    cbio_data = pd.read_csv(args.cbio, sep=None, na_values=['NA'])
     specimen_list = cbio_data.T_CL_BS_ID.unique()
     selected = selected[selected["biospecimen_id"].isin(specimen_list)]
 # remove vcfs as we only want mafs
@@ -237,3 +236,5 @@ for key in err_types:
         print("ERROR: {} {} failure(s) occurred".format(err_types[key], key), file=sys.stderr)
 if flag:
     exit(1)
+else:
+    print("Downloads complete. No errors caught", file=sys.stderr)
