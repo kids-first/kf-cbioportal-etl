@@ -7,7 +7,7 @@ from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
 
 
-def process_seg(cur_seg, new_seg, cbio_tum_id, limit):
+def process_seg(cur_seg, new_seg, cbio_tum_id):
     cur_seg = open(cur_seg)
     next(cur_seg)
     for seg in cur_seg:
@@ -18,7 +18,7 @@ def process_seg(cur_seg, new_seg, cbio_tum_id, limit):
         new_seg.write("\t".join(data) + "\n")
 
 
-def process_tbl(cbio_dx, file_meta_dict, limit):
+def process_tbl(cbio_dx, file_meta_dict):
     try:
         x = 0
         # project/disease name should be name of directory hosting datasheet
@@ -38,7 +38,7 @@ def process_tbl(cbio_dx, file_meta_dict, limit):
                 )
             )
             sys.stderr.flush()
-            process_seg(seg_dir + fname, new_seg, cbio_tum_id, limit)
+            process_seg(seg_dir + fname, new_seg, cbio_tum_id)
             x += 1
         sys.stderr.write(
             "Completed processing " + str(x) + " entries in " + cbio_dx + "\n"
@@ -65,7 +65,7 @@ parser.add_argument(
     "--config",
     action="store",
     dest="config_file",
-    help="json config file with data types and " "data locations",
+    help="json config file with data types and data locations",
 )
 
 args = parser.parse_args()
@@ -78,8 +78,6 @@ if __name__ == "__main__":
     if seg_dir[-1] != "/":
         seg_dir += "/"
     file_meta_dict = get_file_metadata(args.table, "seg")
-    # not sure about this, seg files might not allow for droppig regions...
-    limit = config_data["cnv_min_len"]
 
     out_dir = "merged_cnvs/"
     try:
@@ -89,7 +87,7 @@ if __name__ == "__main__":
 
     with concurrent.futures.ProcessPoolExecutor(config_data["cpus"]) as executor:
         results = {
-            executor.submit(process_tbl, cbio_dx, file_meta_dict, limit): cbio_dx
+            executor.submit(process_tbl, cbio_dx, file_meta_dict): cbio_dx
             for cbio_dx in file_meta_dict
         }
 

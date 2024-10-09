@@ -5,7 +5,6 @@ import argparse
 import json
 from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
-import pdb
 
 
 def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc):
@@ -27,7 +26,7 @@ def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc
 def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id):
     """
     Iterate over maf file, skipping header lines since the files are being merged.
-    With possiblility of mixed source, search headers
+    With possibility of mixed source, search headers
     """
     cur_maf = open(maf_fn)
     next(cur_maf)
@@ -138,6 +137,7 @@ if __name__ == '__main__':
     maf_dirs_in = args.maf_dirs
     print("Symlinking maf files from {} to {}".format(maf_dirs_in, maf_dir), file=sys.stderr)
     os.makedirs("MAFS", exist_ok=True)
+    sym_errs = 0
     for dirname in maf_dirs_in.split(","):
         abs_path = os.path.abspath(dirname)
         for fname in os.listdir(dirname):
@@ -147,7 +147,12 @@ if __name__ == '__main__':
                 os.symlink(src, dest)
             except Exception as e:
                 print(e, file=sys.stderr)
-                print("Could not sym link {} in {}".format(fname, dirname))
+                print("Could not sym link {} in {}".format(fname, dirname), file=sys.stderr)
+                sym_errs += 1
+    # If symlink errors, stop here as data will be incomplete
+    if sym_errs:
+        print("Could not sym link {} files, exiting!".format(sym_errs), file=sys.stderr)
+        sys.exit()
     # If DGD maf only, else if both, dgd maf wil be handled separately, or not at all if no dgd and kf only
 
     file_meta_dict = get_file_metadata(args.table, "DGD_MAF")

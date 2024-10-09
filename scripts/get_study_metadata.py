@@ -8,6 +8,7 @@ import os
 from configparser import ConfigParser
 import argparse
 import json
+import sys
 
 
 def config(filename='database.ini', section='postgresql'):
@@ -95,8 +96,12 @@ def get_manifests(db_cur, config_dict):
     """
     This iterates through the manifests section of the database_pulls and grabs and outputs all listed file manifests for ec2 download
     """
-    # Just a pointer variable for ease of reading and coding
-    manifests = config_dict['database_pulls']['manifests']
+    if 'manifests' in config_dict['database_pulls']:
+        # Just a pointer variable for ease of reading and coding
+        manifests = config_dict['database_pulls']['manifests']
+    else:
+        print("WARN: No 'manifests' key in config, assuming none to be downloaded", file=sys.stderr)
+        return 0
     for manifest in manifests:
         try:
             tbl_name = manifests[manifest]['table']
