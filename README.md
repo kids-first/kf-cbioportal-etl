@@ -18,7 +18,7 @@ Below assumes you have already created the necessary tables from dbt
 1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
-    python3 scripts/get_files_from_manifest.py -m cbtn_genomics_file_manifest.txt,pnoc_genomics_file_manifest.txt,x01_genomics_file_manifest.txt,dgd_genomics_file_manifest.txt -f RSEM_gene,annofuse_filtered_fusions_tsv,annotated_public_outputs,ctrlfreec_pval,ctrlfreec_info,ctrlfreec_bam_seg,annotated_public -t aws_buckets_key_pairs.txt -s turbo -c cbio_file_name_id.txt -a
+    python3 scripts/get_files_from_manifest.py -s turbo -m cbio_file_name_id.txt -r
    ```
   `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name + object prefixes and aws profile name pairs
 
@@ -26,7 +26,7 @@ Below assumes you have already created the necessary tables from dbt
 1. Run pipeline script - ignore manifest section, it is a placeholder for a better function download method
 
    ```sh
-   scripts/genomics_file_cbio_package_build.py -t cbio_file_name_id.txt -c pbta_all_case_meta_config.json -d data_processing_config.json -f both
+   scripts/genomics_file_cbio_package_build.py -t cbio_file_name_id.txt -c pbta_all_case_meta_config.json -d pbta_all_data_processing_config.json -f both
    ```
 1. Check logs and outputs for errors, especially `validator.errs` and `validator.out`, assuming everything else went fine, to see if any `ERROR` popped up that would prevent the pakcage from loading properly once pushed to the bucket and Jenkins import job is run
 
@@ -126,10 +126,6 @@ optional arguments:
 ```
 
 ### From D3b Warehouse
-#### - Genomic files manifest
-This is a s3 manifest of all files to loaded onto the portal.
-It is generally created by Bix-Ops and loaded into the D3b Warehouse.
-If the study is combining a KF/PBTA study with DGD, you may need to download a second manifest.
 #### - Data clinical sample sheet
 This is the cBioportal-formatted sample sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-sample-columns)
 #### - Data clinical patient sheet
@@ -138,8 +134,6 @@ This is the cBioportal-formatted patient sheet that follows guidelines from [her
 Seemingly redundant, this file contains the file locations, BS IDs, file type, and cBio-formatted sample IDs of all inputs.
 It helps simplify the process to integrate better into the downstream tools.
 This is the file that goes in as the `-t` arg in all the data collating tools
-#### - Data gene matrix - *OPTIONAL*
-This is only required if you have a custom panel - like the DGD does
 ### User-edited
 #### - Data processing config file
 
@@ -147,11 +141,12 @@ This is a json formatted file that has tool paths, reference paths, and run time
 An example is given in `STUDY_CONFIGS/pbta_all_data_processing_config.json`.
 This section here:
 ```json
-"file_loc_defs": {
+  "file_loc_defs": {
     "_comment": "edit the values based on existing/anticipated source file locations, relative to working directory of the script being run",
     "mafs": {
-      "kf": "annotated_public_outputs",
-      "header": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/maf_KF_CONSENSUS.txt"
+      "kf": ["annotated_public_outputs", "consensus_public_outputs","mutect2_public_outputs"],
+      "dgd": "annotated_public",
+      "header": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/maf_KF_CONSENSUS_r105.txt"
     },
     "cnvs": {
       "pval": "ctrlfreec_pval",
@@ -160,10 +155,8 @@ This section here:
     },
     "rsem": "RSEM_gene",
     "fusion": "annofuse_filtered_fusions_tsv",
-    "fusion_sq_file": ""
+    "dgd_fusion": "fusion-dgd.tsv.gz"
   },
-  "dl_file_type_list": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs",
-    "ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg", "DGD_MAF"],
 ```
 Will likely need the most editing existing based on your input, and should only need to updated if something changes after initial load.
 
@@ -200,13 +193,16 @@ optional arguments:
                         csv list of of genomic file location manifests
   -f FTS, --file-types FTS
                         csv list of workflow types to download
-  -p PROFILE, --profile PROFILE
-                        aws profile name. Leave blank if using sbg instead
+  -t AWS_TBL, --aws-tbl AWS_TBL
+                        Table with bucket name and keys to subset on
   -s SBG_PROFILE, --sbg-profile SBG_PROFILE
                         sbg profile name. Leave blank if using AWS instead
   -c CBIO, --cbio CBIO  Add cbio manifest to limit downloads
   -a, --active-only     Set to grab only active files. Recommended.
+  -r, --rm-na           Remove entries where file_id and s3_path are NA. Useful for studies (like pbta_all) with external files not to be downloaded when using cbio_file_name input file as
+                        manifest
   -d, --debug           Just output manifest subset to see what would be grabbed
+  -o, --overwrite       If set, overwrite if file exists
 ```
 ### scripts/genomics_file_cbio_package_build.py
 ```
