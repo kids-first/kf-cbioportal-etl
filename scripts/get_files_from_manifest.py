@@ -22,7 +22,7 @@ def download_aws(file_type):
         current = key_dict[key]["manifest"]
         dl_client = key_dict[key]["dl_client"]
         sub_file_list = list(current.loc[current["file_type"] == file_type, "s3_path"])
-        sys.stderr.write('Grabbing ' + str(len(sub_file_list)) + ' files using key ' + key +'\n')
+        print("Grabbing {} files using key {}".format(len(sub_file_list), key), file=sys.stderr)
         for loc in sub_file_list:
             out = file_type + "/" + loc.split("/")[-1]
             if args.overwrite or not os.path.isfile(out):
@@ -32,12 +32,12 @@ def download_aws(file_type):
                         Bucket=parse_url.host, Key=parse_url.path.lstrip("/"), Filename=out
                     )
                 except Exception as e:
-                    sys.stderr.write(str(e) + " could not download from " + loc + " using key " + key + "\n")
+                    print("{} could not download from {} using key {}".format(e, loc, key), file=sys.stderr)
                     sys.stderr.flush()
                     err_types['aws download'] += 1
             else:
                 sys.stderr.write("Skipping " + out + " it exists and overwrite not set\n")
-    sys.stderr.write("Completed downloading files for " + file_type + "\n")
+    print("Completed downloading files for " + file_type, file=sys.stderr)
     sys.stderr.flush()
 
 
@@ -48,13 +48,13 @@ def download_sbg(file_type):
     sub_file_list = list(selected.loc[selected["file_type"] == file_type, "file_id"])
     # Sort of a "trust fall" that if aws bucket exists, skip SBG download
     if args.aws_tbl:
-        sub_file_list = list(selected.loc[(selected["file_type"] == file_type) & (selected["s3_path"] == "None"), "file_id"])
+        sub_file_list = list(selected.loc[(selected["file_type"] == file_type) & (selected["s3_path"].isna()), "file_id"])
     for loc in sub_file_list:
         try:
             sbg_file = api.files.get(loc)
         except Exception as e:
-            sys.stderr.write('Failed to get file with id ' + loc + '. Will try once more in 3 seconds\n')
-            sys.stderr.write(str(e) + '\n')
+            print("Failed to get file with id " + loc + ". Will try once more in 3 seconds", file=sys.stderr)
+            print(e, file=sys.stderr)
             try:
                 sleep(3)
                 sbg_file = api.files.get(loc)
@@ -68,11 +68,10 @@ def download_sbg(file_type):
                 sbg_file.download(out)
             except Exception as e:
                 err_types['sbg download'] += 1
-                sys.stderr.write('Failed to download file with id ' + loc + '\n')
-                sys.stderr.write(str(e) + '\n')
+                print("Failed to download file with id " + loc, file=sys.stderr)
+                print(e, file=sys.stderr)
         else:
-            sys.stderr.write("Skipping " + out + " it exists and overwrite not set\n")
-
+            print("Skipping " + out + " it exists and overwrite not set", file=sys.stderr)
     return 0
 
 
@@ -80,18 +79,19 @@ def mt_type_download(file_type):
     """
     Download files from each desired file type at the same time
     """
-    sys.stderr.write("Downloading " + file_type + " files\n")
+    if len(selected.loc[selected["file_type"] == file_type]):
+        print("Downloading " + file_type + " files", file=sys.stderr)
+        try:
+            os.mkdir(file_type)
+        except Exception as e:
+            print("{} error while making directory for {}".format(e, file_type), file=sys.stderr)
+        if args.aws_tbl:
+            download_aws(file_type)
+        if args.sbg_profile:
+            download_sbg(file_type)
+    else:
+        print("WARN: No files of type " + file_type + " in which file_id and s3_path is not NA. Skipping!", file=sys.stderr)
     sys.stderr.flush()
-    try:
-        os.mkdir(file_type)
-    except Exception as e:
-        sys.stderr.write(
-            str(e) + " error while making directory for " + file_type + "\n"
-        )
-    if args.aws_tbl:
-        download_aws(file_type)
-    if args.sbg_profile:
-        download_sbg(file_type)
 
 
 parser = argparse.ArgumentParser(description="Get all files for a project.")
@@ -122,6 +122,10 @@ parser.add_argument(
     "-a", "--active-only", default=False, action="store_true", dest="active_only", help="Set to grab only active files. Recommended."
 )
 parser.add_argument(
+    "-r", "--rm-na", default=False, action="store_true", dest="rm_na", help="Remove entries where file_id and s3_path are NA. \
+    Useful for studies (like pbta_all) with external files not to be downloaded when using cbio_file_name input file as manifest"
+)
+parser.add_argument(
     "-d", "--debug", default=False, action="store_true", dest="debug", help="Just output manifest subset to see what would be grabbed"
 )
 parser.add_argument(
@@ -131,31 +135,41 @@ parser.add_argument(
 
 args = parser.parse_args()
 # concat multiple possible manifests
-sys.stderr.write("Concatenating manifests\n")
+print("Concatenating manifests", file=sys.stderr)
 sys.stderr.flush()
 manifest_list = args.manifest.split(",")
 manifest_df_list = []
 for manifest in manifest_list:
     sys.stderr.write("Processing " + manifest + "\n")
-    manifest_df_list.append(pd.read_csv(manifest, sep=None))
+    manifest_df_list.append(pd.read_csv(manifest, sep=None, na_values=['NA']))
 # In the event that s3_path is empty, replace with str to trigger later sbg download
 manifest_concat = pd.concat(manifest_df_list, ignore_index=True)
-manifest_concat.s3_path = manifest_concat.s3_path.fillna('None')
-file_types = args.fts.split(",")
-# subset concatenated manifests
-sys.stderr.write("Subsetting concatenated manifest\n")
-sys.stderr.flush()
+# if using a cbio name file as manifest, drop conflicting column
+if "File_Type" in manifest_concat.columns:
+    del manifest_concat["File_Type"]
 # change col names to lower case for input compatibility
 manifest_concat.columns = manifest_concat.columns.str.lower()
+# file_types is actually a requirement, so grab from table if not provided
+if args.fts:
+    file_types = args.fts.split(",")
+else:
+    print("No file types provided, using table values", file=sys.stderr)
+    file_types = manifest_concat['file_type'].unique().tolist()
+# subset concatenated manifests
+print("Subsetting concatenated manifest", file=sys.stderr)
+sys.stderr.flush()
 selected = manifest_concat[manifest_concat["file_type"].isin(file_types)]
 # if active only flag set, further subset
 if args.active_only:
-    sys.stderr.write('active only flag given, will limit to that\n')
+    print("active only flag given, will limit to that", file=sys.stderr)
     selected = selected[selected["status"] == 'active']
+if args.rm_na:
+    print("Drop na flag given. Will drop rows in which file_id and s3_path are NA", file=sys.stderr)
+    selected = selected[ ~(selected['file_id'].isna() & selected['s3_path'].isna()) ]
 # if cbio manifest given, limit to that
 if args.cbio:
-    sys.stderr.write('cBio manifest provided, limiting downloads to matching IDs\n')
-    cbio_data = pd.read_csv(args.cbio, sep=None)
+    print("cBio manifest provided, limiting downloads to matching IDs", file=sys.stderr)
+    cbio_data = pd.read_csv(args.cbio, sep=None, na_values=['NA'])
     specimen_list = cbio_data.T_CL_BS_ID.unique()
     selected = selected[selected["biospecimen_id"].isin(specimen_list)]
 # remove vcfs as we only want mafs
@@ -219,6 +233,8 @@ flag = 0
 for key in err_types:
     if err_types[key]:
         flag += err_types[key]
-        sys.stderr.write("ERROR: " + str(err_types[key]) + " " + key + " failure(s) occurred\n")
+        print("ERROR: {} {} failure(s) occurred".format(err_types[key], key), file=sys.stderr)
 if flag:
     exit(1)
+else:
+    print("Downloads complete. No errors caught", file=sys.stderr)

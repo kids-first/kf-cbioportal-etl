@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
+"""
+Merges files in gene <tab> entrez id <tab> copy number format into a genes-by-sample copy number table.
+Uses info files to get ploidy (set neutral value) and ETL cbio manifest to get file names
+"""
+
 import sys
 import os
 import argparse
 import json
 import concurrent.futures
 import pandas as pd
-import re
 from get_file_metadata_helper import get_file_metadata
 
 
@@ -15,11 +19,7 @@ def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
         if gene not in cur_cnv_dict:
             cur_cnv_dict[gene] = {}
         if samp_id in cur_cnv_dict[gene]:
-            sys.stderr.write(
-                "ERROR: Sample ID "
-                + samp_id
-                + " already processed.  Back to the drawing board!"
-            )
+            print("ERROR: Sample ID " + samp_id + " already processed.  Back to the drawing board!", file=sys.stderr)
             exit(1)
         else:
             cur_cnv_dict[gene][samp_id] = value
@@ -35,14 +35,14 @@ def get_ploidy(obj):
                 (key, value) = datum.split("\t")
                 return value
         except Exception as e:
-            sys.stderr.write("WARN: " + str(e) + " entry could not be split\n")
+            print("WARN: {} entry could not be split".format(e), file=sys.stderr)
     return "2"  # default if ploidy can't be found
 
 
 def process_table(cbio_dx, file_meta_dict):
     try:
         # project/disease name should be name of directory hosting datasheet
-        sys.stderr.write("Processing " + cbio_dx + " project" + "\n")
+        print("Processing " + cbio_dx + " project", file=sys.stderr)
         new_cnv = open(out_dir + cbio_dx + ".predicted_cnv.txt", "w")
         cur_cnv_dict = {}
         s_list = []
@@ -51,22 +51,11 @@ def process_table(cbio_dx, file_meta_dict):
             orig_fname = file_meta_dict[cbio_dx][cbio_tum_id]["fname"]
             kf_bs_id = file_meta_dict[cbio_dx][cbio_tum_id]["kf_tum_id"]
             gene_fname = orig_fname + w_gene_suffix
-            sys.stderr.write(
-                "Found relevant cnv to process "
-                + " "
-                + file_meta_dict[cbio_dx][cbio_tum_id]["kf_tum_id"]
-                + " "
-                + file_meta_dict[cbio_dx][cbio_tum_id]["kf_norm_id"]
-                + " "
-                + gene_fname
-                + "\n"
-            )
+            print("Found relevant cnv to process {} {} {}".format(file_meta_dict[cbio_dx][cbio_tum_id]["kf_tum_id"], file_meta_dict[cbio_dx][cbio_tum_id]["kf_norm_id"], gene_fname), file=sys.stderr)
             sys.stderr.flush()
             s_list.append(cbio_tum_id)
             if manifest is not None:
-                ploidy = get_ploidy(
-                    info_dir + "/" + manifest.loc[kf_bs_id]["File_Name"]
-                )
+                ploidy = get_ploidy(info_dir + "/" + manifest.loc[kf_bs_id]["File_Name"])
                 ploidy_dict[cbio_tum_id] = ploidy
             else:
                 ploidy_dict[cbio_tum_id] = "2"
@@ -90,7 +79,7 @@ def process_table(cbio_dx, file_meta_dict):
 
 
 parser = argparse.ArgumentParser(
-    description="Merge cnv files using cavatica task info and datasheets."
+    description="Merges files in gene <tab> entrez id <tab> copy number format into a genes-by-sample copy number table"
 )
 parser.add_argument(
     "-t",
@@ -150,7 +139,3 @@ with concurrent.futures.ProcessPoolExecutor(config_data["cpus"]) as executor:
         if result.result()[0]:
             print("Failed processing " + result.result()[1], file=sys.stderr)
             exit(1)
-
-# for cbio_dx in file_meta_dict:
-#     process_table(cbio_dx, file_meta_dict)
-# sys.stderr.write("Done, check logs\n")
