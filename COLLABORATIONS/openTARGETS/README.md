@@ -35,7 +35,7 @@ To create the histologies file, recommended method is to:
     library("tidyr")
     ```
 
-1. Pull the OpenPedCan repo (warning, it's 12GB ): https://github.com/PediatricOpenTargets/OpenPedCan-analysis, or just download the script from `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R`
+1. Pull the OpenPedCan repo (warning, it's 12GB ): https://github.com/d3b-center/OpenPedCan-analysis, or just download the script from `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R`
 1. Export from D3b Warehouse the latest existing cBio IDs to use for population. Ensure that the output is csv double-quoted. Currently that can be obtained using the sql command:
     ```sql
 
@@ -73,7 +73,7 @@ To create the histologies file, recommended method is to:
 1. Get a blacklist from D3b Warehouse, exporting table `bix_workflows.cbio_hide_reasons
 
 ### Run as standalone
-1. Download from https://github.com/PediatricOpenTargets/OpenPedCan-analysis the `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R` or run from repo if you have it
+1. Download from https://github.com/d3b-center/OpenPedCan-analysis the `analyses/pedcbio-sample-name/pedcbio_sample_name_col.R` or run from repo if you have it
 1. Run `Rscript --vanilla pedcbio_sample_name_col.R -i path-to-histolgies-file.tsv -n path-to-cbio-names.csv -b Methylation`
 OR
 ### Run in repo
@@ -89,7 +89,7 @@ Rscript COLLABORATIONS/openTARGETS/merge_rsem_rds.R --first_file gene-expression
 
 
 ### File Transformation
-It's recommended to put datasheets in a dir called `datasheets`, downloaded files in it's own dir (in v12 it's `GF_INPUTS`) and the rest of the processed outputs into it's own dir (`study_build` for v12) to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
+It's recommended to put datasheets in a dir called `datasheets`, downloaded files in it's own dir (in v12 it's `DOWNLOADED_INPUTS`) and the rest of the processed outputs into it's own dir (`study_build` for v12) to keep things sane and also be able to leverage existing study build script in `scripts/organize_upload_packages.py`
 #### 1. COLLABORATIONS/openTARGETS/clinical_to_datasheets.py
  ```
 usage: clinical_to_datasheets.py [-h] [-f HEAD] [-c CLIN] [-s CL_SUPP]
@@ -117,7 +117,7 @@ optional arguments:
  Outputs a `data_clinical_sample.txt` and `data_clinical_patient.txt` for the cBio package, and a `bs_id_sample_map.txt` mapping file to link BS IDs to gnerated cBioPortal IDs based on the rules for creating a proper somatic event using column `parent_aliquot_id`
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/clinical_to_datasheets.py -f COLLABORATIONS/openTARGETS/header_desc.tsv -c histologies-formatted-id-added.tsv -b cbio_hide_reasons.tsv 2> clin.errs`
+`python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/clinical_to_datasheets.py -f ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/header_desc.tsv -c histologies-formatted-id-added.tsv -b cbio_hide_reasons.tsv 2> clin.errs`
 
 #### 2. COLLABORATIONS/openTARGETS/rename_filter_maf.py
 
@@ -140,10 +140,10 @@ optional arguments:
 ```
 _NOTE_ for v11 input, I ran the following command `zcat snv-dgd.maf.tsv.gz | perl -e '$skip = <>; $skip= <>; while(<>){print $_;}' | gzip -c >> snv-consensus-plus-hotspots.maf.tsv.gz` to add DGD data
 
-_NOTE_ for v12 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/add_dgd_maf_to_openpedcan.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v12_header.txt -c openpedcan_v12.maf -t ../bs_id_sample_map.txt -m ../GF_INPUTS/snv-dgd.maf.tsv.gz` to add DGD data, which is more robust - however, there are data issues with DGD, so it was left out
+_NOTE_ for v12 input,I would have following command `python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/add_dgd_maf_to_openpedcan.py -i /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/maf_openpedcan_v12_header.txt -c openpedcan_v12.maf -t ../bs_id_sample_map.txt -m ../DOWNLOADED_INPUTS/snv-dgd.maf.tsv.gz` to add DGD data, which is more robust - however, there are data issues with DGD, so it was left out
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz -s 1 -n openpedcan_v12`
+`python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/rename_filter_maf.py -m bs_id_sample_map.txt -v snv-consensus-plus-hotspots.maf.tsv.gz -s 1 -n openpedcan_v12`
 
 #### 3. COLLABORATIONS/openTARGETS/cnv_to_tables.py
 Convert cnv table to cBio format - genes as rows, samples as cols, one for absolute CN, another for GISTIC-style
@@ -163,7 +163,7 @@ optional arguments:
 ```
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/cnv_to_tables.py -m bs_id_sample_map.txt  -c consensus_wgs_plus_cnvkit_wxs.tsv.gz -s openpedcan_v11`
+`python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/cnv_to_tables.py -m bs_id_sample_map.txt  -c consensus_wgs_plus_cnvkit_wxs.tsv.gz -s openpedcan_v12`
 
 #### 4. COLLABORATIONS/openTARGETS/rename_export_rsem.R
 Note, I merged the tcga into the main rds. I also needed an instance with _64GB ram_ in order to calc z scores. Update: Can also achieve by setting up 32GB swap space 
@@ -189,12 +189,12 @@ Options:
 		Show this help message and exit
 ```
 Example run:
-`Rscript COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v11 --computeZscore R 2> rna_convert.errs`
+`Rscript ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/rename_export_rsem.R --rna_rds gene_tcga_expression_common_merge.rds --map_id bs_id_sample_map.txt --type openpedcan_v12 --computeZscore C++ 2> rna_convert.errs`
 
 #### 5. scripts/convert_fusion_as_sv.py
 
 Before running, to leverage an existing fusion conversion, I first ran:
-`COLLABORATIONS/openTARGETS/reformat_cbio_sample_index.py -t bs_id_sample_map.txt -n openpedcan_v12 > fusion_sample_name_input.txt`
+`~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/reformat_cbio_sample_index.py -t bs_id_sample_map.txt -n openpedcan_v12 > fusion_sample_name_input.txt`
 to reformat the sample name index.
 ```
 usage: convert_fusion_as_sv.py [-h] [-t TABLE] [-f FUSION_RESULTS] [-o OUT_DIR] -m MODE
@@ -229,7 +229,7 @@ optional arguments:
                         json config file with meta information; see REFS/case_meta_config.json example
 ```
 Example run:
-`python3 scripts/organize_upload_packages.py -o processed -c COLLABORATIONS/openTARGETS/openpedcan_v12_case_meta_config.json`
+`python3 scripts/organize_upload_packages.py -o processed -c ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/openpedcan_v12_case_meta_config.json`
 
 #### 7. COLLABORATIONS/openTARGETS/case_list_from_datasheet.py
 Last step before validation and upload
@@ -251,4 +251,4 @@ optional arguments:
 ```
 
 Example run:
-`python3 COLLABORATIONS/openTARGETS/case_list_from_datasheet.py -d data_clinical_sample.txt -s openpedcan_v12 -c GTEx -m 3`
+`python3 ~/tools/kf-cbioportal-etl/COLLABORATIONS/openTARGETS/case_list_from_datasheet.py -d data_clinical_sample.txt -s openpedcan_v12 -c GTEx -m 3`
