@@ -218,13 +218,6 @@
     },
     "database_pulls": {
         "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
-        "manifests": {
-            "tll_sd_aq9kvn5p_2019": {
-                "table": "bix_genomics_file.sd_aq9kvn5p-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv","annotated_public_outputs","ctrlfreec_pval","ctrlfreec_info","ctrlfreec_bam_seg"],
-                "out_file": "tll_sd_aq9kvn5p_2019_genomics_file_manifest.txt"
-            }
-        },
         "sample_head": {
             "table": "template_sample_header.txt"
         },

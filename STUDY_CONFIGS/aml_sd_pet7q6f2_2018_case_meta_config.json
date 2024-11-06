@@ -133,29 +133,22 @@
     },
     "database_pulls": {
         "_comment": "This section is used to numerate relevant database schema and tables needed for clinical data and supporting genomic etl files",
-        "manifests": {
-            "aml": {
-                "table": "bix_genomics_file.sd_pet7q6f2-genomics_file_manifest",
-                "file_type": ["RSEM_gene","annofuse_filtered_fusions_tsv"],
-                "out_file": "aml_genomics_file_manifest.txt"
-            }
-        },
         "sample_head": {
             "table": "template_sample_header.txt"
         },
         "sample_file": {
-            "table": "brownm28_dev_schema_cbio.aml_sd_pet7q6f2_2018_data_clinical_sample",
+            "table": "prod_cbio.aml_sd_pet7q6f2_2018_data_clinical_sample",
             "out_file": "data_clinical_sample.txt"
         },
         "patient_head": {
             "table": "template_patient_header.txt"
         },
         "patient_file": {
-            "table": "brownm28_dev_schema_cbio.aml_sd_pet7q6f2_2018_data_clinical_patient",
+            "table": "prod_cbio.aml_sd_pet7q6f2_2018_data_clinical_patient",
             "out_file": "data_clinical_patient.txt"
         },
         "genomics_etl": {
-            "table": "brownm28_dev_schema_cbio.aml_sd_pet7q6f2_2018_genomics_etl_file",
+            "table": "prod_cbio.aml_sd_pet7q6f2_2018_genomics_etl_file",
             "out_file": "cbio_file_name_id.txt"
         }
     }
