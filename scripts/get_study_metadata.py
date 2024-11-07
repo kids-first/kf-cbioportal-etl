@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 This script downloads all relevant data_clinical and genomics file etl support files from the D3b Data Warehouse.
 YOU MUST CREATE YOUR OWN .ini FILE WITH LOGIN PARAMS BEFORE RUNNING
@@ -130,55 +131,58 @@ def get_manifests(db_cur, config_dict):
             exit(1)
     return 0
 
+def main():
+    parser = argparse.ArgumentParser(description="Pull clinical data and genomics file etl support from D3b data warehouse.")
 
-parser = argparse.ArgumentParser(description="Pull clinical data and genomics file etl support from D3b data warehouse.")
+    parser.add_argument("-d", "--db-ini", action="store", dest="db_ini", help="Database config file - formatting like aws or sbg creds")
+    parser.add_argument("-p", "--profile", action="store", dest="profile", help="ini profile name", default="postgresql")
+    parser.add_argument("-c", "--config", action="store", dest="config_file", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example")
+    parser.add_argument("-r", "--ref-dir", action="store", dest="ref_dir", help="dir name containing template data_clinical* header files")
+    parser.add_argument("-a", "--all", action="store_true", dest="all", help="flag to include all relevant files, not just status=active files, NOT RECOMMENDED")
 
-parser.add_argument("-d", "--db-ini", action="store", dest="db_ini", help="Database config file - formatting like aws or sbg creds")
-parser.add_argument("-p", "--profile", action="store", dest="profile", help="ini profile name", default="postgresql")
-parser.add_argument("-c", "--config", action="store", dest="config_file", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example")
-parser.add_argument("-r", "--ref-dir", action="store", dest="ref_dir", help="dir name containing template data_clinical* header files")
-parser.add_argument("-a", "--all", action="store_true", dest="all", help="flag to include all relevant files, not just status=active files, NOT RECOMMENDED")
+    args = parser.parse_args()
+    # Load database login info
+    params = config(filename=args.db_ini, section=args.profile)
 
-args = parser.parse_args()
-# Load database login info
-params = config(filename=args.db_ini, section=args.profile)
-
-datasheet_dir = 'datasheets'
-# Load json config file with database pull info
-with open(args.config_file) as f:
-    config_data = json.load(f)
-try:
-    conn = psycopg2.connect(**params)
-    cur = conn.cursor()
-        
-    # dict to track keys with specific database calls
-    special_keys = {"sample_head": 0, "sample_file": 0, "patient_head": 0, "patient_file": 0, "manifests": 0}
-    ref_dir = args.ref_dir
-    if ref_dir[-1] != '/':
-        ref_dir += '/'
+    datasheet_dir = 'datasheets'
+    # Load json config file with database pull info
+    with open(args.config_file) as f:
+        config_data = json.load(f)
     try:
-        os.mkdir(datasheet_dir)
-    except Exception as e:
-        print(str(e) + ' IGNORE!')
-    get_data_clinical(cur, config_data, 'sample', ref_dir)
-    get_data_clinical(cur, config_data, 'patient', ref_dir)
-    get_manifests(cur, config_data)
+        conn = psycopg2.connect(**params)
+        cur = conn.cursor()
+            
+        # dict to track keys with specific database calls
+        special_keys = {"sample_head": 0, "sample_file": 0, "patient_head": 0, "patient_file": 0, "manifests": 0}
+        ref_dir = args.ref_dir
+        if ref_dir[-1] != '/':
+            ref_dir += '/'
+        try:
+            os.mkdir(datasheet_dir)
+        except Exception as e:
+            print(str(e) + ' IGNORE!')
+        get_data_clinical(cur, config_data, 'sample', ref_dir)
+        get_data_clinical(cur, config_data, 'patient', ref_dir)
+        get_manifests(cur, config_data)
 
-    # For all other tables to be printed simply, not in special_keys
-    for key in config_data['database_pulls']:
-        if key not in special_keys and key != '_comment':
-            tbl_name = config_data['database_pulls'][key]['table']
-            (rows, colnames) = generic_pull(cur, tbl_name)
-            out_fn = config_data['database_pulls'][key]['out_file']
-            # all data_clinical sheets go in this dir
-            if out_fn.startswith('data_clinical_'):
-                out_fn = datasheet_dir + "/" + out_fn
-            out_file = open(out_fn, 'w')
-            generic_print(out_file, rows, colnames)
+        # For all other tables to be printed simply, not in special_keys
+        for key in config_data['database_pulls']:
+            if key not in special_keys and key != '_comment':
+                tbl_name = config_data['database_pulls'][key]['table']
+                (rows, colnames) = generic_pull(cur, tbl_name)
+                out_fn = config_data['database_pulls'][key]['out_file']
+                # all data_clinical sheets go in this dir
+                if out_fn.startswith('data_clinical_'):
+                    out_fn = datasheet_dir + "/" + out_fn
+                out_file = open(out_fn, 'w')
+                generic_print(out_file, rows, colnames)
 
-    # close the communication with the PostgreSQL
-    cur.close()
-except (Exception, psycopg2.DatabaseError) as error:
-    print(error)
+        # close the communication with the PostgreSQL
+        cur.close()
+    except (Exception, psycopg2.DatabaseError) as error:
+        print(error)
+        conn.close()
     conn.close()
-conn.close()
+
+if __name__ == "__main__":
+    main()

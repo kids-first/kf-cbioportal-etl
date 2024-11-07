@@ -92,6 +92,7 @@ def process_tbl(cbio_dx, file_meta_dict, print_head):
         print(e)
         sys.exit()
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Merge and filter mafs using cavatica task info and datasheets."
