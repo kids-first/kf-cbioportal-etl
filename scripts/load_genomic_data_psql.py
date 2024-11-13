@@ -114,6 +114,7 @@ def main():
     parser.add_argument("-n", "--table-name", action="store", dest="name", help="Name of table, including schema")
     parser.add_argument("-i", "--input", action="store", dest="input", help="Input tsv file")
     parser.add_argument("-t", "--type", action="store", dest="type", help="cBio file type, i.e. cnv, maf, rsem, sv")
+    parser.add_argument("-s", "--size", action="store_true", dest="size", help="Max size for pool", default=12, type=int)
 
     args = parser.parse_args()
 
@@ -128,7 +129,7 @@ def main():
         db = config(filename=args.db_ini, section=args.profile)
         psql_uri = "postgresql://{user}:{password}@{host}/{dbname}".format(user=db['user'], password=db['password'], host=db['host'], dbname=db['database'])
         print("DEBUG: Establishing pool connection", file=sys.stderr)
-        pool = AsyncConnectionPool(conninfo=psql_uri, open=False, max_size=72)
+        pool = AsyncConnectionPool(conninfo=psql_uri, open=False, max_size=args.size)
 
         if args.mode == 'create':
             asyncio.run(create_table(header, file_in, args.name, args.type, formats, pool, wtypes))
