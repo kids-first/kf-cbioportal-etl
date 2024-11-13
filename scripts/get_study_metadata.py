@@ -18,7 +18,6 @@ def config(filename='database.ini', section='postgresql'):
     parser = ConfigParser()
     # read config file
     parser.read(filename)
-
     # get section, default to postgresql
     db = {}
     if parser.has_section(section):
@@ -27,7 +26,6 @@ def config(filename='database.ini', section='postgresql'):
             db[param[0]] = param[1]
     else:
         raise Exception('Section {0} not found in the {1} file'.format(section, filename))
-
     return db
 
 
@@ -60,7 +58,7 @@ def generic_print(out_file, rows, colnames):
     return 0
 
 
-def get_data_clinical(db_cur, config_dict, prefix, ref_dir):
+def get_data_clinical(db_cur, config_dict, prefix, ref_dir, datasheet_dir, config_data):
     """
     Depending on the prefix of patient or sample, will pull from related tables,
     only use related header info present in table, and print the combined results.
@@ -93,7 +91,7 @@ def get_data_clinical(db_cur, config_dict, prefix, ref_dir):
     return 0
 
 
-def get_manifests(db_cur, config_dict):
+def get_manifests(db_cur, config_dict, ftype_flag):
     """
     This iterates through the manifests section of the database_pulls and grabs and outputs all listed file manifests for ec2 download
     """
@@ -107,7 +105,7 @@ def get_manifests(db_cur, config_dict):
         try:
             tbl_name = manifests[manifest]['table']
             file_types = manifests[manifest]['file_type']
-            if args.all:
+            if ftype_flag:
                 if '.' not in tbl_name:
                     manifest_sql = sql.SQL('SELECT * FROM {} WHERE file_type in ({});').format(sql.Identifier(tbl_name), sql.SQL(',').join(map(sql.Literal, file_types)))
                 else:
@@ -161,9 +159,9 @@ def main():
             os.mkdir(datasheet_dir)
         except Exception as e:
             print(str(e) + ' IGNORE!')
-        get_data_clinical(cur, config_data, 'sample', ref_dir)
-        get_data_clinical(cur, config_data, 'patient', ref_dir)
-        get_manifests(cur, config_data)
+        get_data_clinical(cur, config_data, 'sample', ref_dir, datasheet_dir, config_data)
+        get_data_clinical(cur, config_data, 'patient', ref_dir, datasheet_dir, config_data)
+        get_manifests(cur, config_data, args.all)
 
         # For all other tables to be printed simply, not in special_keys
         for key in config_data['database_pulls']:
