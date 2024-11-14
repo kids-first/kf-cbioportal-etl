@@ -5,6 +5,7 @@ You can either initialize a table using "create" mode, add data/samples using "a
 YOU MUST CREATE YOUR OWN .ini FILE WITH LOGIN PARAMS BEFORE RUNNING
 """
 import psycopg
+import psycopg2.extras
 from psycopg import sql
 from psycopg_pool import ConnectionPool
 import concurrent.futures
@@ -20,12 +21,13 @@ def format_tbl_name(tbl_path):
     """
 
     schema = None
-    tname = tbl_path
+    tname = '"tbl_path"'
     formatted_tpath = sql.Identifier(tbl_path)
     if "." in tbl_path:
         (schema, tname) = tbl_path.split(".")
         formatted_tpath =sql.Identifier(schema, tname)
-    return formatted_tpath
+        tname = f"""{schema}."{tname}" """
+    return formatted_tpath, tname
 
 
 def mt_execute_data_load(line, formatted_tpath, header, db_conn):
@@ -33,12 +35,13 @@ def mt_execute_data_load(line, formatted_tpath, header, db_conn):
         info = line.rstrip('\n').split('\t')
         vals = [float(old) for old in info[1:]]
         db_conn.execute(sql.SQL("INSERT INTO {name} ({primary_key}, samples, data) VALUES (%s, %s, %s)").format(name=formatted_tpath, primary_key=sql.Identifier(header[0])), [info[0], header[1:], vals])
+        return 0
     except psycopg.Error as e:
         print(e, file=sys.stderr)
         print("Failed data load for primary key {}".format(info[0]), file=sys.stderr)
         sys.stderr.flush()
         db_conn.close()
-        exit(1)
+        return 1
 
 
 def create_table(header, data, tbl_path, data_type, formats, db_pool, wtypes):
@@ -48,7 +51,7 @@ def create_table(header, data, tbl_path, data_type, formats, db_pool, wtypes):
     """
     if formats[data_type] == "wide":
         print("Creating {} type table for {} type data, starting with table def".format(formats[data_type], data_type), file=sys.stderr)
-        (formatted_tpath) = format_tbl_name(tbl_path)
+        (formatted_tpath, tname) = format_tbl_name(tbl_path)
         print("DEBUG: Waiting for pool connection", file=sys.stderr)
         db_pool.open(wait=True)
         create_sql = sql.SQL("CREATE TABLE IF NOT EXISTS {name} ({primary_key} PRIMARY KEY, samples varchar[], {data})").format(name=formatted_tpath, primary_key=sql.SQL(" {} {}").format(sql.Identifier(header[0]), sql.SQL("varchar")),data=sql.SQL(" {} {}").format(sql.Identifier("data"), sql.SQL(wtypes[data_type])))
@@ -57,59 +60,15 @@ def create_table(header, data, tbl_path, data_type, formats, db_pool, wtypes):
             # db_conn.commit()
             print("Loading data from TSV", file=sys.stderr)
             x = 1
-            m = 500
-            with concurrent.futures.ThreadPoolExecutor(4) as executor:
-                results = {
-                    executor.submit(mt_execute_data_load, line, formatted_tpath, header, db_conn): line
-                    for line in data
-                }
-                for result in concurrent.futures.as_completed(results):
-                    if x % m == 0:
-                        print("Processed {} entries to commit".format(x), file=sys.stderr)
-                        sys.stderr.flush()
-                    x += 1
-            # for line in data:
-            #     mt_execute_data_load(line, formatted_tpath, header, db_conn)
-            #     if x % m == 0:
-            #         print("Processed {} entries to commit".format(x), file=sys.stderr)
-            #         sys.stderr.flush()
-            #     x += 1
-            # db_conn.commit()
-            # db_pool.wait()
-            # db_pool.close()
+            m = 1000
 
-        # return formatted_tpath, header
-
-
-def append_table(header, data, tbl_path, data_type, formats, db_cur, db_conn, wtypes):
-    """
-    This function appends the desired data to an existing table table from a formatted cBio file depending on it's table format:
-    wide (gene by sample name) or long (tsv with headers) then loads accordingly.
-    It creates a temp table using the existing create_table function, add the new sample columns, inserts the new data using the primary key, then removes temp table
-    """
-
-    if formats[data_type] == "wide":
-        print("Adding data to existing {} format table from {} data".format(formats[data_type], data_type), file=sys.stderr)
-        temp_table = "bix_workflows.delme_join_temp"
-        print("Creating temp table {}".format(temp_table), file=sys.stderr)
-        formatted_tmp_tbl_path, tmp_col_type = create_table(header, data, temp_table, data_type, formats, db_cur, db_conn, wtypes)
-        formatted_to_append_path = sql.Identifier(tbl_path)
-        if "." in tbl_path:
-            (schema, tname) = tbl_path.split(".")
-            formatted_to_append_path =sql.Identifier(schema, tname)
-        print("Adding new columns to table to be updated", file=sys.stderr)
-        add_cols_sql = sql.SQL("ALTER TABLE {insert_tbl} {cols}").format(insert_tbl=formatted_to_append_path, cols=sql.SQL(", ").join(sql.SQL(" ADD COLUMN {} {}").format(sql.Identifier(name), sql.SQL(type)) for name, type in tmp_col_type[1:] ) )
-        db_cur.execute(add_cols_sql)
-        db_conn.commit()
-        print("Updating table with new data", file=sys.stderr)
-        update_sql = sql.SQL("UPDATE {insert_tbl} b SET {new_data} FROM {tmp_tbl} a WHERE a.{join_col} = b.{join_col}").format(insert_tbl=formatted_to_append_path, new_data=sql.SQL(", ").join(sql.SQL(" {col_name}=a.{col_name}").format(col_name=sql.Identifier(name_type[0])) for name_type in tmp_col_type[1:] ), tmp_tbl=formatted_tmp_tbl_path, join_col=sql.Identifier("Hugo_Symbol"))
-        db_cur.execute(update_sql)
-        db_conn.commit()
-        print("Removing temp table", file=sys.stderr)
-        drop_tmp_sql = sql.SQL("DROP TABLE {tmp_tbl}".format(tmp_tbl=temp_table))
-        db_cur.execute(drop_tmp_sql)
-        db_conn.commit()
-        print("Appending data complete!", file=sys.stderr)
+            batch_load = []
+            for line in data:
+                info = line.rstrip('\n').split('\t')
+                batch_load.append( (info[0], header[1:], [float(old) for old in info[1:]] ) )
+            print("Batch load into table", file=sys.stderr)
+            load_sql = f"""INSERT INTO {tname} VALUES (%s, %s, %s);"""
+            db_conn.cursor().executemany(load_sql, batch_load)
 
 
 def main():
