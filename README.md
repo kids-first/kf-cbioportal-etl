@@ -13,7 +13,7 @@ Refer to `INSTALL.md` and `setup.py` for more details.
 
 
 ## Install and run tool
-Run on Mgmt-Console-Dev-chopd3bprod@684194535433 EC2 instance
+Run on `Mgmt-Console-Dev-chopd3bprod@684194535433` EC2 instance
 ```sh
 git clone https://github.com/kids-first/kf-cbioportal-etl.git
 pip install -e /path/to/kf-cbioportal-etl/
