@@ -59,11 +59,32 @@ optional arguments:
                         Study flag
   -l, --legacy          Enable legacy mode
 ```
+### Steps Argument
+The `--steps` argument specifies which steps of the pipeline to run. It is outlined as follows:
+- `1` - Get study metadata
+- `2` - Get files from manifest
+- `3` - Check downloaded files
+- `4` - Build genomic file package
+You can specify the steps in one of the following ways:
+
+- **Run a single step**:
+```bash
+--steps 1
+```
+This will only execute Step 1 (Get study metadata).
+```bash
+--steps 2 3 4
+```
+This will execute Steps 2, 3, and 4 in sequence.
+```bash
+--steps all
+```
+This will execute Steps 1 through 4.
 
 Example command line: 
 ```sh
 cbio_etl_runner \
-  --steps 2 3 \
+  --steps all \
   --db-ini /path/to/db.ini \
   --meta-config-file oligo_nation_case_meta_config.json \
   --data-processing-config oligo_nation_data_processing_config.json \
