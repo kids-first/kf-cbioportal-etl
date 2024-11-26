@@ -159,9 +159,9 @@ processed
 └── meta_sv.txt
 ```
 Note! Most other studies won't have a timeline set of files.
-## Upload the final packages
+### Upload the final packages
 Upload all of the directories named as study short names to `s3://kf-strides-232196027141-cbioportal-studies/studies/`. You may need to set and/or copy your aws saml key before uploading. See "access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo" bullet point in [Software Prerequisites](#software-prerequisites) to load the study.
-### Load into QA/PROD
+#### Load into QA/PROD
 An AWS step function exists to load studies on to the QA and PROD servers.
   + Create a branch in the `d3b-center/aws-infra-pedcbioportal-import` git repo (**MUST START WITH `feature/`**) and edit the `import_studies.txt` file with the study name you which to load. Can be an MSKCC datahub link or a local study name
   + Push the branch to remote - this will kick off a github action to load into QA
@@ -169,10 +169,10 @@ An AWS step function exists to load studies on to the QA and PROD servers.
   + aws `stateMachinePedcbioImportservice` Step function service is used to view and manage running jobs
   + To repeat a load, click on the ▶️ icon in the git repo to select the job you want to re-run
   + *Note*, if your branch importStudies.txt is the same as main, you may have tot rigger it yourself. To do so, go to [actions](https://github.com/d3b-center/aws-infra-pedcbioportal-import/actions), on the left panel choose which action you want, then from the drop down in the right panel, pick which branch you want that action to run on 
-# Details - ETL Steps
+## Details - ETL Steps
 Use this section as a reference in case your overconfidence got the best of you
 
-## REFS
+### REFS
 In case you want to use different reference inputs...
  - From data_processing_config.json `bed_genes`:
    - This is used to collate ControlFreeC results into gene hits
@@ -187,11 +187,11 @@ cat *genomic* | cut -f 15 | cut -f 1-3 -d "/" | sort | uniq > aws_bucket_key_pai
 ```
 Just remove the `s3_path` and `None` entries
 
-## Starting file inputs
+### Starting file inputs
 Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `scripts/export_clinical.sh`, we now use `scripts/get_study_metadata.py` to get the files.
 However, a python wrapper script that leverages the `x_case_meta_config.json` is recommended to use for each study.
 
-### scripts/get_study_metadata.py
+#### scripts/get_study_metadata.py
 ```
 usage: get_study_metadata.py [-h] [-d DB_INI] [-p PROFILE] [-c CONFIG_FILE]
 
@@ -209,17 +209,17 @@ optional arguments:
                         dir name containing template data_clinical* header files
 ```
 
-### From D3b Warehouse
-#### - Data clinical sample sheet
+#### From D3b Warehouse
+##### - Data clinical sample sheet
 This is the cBioportal-formatted sample sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-sample-columns)
-#### - Data clinical patient sheet
+##### - Data clinical patient sheet
 This is the cBioportal-formatted patient sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-patient-columns)
-#### - Genomics metadata file
+##### - Genomics metadata file
 Seemingly redundant, this file contains the file locations, BS IDs, file type, and cBio-formatted sample IDs of all inputs.
 It helps simplify the process to integrate better into the downstream tools.
 This is the file that goes in as the `-t` arg in all the data collating tools
-### User-edited
-#### - Data processing config file
+#### User-edited
+##### - Data processing config file
 
 This is a json formatted file that has tool paths, reference paths, and run time params.
 An example is given in `STUDY_CONFIGS/pbta_all_data_processing_config.json`.
@@ -244,7 +244,7 @@ This section here:
 ```
 Will likely need the most editing existing based on your input, and should only need to updated if something changes after initial load.
 
-#### - Metadata processing config file
+##### - Metadata processing config file
 
 This is a json config file with file descriptions and case lists required by the cbioportal.
 An example is given in `STUDY_CONFIGS/pbta_all_case_meta_config.json`.
@@ -261,10 +261,10 @@ Likely personalized edits would occur in the following fields:
   + `short_name`: This is the short version. By default, should be the same as `cancer_study_identifier`
 
 
-## Pipeline script
+### Pipeline script
 After downloading the genomic files and files above as needed, and properly editing config files as needed, this script should generate and validate the cBioportal load package
 
-### scripts/get_files_from_manifest.py
+#### scripts/get_files_from_manifest.py
 Currently, file locations are still too volatile to trust to make downloading part of the pipeline. Using various combinations of buckets and sbg file ID pulls will eventually get you everything
 ```
 usage: get_files_from_manifest.py [-h] [-m MANIFEST] [-f FTS] [-p PROFILE] [-s SBG_PROFILE] [-c CBIO] [-a] [-d]
@@ -288,7 +288,7 @@ optional arguments:
   -d, --debug           Just output manifest subset to see what would be grabbed
   -o, --overwrite       If set, overwrite if file exists
 ```
-### scripts/genomics_file_cbio_package_build.py
+#### scripts/genomics_file_cbio_package_build.py
 ```
 usage: genomics_file_cbio_package_build.py [-h] [-t TABLE] [-m MANIFEST] [-c CBIO_CONFIG] [-d DATA_CONFIG] [-f [{both,kf,dgd}]]
 
@@ -315,13 +315,13 @@ optional arguments:
 Check the pipeline log output for any errors that might have occurred.
 
 
-## Congratulations, you did it!
+### Congratulations, you did it!
 
-# Collaborative and Publication Workflows
+## Collaborative and Publication Workflows
 These are highly specialized cases in which all or most of the data come from a third party, and therefore requires specific case-by-case protocols.
 
-## OpenPedCan
+### OpenPedCan
 See [OpenPedCan README](COLLABORATIONS/openTARGETS/README.md)
 
-## OpenPBTA
+### OpenPBTA
 See [OpenPBTA README](COLLABORATIONS/openPBTA/README.md)
