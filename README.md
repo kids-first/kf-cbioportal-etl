@@ -210,19 +210,19 @@ optional arguments:
 ```
 
 ### From D3b Warehouse
-- **Data clinical sample sheet**
+#### - Data clinical sample sheet
 This is the cBioportal-formatted sample sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-sample-columns)
 
-- **Data clinical patient sheet**
+#### Data clinical patient sheet
 This is the cBioportal-formatted patient sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-patient-columns)
 
-- **Genomics metadata file**
+#### Genomics metadata file
 Seemingly redundant, this file contains the file locations, BS IDs, file type, and cBio-formatted sample IDs of all inputs.
 It helps simplify the process to integrate better into the downstream tools.
 This is the file that goes in as the `-t` arg in all the data collating tools
 
 ### User-edited
-- **Data processing config file**
+#### - Data processing config file
 
 This is a json formatted file that has tool paths, reference paths, and run time params.
 An example is given in `STUDY_CONFIGS/pbta_all_data_processing_config.json`.
@@ -247,7 +247,7 @@ This section here:
 ```
 Will likely need the most editing existing based on your input, and should only need to updated if something changes after initial load.
 
-- **Metadata processing config file**
+#### - Metadata processing config file
 
 This is a json config file with file descriptions and case lists required by the cbioportal.
 An example is given in `STUDY_CONFIGS/pbta_all_case_meta_config.json`.
