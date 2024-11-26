@@ -9,7 +9,8 @@ See [below](#collaborative-and-publication-workflows) for special cases like pub
 + Access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo for server loading:
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
 + [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
-Refer to `INSTALL.md` and `setup.py` for more details.
+
+Refer to [INSTALL.md](https://github.com/kids-first/kf-cbioportal-etl/INSTALL.md) and [setup.py](https://github.com/kids-first/kf-cbioportal-etl/setup.py) for more details.
 
 
 ## Install and run tool
