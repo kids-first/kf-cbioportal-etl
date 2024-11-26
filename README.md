@@ -95,7 +95,7 @@ cbio_etl_runner \
   --study-flag kf
   ```
 
-## I have everything and I know I am doing
+## Run manually without tool installation
 Below assumes you have already created the necessary tables from dbt
 1. Run commands as outlined in [scripts/get_study_metadata.py](#scriptsget_study_metadatapy). Copy/move those files to the cBio loader ec2 instance
 1. Recommended, but not required: run [scripts/diff_studies.py](docs/DIFF_STUDY_CLINICAL.md). It will give a summary of metadata changes between what is currently loaded and what you plan to load, to potentially flag any suspicious changes
@@ -169,7 +169,7 @@ An AWS step function exists to load studies on to the QA and PROD servers.
   + aws `stateMachinePedcbioImportservice` Step function service is used to view and manage running jobs
   + To repeat a load, click on the ▶️ icon in the git repo to select the job you want to re-run
   + *Note*, if your branch importStudies.txt is the same as main, you may have tot rigger it yourself. To do so, go to [actions](https://github.com/d3b-center/aws-infra-pedcbioportal-import/actions), on the left panel choose which action you want, then from the drop down in the right panel, pick which branch you want that action to run on 
-# Details
+# Details - ETL Steps
 Use this section as a reference in case your overconfidence got the best of you
 
 ## REFS
