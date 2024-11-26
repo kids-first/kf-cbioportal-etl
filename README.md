@@ -65,21 +65,24 @@ The `--steps` argument specifies which steps of the pipeline to run. It is outli
 - `2` - Get files from manifest
 - `3` - Check downloaded files
 - `4` - Build genomic file package
-You can specify the steps in one of the following ways:
 
+You can specify the steps in one of the following ways:
 - **Run a single step**:
-```bash
---steps 1
-```
-This will only execute Step 1 (Get study metadata).
-```bash
---steps 2 3 4
-```
-This will execute Steps 2, 3, and 4 in sequence.
-```bash
---steps all
-```
-This will execute Steps 1 through 4.
+  ```bash
+  --steps 1
+  ```
+  This will only execute Step 1 (Get study metadata).
+- **Run multiple steps**:
+  ```bash
+  --steps 2 3 4
+  ```
+  This will execute Steps 2, 3, and 4 in sequence.
+
+- **Run the whole ETL**:
+  ```bash
+  --steps all
+  ```
+  This will execute Steps 1 through 4.
 
 Example command line: 
 ```sh
