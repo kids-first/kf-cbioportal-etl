@@ -213,10 +213,10 @@ optional arguments:
 #### - Data clinical sample sheet
 This is the cBioportal-formatted sample sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-sample-columns)
 
-#### Data clinical patient sheet
+#### - Data clinical patient sheet
 This is the cBioportal-formatted patient sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-patient-columns)
 
-#### Genomics metadata file
+#### - Genomics metadata file
 Seemingly redundant, this file contains the file locations, BS IDs, file type, and cBio-formatted sample IDs of all inputs.
 It helps simplify the process to integrate better into the downstream tools.
 This is the file that goes in as the `-t` arg in all the data collating tools
