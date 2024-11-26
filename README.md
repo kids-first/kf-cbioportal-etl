@@ -4,12 +4,72 @@ Further general loading notes can be found in this [Notion page](https://www.not
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
 ## Software Prerequisites
 + `python3` v3.5.3+
-  + `numpy`, `pandas`, `scipy`
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
 + `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
 + Access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo for server loading:
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
 + [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
+Refer to `INSTALL.md` and `setup.py` for more details.
+
+
+## Install and run tool
+Run on Mgmt-Console-Dev-chopd3bprod@684194535433 EC2 instance
+  ```sh
+    git clone https://github.com/kids-first/kf-cbioportal-etl.git
+    pip install -e /path/to/kf-cbioportal-etl/
+  ```
+If the install was successful, you should be able to run `cbio_etl_runner --help`, which will give you the following menu: 
+  ```
+    usage: cbio_etl_runner [-h] [--steps {1,2,3,all} [{1,2,3,all} ...]] -db DB_INI [-p PROFILE] -mc META_CONFIG_FILE [-r REF_DIR] [-a]
+                       [-m MANIFEST] [-f FILE_TYPES] [-t AWS_TBL] [-s SBG_PROFILE] [-c CBIO_MANIFEST] [-ao] [-rm] [-d] [-o] -dpc
+                       DATA_PROCESSING_CONFIG -sf {both,kf,dgd} [-l]
+
+    Run cBioPortal ETL pipeline
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      --steps {1,2,3,all} [{1,2,3,all} ...]
+                            Steps to execute (e.g., 1 2 3 4 or all)
+      -db DB_INI, --db-ini DB_INI
+                            Database config file
+      -p PROFILE, --profile PROFILE
+                            Profile name (default: postgresql)
+      -mc META_CONFIG_FILE, --meta-config-file META_CONFIG_FILE
+                            Metadata configuration file. Defaults to tool's STUDY_CONFIGS dir
+      -r REF_DIR, --ref-dir REF_DIR
+                            Reference directory. Defaults to tool's ref dir if not provided.
+      -a, --all             Include all relevant files, not just status=active files, NOT RECOMMENDED
+      -m MANIFEST, --manifest MANIFEST
+                            Manifest file (default: cbio_file_name_id.txt)
+      -f FILE_TYPES, --file-types FILE_TYPES
+                            Comma-separated file types to download
+      -t AWS_TBL, --aws-tbl AWS_TBL
+                            AWS table with bucket name and keys
+      -s SBG_PROFILE, --sbg-profile SBG_PROFILE
+                            SBG profile name
+      -c CBIO_MANIFEST, --cbio-manifest CBIO_MANIFEST
+                            cBio manifest to limit downloads
+      -ao, --active-only    Only include active files
+      -rm, --rm-na          Remove entries where file_id and s3_path are NA
+      -d, --debug           Enable debug mode
+      -o, --overwrite       Overwrite files if they already exist
+      -dpc DATA_PROCESSING_CONFIG, --data-processing-config DATA_PROCESSING_CONFIG
+                            Data processing configuration file. Defaults to tool's STUDY_CONFIGS dir
+      -sf {both,kf,dgd}, --study-flag {both,kf,dgd}
+                            Study flag
+      -l, --legacy          Enable legacy mode
+  ```
+
+Example command line: 
+  ```sh
+    cbio_etl_runner \
+      --steps 2 3 \
+      --db-ini /path/to/db.ini \
+      --meta-config-file oligo_nation_case_meta_config.json \
+      --data-processing-config oligo_nation_data_processing_config.json \
+      --sbg-profile default \
+      --study-flag kf
+  ```
 
 ## I have everything and I know I am doing
 Below assumes you have already created the necessary tables from dbt

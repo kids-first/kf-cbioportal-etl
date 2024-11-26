@@ -1,0 +1,3 @@
+[console_scripts]
+cbio_etl_runner = cbio_etl_runner:main
+

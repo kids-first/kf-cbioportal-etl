@@ -1,0 +1,13 @@
+Metadata-Version: 2.1
+Name: cbio-etl-runner
+Version: 1.0.0
+Summary: A tool/ETL for converting data from CAVATICA and Data Warehouse to PedcBioportal format
+Home-page: UNKNOWN
+Author: Your Name
+License: UNKNOWN
+Platform: UNKNOWN
+Requires-Python: >=3.6
+License-File: LICENSE
+
+UNKNOWN
+

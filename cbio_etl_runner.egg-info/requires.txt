@@ -1,0 +1,10 @@
+wheel
+psycopg2-binary
+boto3
+pandas
+sevenbridges-python
+PyYAML
+dsnparse
+scipy
+bravado
+mysqlclient
