@@ -58,7 +58,7 @@ def setup_parser():
     # Arguments for Step 2 - diff_studies.py
     parser.add_argument("-u", "--url", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs", help="URL to search against")
     parser.add_argument("-s", "--study", required=True, help="Cancer study ID to compare on server")
-    parser.add_argument("-at", "--token", default=os.path.join(TOOL_DIR, "credentials/cbioportal_data_access_token.txt"), help="Token file obtained from Web API (default: credentials/cbioportal_data_access_token.txt)")
+    parser.add_argument("-at", "--token", required=False, help="Token file obtained from Web API. Required if running step 2")
     parser.add_argument("-ds", "--datasheet-sample", default=os.path.join(os.getcwd(), "datasheets/data_clinical_sample.txt"), help="File containing cBio-formatted sample metadata (default: datasheets/data_clinical_sample.txt from Step 1 output)")
     parser.add_argument("-dp", "--datasheet-patient", default=os.path.join(os.getcwd(), "datasheets/data_clinical_patient.txt"), help="File containing cBio-formatted patient metadata (default: datasheets/data_clinical_patient.txt from Step 1 output)")
 
