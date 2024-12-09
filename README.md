@@ -108,6 +108,7 @@ Example command line:
 cbio_etl_runner \
     --steps all \
     --db-ini /path/to/db.ini \
+    --token /path/to/cbioportal_data_access_token.txt \
     --study oligo_nation \
     --meta-config-file oligo_nation_case_meta_config.json \
     --data-processing-config oligo_nation_data_processing_config.json \
