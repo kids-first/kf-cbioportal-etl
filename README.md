@@ -75,7 +75,7 @@ Update the `cbioportal_validator` line in `*_data_processing_config.json` file:
 ### Edit required credentials files
 - Copy the `/credentials/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
 - Copy the `/credentials/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
-- A reusable access token for PedcBioPortal is located at `/credentials/cbioportal_data_access_token.txt` and can also be downloaded [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
+- Download a reusable access token for PedcBioPortal to `/credentials/cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
 
 ### Steps Argument
 The `--steps` argument specifies which steps of the pipeline to run. It is outlined as follows:
