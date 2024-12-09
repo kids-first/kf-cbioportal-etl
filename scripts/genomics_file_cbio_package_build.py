@@ -6,6 +6,7 @@ Clinical files should have been produced ahead of time, while supporting sample 
 If there are fusion files, they also need a table outlining sequencing center location.
 See README for prequisite details.
 """
+import os
 import sys
 import argparse
 import json
@@ -14,6 +15,21 @@ import time
 from functools import partial
 import pdb
 
+def resolve_config_paths(config, tool_dir, cwd):
+    """
+    Resolve paths dynamically based on assumptions:
+    - Paths starting with 'scripts/' or 'REFS/' are relative to the tool directory.
+    - Other paths are assumed to be relative to the current working directory.
+    """
+    for key, value in config.items():
+        if isinstance(value, dict):
+            resolve_config_paths(value, tool_dir, cwd)
+        elif isinstance(value, str) and not value.startswith(("http://", "https://")):
+            if value.startswith(("scripts/", "REFS/")):
+                config[key] = os.path.abspath(os.path.join(tool_dir, value))
+            else:
+                config[key] = os.path.abspath(os.path.join(cwd, value))
+    return config
 
 def log_cmd(cmd):
     """
@@ -49,8 +65,8 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
         # KF can be in multiple palces
         maf_dir = ",".join(maf_dir)
     maf_header = maf_loc_dict["header"]
-    maf_cmd = "{}maf_merge.py -t {} -i {} -m {} -j {} -f {} 2> collate_mafs.log".format(
-        script_dir, cbio_id_table, maf_header, maf_dir, data_config_file, dgd_status
+    maf_cmd = "{} -t {} -i {} -m {} -j {} -f {} 2> collate_mafs.log".format(
+        os.path.join(script_dir, "maf_merge.py"), cbio_id_table, maf_header, maf_dir, data_config_file, dgd_status
     )
     log_cmd(maf_cmd)
     run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
@@ -65,8 +81,8 @@ def process_append_dgd_maf(maf_loc_dict, cbio_id_table):
     in_maf_dir = maf_loc_dict["dgd"]
     append_maf = "merged_mafs/" + cbio_study_id + ".maf"
     append_cmd = (
-        "{}add_dgd_maf_to_pbta.py -i {} -m {} -t {} >> {} 2> dgd_append_maf.log".format(
-            script_dir, maf_header, in_maf_dir, cbio_id_table, append_maf
+        "{} -i {} -m {} -t {} >> {} 2> dgd_append_maf.log".format(
+            os.path.join(script_dir, "add_dgd_maf_to_pbta.py"), maf_header, in_maf_dir, cbio_id_table, append_maf
         )
     )
     log_cmd(append_cmd)
@@ -81,15 +97,15 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
     """
     sys.stderr.write("Processing CNV calls\n")
     cnv_dir = cnv_loc_dict["pval"]
-    gene_annot_cmd = "{}cnv_1_genome2gene.py -d {} -j {} 2> cnv_gene_annot.log".format(
-        script_dir, cnv_dir, data_config_file
+    gene_annot_cmd = "{} -d {} -j {} 2> cnv_gene_annot.log".format(
+        os.path.join(script_dir, "cnv_1_genome2gene.py"), cnv_dir, data_config_file
     )
     log_cmd(gene_annot_cmd)
     run_status["convert_to_gene"] = subprocess.Popen(gene_annot_cmd, shell=True)
     run_status["convert_to_gene"].wait()
     info_dir = cnv_loc_dict["info"]
-    merge_gene_cmd = "{}cnv_2_merge.py -t {} -n converted_cnvs -j {}".format(
-        script_dir, cbio_id_table, data_config_file
+    merge_gene_cmd = "{} -t {} -n converted_cnvs -j {}".format(
+        os.path.join(script_dir, "cnv_2_merge.py"), cbio_id_table, data_config_file
     )
     if info_dir != "":
         merge_gene_cmd += " -i " + info_dir
@@ -97,8 +113,8 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
     log_cmd(merge_gene_cmd)
     run_status["cnv_merge_gene"] = subprocess.Popen(merge_gene_cmd, shell=True)
     run_status["cnv_merge_gene"].wait()
-    gistic_style_cmd = "{}cnv_3_gistic_style.py -d merged_cnvs -j {} -t {}".format(
-        script_dir, data_config_file, cbio_id_table
+    gistic_style_cmd = "{} -d merged_cnvs -j {} -t {}".format(
+        os.path.join(script_dir, "cnv_3_gistic_style.py"), data_config_file, cbio_id_table
     )
     if info_dir != "":
         gistic_style_cmd += " -i " + info_dir
@@ -116,8 +132,8 @@ def process_seg(cnv_loc_dict, cbio_id_table, data_config_file):
     """
     sys.stderr.write("Processing CNV seg calls\n")
     seg_dir = cnv_loc_dict["seg"]
-    merge_seg_cmd = "{}cnv_merge_seg.py -t {} -m {} -j {} 2> cnv_merge_seg.log".format(
-        script_dir, cbio_id_table, seg_dir, data_config_file
+    merge_seg_cmd = "{} -t {} -m {} -j {} 2> cnv_merge_seg.log".format(
+        os.path.join(script_dir, "cnv_merge_seg.py"), cbio_id_table, seg_dir, data_config_file
     )
     log_cmd(merge_seg_cmd)
     status = subprocess.Popen(merge_seg_cmd, shell=True)
@@ -129,8 +145,8 @@ def process_rsem(rsem_dir, cbio_id_table):
     Merge rsem results by FPKM, calculate z-scores
     """
     sys.stderr.write("Processing RNA expression data\n")
-    merge_rsem_cmd = "{}rna_merge_rename_expression.py -t {} -r {} 2> rna_merge_rename_expression.log".format(
-        script_dir, cbio_id_table, rsem_dir
+    merge_rsem_cmd = "{} -t {} -r {} 2> rna_merge_rename_expression.log".format(
+        os.path.join(script_dir, "rna_merge_rename_expression.py"), cbio_id_table, rsem_dir
     )
     log_cmd(merge_rsem_cmd)
     run_status["rsem_merge"] = subprocess.Popen(merge_rsem_cmd, shell=True)
@@ -141,8 +157,8 @@ def process_kf_fusion(fusion_dir, cbio_id_table, mode):
     Collate and process annoFuse output
     """
     sys.stderr.write("Processing KF fusion calls\n")
-    fusion_cmd = "{}convert_fusion_as_sv.py -t {} -f {} -m {} 2> convert_fusion_as_sv.log".format(
-        script_dir, cbio_id_table, fusion_dir, mode
+    fusion_cmd = "{} -t {} -f {} -m {} 2> convert_fusion_as_sv.log".format(
+        os.path.join(script_dir, "convert_fusion_as_sv.py"), cbio_id_table, fusion_dir, mode
     )
     log_cmd(fusion_cmd)
     run_status["fusion"] = subprocess.Popen(fusion_cmd, shell=True)
@@ -153,8 +169,8 @@ def process_kf_fusion_legacy(fusion_dir, cbio_id_table, sq_file):
     Collate and process annoFuse output using deprecated format
     """
     sys.stderr.write("Processing KF fusion calls\n")
-    fusion_cmd = "{}rna_convert_fusion.py -t {} -f {} -m annofuse -s {} 2> rna_convert_fusion.log".format(
-        script_dir, cbio_id_table, fusion_dir, sq_file
+    fusion_cmd = "{} -t {} -f {} -m annofuse -s {} 2> rna_convert_fusion.log".format(
+        os.path.join(script_dir, "rna_convert_fusion.py"), cbio_id_table, fusion_dir, sq_file
     )
     log_cmd(fusion_cmd)
     run_status["fusion_legacy"] = subprocess.Popen(fusion_cmd, shell=True)
@@ -164,8 +180,8 @@ def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
     """
     Collate process DGD fusion output
     """
-    dgd_fusion_cmd = "{}convert_fusion_as_sv.py -t {} -f {} -m {}".format(
-        script_dir, cbio_id_table, fusion_dir, "dgd"
+    dgd_fusion_cmd = "{} -t {} -f {} -m {}".format(
+        os.path.join(script_dir, "convert_fusion_as_sv.py"), cbio_id_table, fusion_dir, "dgd"
     )
     if dgd_status == "both":
         sys.stderr.write("Appending DGD fusion calls\n")
@@ -236,17 +252,19 @@ parser.add_argument(
     help="If set, will run legacy fusion output",
 )
 
+TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CWD = os.getcwd()
 
 args = parser.parse_args()
 with open(args.data_config) as f:
     config_data = json.load(f)
-
+config_data = resolve_config_paths(config_data, TOOL_DIR, CWD)
 with open(args.cbio_config) as f:
     config_meta_case = json.load(f)
 
 cbio_study_id = config_meta_case["study"]["cancer_study_identifier"]
 # iterate through config file - file should only have keys related to data to be loaded
-script_dir = config_data["script_dir"]
+script_dir = os.path.join(TOOL_DIR, config_data["script_dir"])
 run_status = {}
 # Store a list of run priorities to ensure historically slower jobs kick off first using partial:
 # https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
@@ -340,12 +358,7 @@ while not done:
 
 # Run final package builder script
 sys.stderr.write("Creating load packages\n")
-pck_cmd = (
-    config_data["script_dir"]
-    + "organize_upload_packages.py -o processed -c "
-    + args.cbio_config
-    + " 2> load_package_create.log"
-)
+pck_cmd = f"{os.path.join(script_dir, 'organize_upload_packages.py')} -o processed -c {args.cbio_config} 2> load_package_create.log"
 exit_status = subprocess.call(pck_cmd, shell=True)
 check_status(exit_status, "load package")
 
