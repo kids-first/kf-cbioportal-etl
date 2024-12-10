@@ -81,8 +81,8 @@ Update the `cbioportal_validator` line in `*_data_processing_config.json` file:
 ```
 
 ### Edit required credentials files
-- Copy the `/credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
-- Copy the `/credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
+- Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
+- Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
 - Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
 
 ### Steps Argument
@@ -109,7 +109,7 @@ You can specify the steps in one of the following ways:
   ```bash
   --steps all
   ```
-  This will execute Steps 1 through 4.
+  This will execute Steps 1 through 5.
 
 Example command line: 
 ```sh
@@ -129,15 +129,15 @@ Below assumes you have already created the necessary tables from dbt
 1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
-    python3 scripts/get_files_from_manifest.py -s turbo -m cbio_file_name_id.txt -r
+    python3 cbioportal_etl/scripts/get_files_from_manifest.py -s turbo -m cbio_file_name_id.txt -r
    ```
   `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name + object prefixes and aws profile name pairs
 
-1. Copy and edit `STUDY_CONFIGS/pbta_all_data_processing_config.json` and `STUDY_CONFIGS/pbta_all_case_meta_config.json` as needed
+1. Copy and edit `cbioportal_etl/STUDY_CONFIGS/pbta_all_data_processing_config.json` and `cbioportal_etl/STUDY_CONFIGS/pbta_all_case_meta_config.json` as needed
 1. Run pipeline script - ignore manifest section, it is a placeholder for a better function download method
 
    ```sh
-   scripts/genomics_file_cbio_package_build.py -t cbio_file_name_id.txt -c pbta_all_case_meta_config.json -d pbta_all_data_processing_config.json -f both
+   cbioportal_etl/scripts/genomics_file_cbio_package_build.py -t cbio_file_name_id.txt -c pbta_all_case_meta_config.json -d pbta_all_data_processing_config.json -f both
    ```
 1. Check logs and outputs for errors, especially `validator.errs` and `validator.out`, assuming everything else went fine, to see if any `ERROR` popped up that would prevent the pakcage from loading properly once pushed to the bucket and Jenkins import job is run
 
@@ -215,10 +215,10 @@ cat *genomic* | cut -f 15 | cut -f 1-3 -d "/" | sort | uniq > aws_bucket_key_pai
 Just remove the `s3_path` and `None` entries
 
 ### Starting file inputs
-Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `scripts/export_clinical.sh`, we now use `scripts/get_study_metadata.py` to get the files.
+Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `cbioportal_etl/scripts/export_clinical.sh`, we now use `cbioportal_etl/scripts/get_study_metadata.py` to get the files.
 However, a python wrapper script that leverages the `x_case_meta_config.json` is recommended to use for each study.
 
-### scripts/get_study_metadata.py
+### cbioportal_etl/scripts/get_study_metadata.py
 ```
 usage: get_study_metadata.py [-h] [-d DB_INI] [-p PROFILE] [-c CONFIG_FILE]
 
@@ -252,7 +252,7 @@ This is the file that goes in as the `-t` arg in all the data collating tools
 #### - Data processing config file
 
 This is a json formatted file that has tool paths, reference paths, and run time params.
-An example is given in `STUDY_CONFIGS/pbta_all_data_processing_config.json`.
+An example is given in `cbioportal_etl/STUDY_CONFIGS/pbta_all_data_processing_config.json`.
 This section here:
 ```json
   "file_loc_defs": {
@@ -277,7 +277,7 @@ Will likely need the most editing existing based on your input, and should only 
 #### - Metadata processing config file
 
 This is a json config file with file descriptions and case lists required by the cbioportal.
-An example is given in `STUDY_CONFIGS/pbta_all_case_meta_config.json`.
+An example is given in `cbioportal_etl/STUDY_CONFIGS/pbta_all_case_meta_config.json`.
 Within this file is a `_doc` section with a decent explanation of the file format and layout.
 Be sure to review all data types to be loaded by review all `meta_*` to see if they match incoming data.
 Likely personalized edits would occur in the following fields:
@@ -294,7 +294,7 @@ Likely personalized edits would occur in the following fields:
 ### Pipeline script
 After downloading the genomic files and files above as needed, and properly editing config files as needed, this script should generate and validate the cBioportal load package
 
-### scripts/get_files_from_manifest.py
+### cbioportal_etl/scripts/get_files_from_manifest.py
 Currently, file locations are still too volatile to trust to make downloading part of the pipeline. Using various combinations of buckets and sbg file ID pulls will eventually get you everything
 ```
 usage: get_files_from_manifest.py [-h] [-m MANIFEST] [-f FTS] [-p PROFILE] [-s SBG_PROFILE] [-c CBIO] [-a] [-d]
@@ -318,7 +318,7 @@ optional arguments:
   -d, --debug           Just output manifest subset to see what would be grabbed
   -o, --overwrite       If set, overwrite if file exists
 ```
-### scripts/genomics_file_cbio_package_build.py
+### cbioportal_etl/scripts/genomics_file_cbio_package_build.py
 ```
 usage: genomics_file_cbio_package_build.py [-h] [-t TABLE] [-m MANIFEST] [-c CBIO_CONFIG] [-d DATA_CONFIG] [-f [{both,kf,dgd}]]
 
