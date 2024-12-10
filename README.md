@@ -21,32 +21,40 @@ pip install /path/to/kf-cbioportal-etl/
 ```
 If the install was successful, you should be able to run `cbioportal_etl --help`, which will give you the following menu: 
 ```
-usage: cbioportal_etl [-h] [--steps {1,2,3,all} [{1,2,3,all} ...]] -db DB_INI [-p PROFILE] -mc META_CONFIG_FILE [-r REF_DIR] [-a]
-                  [-m MANIFEST] [-f FILE_TYPES] [-t AWS_TBL] [-s SBG_PROFILE] [-c CBIO_MANIFEST] [-ao] [-rm] [-d] [-o] -dpc
-                  DATA_PROCESSING_CONFIG -sf {both,kf,dgd} [-l]
+usage: cbioportal_etl [-h] [--steps {1,2,3,4,5,all} [{1,2,3,4,5,all} ...]] -db DB_INI [-p PROFILE] [-mc META_CONFIG_FILE] [-r REF_DIR] [-a] [-u URL] -s STUDY [-at TOKEN] [-ds DATASHEET_SAMPLE] [-dp DATASHEET_PATIENT]
+                      [-m MANIFEST] [-f FILE_TYPES] [-t AWS_TBL] [-sp SBG_PROFILE] [-c CBIO_MANIFEST] [-ao] [-rm] [-d] [-o] [-dpc DATA_PROCESSING_CONFIG] -sf {both,kf,dgd} [-l]
 
 Run cBioPortal ETL pipeline
 
 optional arguments:
   -h, --help            show this help message and exit
-  --steps {1,2,3,all} [{1,2,3,all} ...]
-                        Steps to execute (e.g., 1 2 3 4 or all)
+  --steps {1,2,3,4,5,all} [{1,2,3,4,5,all} ...]
+                        Steps to execute (e.g., 1 2 3 or all)
   -db DB_INI, --db-ini DB_INI
                         Database config file
   -p PROFILE, --profile PROFILE
                         Profile name (default: postgresql)
   -mc META_CONFIG_FILE, --meta-config-file META_CONFIG_FILE
-                        Metadata configuration file. Defaults to tool's STUDY_CONFIGS dir
+                        Metadata configuration file. Default: value inputted for --study + '_case_meta_config.json'
   -r REF_DIR, --ref-dir REF_DIR
                         Reference directory. Defaults to tool's ref dir if not provided.
   -a, --all             Include all relevant files, not just status=active files, NOT RECOMMENDED
+  -u URL, --url URL     URL to search against
+  -s STUDY, --study STUDY
+                        Cancer study ID
+  -at TOKEN, --token TOKEN
+                        Token file obtained from Web API. Required if running Step 2
+  -ds DATASHEET_SAMPLE, --datasheet-sample DATASHEET_SAMPLE
+                        File containing cBio-formatted sample metadata (default: datasheets/data_clinical_sample.txt from Step 1 output)
+  -dp DATASHEET_PATIENT, --datasheet-patient DATASHEET_PATIENT
+                        File containing cBio-formatted patient metadata (default: datasheets/data_clinical_patient.txt from Step 1 output)
   -m MANIFEST, --manifest MANIFEST
-                        Manifest file (default: cbio_file_name_id.txt)
+                        Manifest file (default: cbio_file_name_id.txt from Step 1 output)
   -f FILE_TYPES, --file-types FILE_TYPES
                         Comma-separated file types to download
   -t AWS_TBL, --aws-tbl AWS_TBL
                         AWS table with bucket name and keys
-  -s SBG_PROFILE, --sbg-profile SBG_PROFILE
+  -sp SBG_PROFILE, --sbg-profile SBG_PROFILE
                         SBG profile name
   -c CBIO_MANIFEST, --cbio-manifest CBIO_MANIFEST
                         cBio manifest to limit downloads
@@ -55,7 +63,7 @@ optional arguments:
   -d, --debug           Enable debug mode
   -o, --overwrite       Overwrite files if they already exist
   -dpc DATA_PROCESSING_CONFIG, --data-processing-config DATA_PROCESSING_CONFIG
-                        Data processing configuration file. Defaults to tool's STUDY_CONFIGS dir
+                        Data processing configuration file. Default: value inputted for --study + '_data_processing_config.json'
   -sf {both,kf,dgd}, --study-flag {both,kf,dgd}
                         Study flag
   -l, --legacy          Enable legacy mode
