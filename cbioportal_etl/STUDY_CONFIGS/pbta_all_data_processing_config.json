@@ -1,9 +1,9 @@
 {
   "bedtools": "bedtools",
-  "cp_only_script": "/home/ubuntu/tools/kf-cbioportal-etl/scripts/get_cbio_copy_only_num.pl",
-  "bed_genes": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/Homo_sapiens.GRCh38.105.chr.gtf_genes.bed",
-  "hugo_tsv": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/HUGO_2021-06-01_EntrezID.tsv",
-  "entrez_tsv": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/EntrezGeneId_HugoGeneSymbol_2021-06-01.txt",
+  "cp_only_script": "scripts/get_cbio_copy_only_num.pl",
+  "bed_genes": "REFS/Homo_sapiens.GRCh38.105.chr.gtf_genes.bed",
+  "hugo_tsv": "REFS/HUGO_2021-06-01_EntrezID.tsv",
+  "entrez_tsv": "REFS/EntrezGeneId_HugoGeneSymbol_2021-06-01.txt",
   "rna_ext_list": {
     "expression": "rsem.genes.results.gz",
     "fusion": "annoFuse_filter.tsv"
@@ -16,8 +16,9 @@
   "file_loc_defs": {
     "_comment": "edit the values based on existing/anticipated source file locations, relative to working directory of the script being run",
     "mafs": {
-      "kf": ["annotated_public_outputs"],
-      "header": "/home/ubuntu/tools/kf-cbioportal-etl/REFS/maf_KF_CONSENSUS_r105.txt"
+      "kf": ["annotated_public_outputs", "consensus_public_outputs","mutect2_public_outputs"],
+      "dgd": "annotated_public",
+      "header": "REFS/maf_KF_CONSENSUS_r105.txt"
     },
     "cnvs": {
       "pval": "ctrlfreec_pval",
@@ -25,10 +26,11 @@
       "seg": "ctrlfreec_bam_seg"
     },
     "rsem": "RSEM_gene",
-    "fusion": "annofuse_filtered_fusions_tsv"
+    "fusion": "annofuse_filtered_fusions_tsv",
+    "dgd_fusion": "fusion-dgd.tsv.gz"
   },
-  "ens_gene_list":"/home/ubuntu/tools/kf-cbioportal-etl/REFS/gencode27_gene_list.txt",
-  "script_dir": "/home/ubuntu/tools/kf-cbioportal-etl/scripts/",
+  "ens_gene_list":"REFS/gencode27_gene_list.txt",
+  "script_dir": "scripts/",
   "cbioportal_validator": "/home/ubuntu/tools/cbioportal/core/src/main/scripts/importer/validateData.py",
   "cna_flag": 1,
   "cnv_high_gain": 4,
