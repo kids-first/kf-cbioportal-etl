@@ -5,7 +5,7 @@ See [below](#collaborative-and-publication-workflows) for special cases like pub
 ## Software Prerequisites
 + `python3` v3.5.3+
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
-+ `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
++ `IGOR` https://github.com/d3b-center/d3b-cli-igor
 + Access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo for server loading:
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
 

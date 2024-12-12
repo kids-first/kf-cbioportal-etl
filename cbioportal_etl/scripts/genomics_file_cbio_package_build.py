@@ -62,7 +62,7 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
     if args.dgd_status == "dgd":
         maf_dir = maf_loc_dict["dgd"]
     else:
-        # KF can be in multiple palces
+        # KF can be in multiple places
         maf_dir = ",".join(maf_dir)
     maf_header = maf_loc_dict["header"]
     maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -m {maf_dir} -j {data_config_file} -f {dgd_status} 2> collate_mafs.log"
