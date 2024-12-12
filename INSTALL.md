@@ -46,4 +46,4 @@
 
 5. **PedcBioPortal Access Token**:
     - Required for running step 2.
-    - File obtained from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens), then clicking on `Download Token`. File is reusable
+    - File obtained from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens), then clicking on `Download Token`. File is reusable unless expired.

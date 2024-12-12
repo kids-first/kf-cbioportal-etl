@@ -8,12 +8,12 @@ See [below](#collaborative-and-publication-workflows) for special cases like pub
 + `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
 + Access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo for server loading:
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
-+ [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
 
+[cBio load package v5.4.10](https://github.com/cBioPortal/cbioportal/releases/tag/v5.4.10) is used in this tool.
 Refer to [INSTALL.md](https://github.com/kids-first/kf-cbioportal-etl/INSTALL.md) and [setup.py](https://github.com/kids-first/kf-cbioportal-etl/setup.py) for more details.
 
 
-## Install and run tool
+## Install tool
 Run on `Mgmt-Console-Dev-chopd3bprod@684194535433` EC2 instance
 ```sh
 git clone https://github.com/kids-first/kf-cbioportal-etl.git
@@ -69,18 +69,18 @@ optional arguments:
   -l, --legacy          Enable legacy mode
 ```
 
-### Download cBio load package v5.4.10
+## Run tool
 ```sh
-wget https://github.com/cBioPortal/cbioportal/archive/refs/tags/v5.4.10.tar.gz
-tar -xzf v5.4.10.tar.gz
-```
-Now you should have an uncompressed directory `cbioportal-5.4.10`. 
-Update the `cbioportal_validator` line in `*_data_processing_config.json` file:
-```json
-  "cbioportal_validator": "/path/to/cbioportal-5.4.10/core/src/main/scripts/importer/validateData.py",
-```
+cbioportal_etl \
+    --steps all \
+    --db-ini /path/to/db.ini \
+    --token /path/to/cbioportal_data_access_token.txt \
+    --study oligo_nation \
+    --sbg-profile default \
+    --study-flag kf
+  ```
 
-### Edit required credentials files
+### Required credentials files
 - Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
 - Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
 - Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
@@ -110,17 +110,6 @@ You can specify the steps in one of the following ways:
   --steps all
   ```
   This will execute Steps 1 through 5.
-
-Example command line: 
-```sh
-cbioportal_etl \
-    --steps all \
-    --db-ini /path/to/db.ini \
-    --token /path/to/cbioportal_data_access_token.txt \
-    --study oligo_nation \
-    --sbg-profile default \
-    --study-flag kf
-  ```
 
 ## Run manually without tool installation
 Below assumes you have already created the necessary tables from dbt
