@@ -30,11 +30,30 @@ import argparse
 import os
 import subprocess
 import sys
+import requests
+import tarfile
 
 TOOL_DIR = os.path.dirname(os.path.abspath(__file__))
 SCRIPTS_DIR = os.path.join(TOOL_DIR, "scripts")
 CONFIGS_DIR = os.path.join(TOOL_DIR, "STUDY_CONFIGS")
 REFS_DIR = os.path.join(TOOL_DIR, "REFS")
+
+def fetch_validator_scripts():
+    repo_url = "https://github.com/cBioPortal/cbioportal/archive/refs/tags/v5.4.10.tar.gz"
+    tar_file = "v5.4.10.tar.gz"
+    extract_dir = os.path.join(TOOL_DIR, "external_scripts")
+
+    if not os.path.exists(os.path.join(extract_dir, "cbioportal-5.4.10")):
+        sys.stderr.write("Downloading cBioPortal repository...\n")
+        response = requests.get(repo_url, stream=True)
+        with open(tar_file, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                f.write(chunk)
+
+        sys.stderr.write("Extracting cBioPortal repository...\n")
+        with tarfile.open(tar_file, "r:gz") as tar:
+            tar.extractall(path=TOOL_DIR)
+        os.remove(tar_file)
 
 def resolve_config_path(provided_path, default_path):
     """
@@ -126,10 +145,15 @@ def main():
     if args.ref_dir is None:
         args.ref_dir = REFS_DIR
 
+    # Resolve config file paths
     default_meta_config = os.path.join(CONFIGS_DIR, f"{args.study}_case_meta_config.json")
     default_data_config = os.path.join(CONFIGS_DIR, f"{args.study}_data_processing_config.json")
     args.meta_config_file = resolve_config_path(args.meta_config_file, default_meta_config)
     args.data_processing_config = resolve_config_path(args.data_processing_config, default_data_config)
+
+    # Download repo with validateData.py 
+    if "5" in args.steps or "all" in args.steps:
+        fetch_validator_scripts()
 
     steps = {
         1: {

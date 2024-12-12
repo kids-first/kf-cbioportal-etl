@@ -29,7 +29,7 @@
   },
   "ens_gene_list":"REFS/gencode27_gene_list.txt",
   "script_dir": "scripts/",
-  "cbioportal_validator": "/home/ubuntu/tools/cbioportal/core/src/main/scripts/importer/validateData.py",
+  "cbioportal_validator": "external_scripts/cbioportal-5.4.10/core/src/main/scripts/importer/validateData.py",
   "cna_flag": 1,
   "cnv_high_gain": 4,
   "rna_flag": 1,

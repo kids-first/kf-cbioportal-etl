@@ -25,7 +25,7 @@ def resolve_config_paths(config, tool_dir, cwd):
         if isinstance(value, dict):
             resolve_config_paths(value, tool_dir, cwd)
         elif isinstance(value, str) and not value.startswith(("http://", "https://")):
-            if value.startswith(("REFS/", "scripts/")):
+            if value.startswith(("REFS/", "scripts/", "external_scripts/")):
                 config[key] = os.path.abspath(os.path.join(tool_dir, value))
             else:
                 config[key] = os.path.abspath(os.path.join(cwd, value))
