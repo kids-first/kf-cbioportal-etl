@@ -21,8 +21,8 @@ pip install /path/to/kf-cbioportal-etl/
 ```
 If the install was successful, you should be able to run `cbioportal_etl --help`, which will give you the following menu: 
 ```
-usage: cbioportal_etl [-h] [--steps {1,2,3,4,5,all} [{1,2,3,4,5,all} ...]] -db DB_INI [-p PROFILE] [-mc META_CONFIG_FILE] [-r REF_DIR] [-a] [-u URL] -s STUDY [-at TOKEN] [-ds DATASHEET_SAMPLE] [-dp DATASHEET_PATIENT]
-                      [-m MANIFEST] [-f FILE_TYPES] [-t AWS_TBL] [-sp SBG_PROFILE] [-c CBIO_MANIFEST] [-ao] [-rm] [-d] [-o] [-dpc DATA_PROCESSING_CONFIG] -sf {both,kf,dgd} [-l]
+usage: cbioportal_etl [-h] [--steps {1,2,3,4,5,all} [{1,2,3,4,5,all} ...]] -db DB_INI [-p PROFILE] [-mc META_CONFIG] [-r REF_DIR] [-a] [-u URL] -s STUDY [-t TOKEN] [-ds DATASHEET_SAMPLE] [-dp DATASHEET_PATIENT] [-m MANIFEST] [-f FILE_TYPES] [-at AWS_TBL]
+                      [-sp SBG_PROFILE] [-c CBIO] [-ao] [-rm] [-d] [-o] [-ms MANIFEST_SUBSET] [-dc DATA_CONFIG] [-dgd {both,kf,dgd}] [-l]
 
 Run cBioPortal ETL pipeline
 
@@ -34,7 +34,7 @@ optional arguments:
                         Database config file
   -p PROFILE, --profile PROFILE
                         Profile name (default: postgresql)
-  -mc META_CONFIG_FILE, --meta-config-file META_CONFIG_FILE
+  -mc META_CONFIG, --meta-config META_CONFIG
                         Metadata configuration file. Default: value inputted for --study + '_case_meta_config.json'
   -r REF_DIR, --ref-dir REF_DIR
                         Reference directory. Defaults to tool's ref dir if not provided.
@@ -42,7 +42,7 @@ optional arguments:
   -u URL, --url URL     URL to search against
   -s STUDY, --study STUDY
                         Cancer study ID
-  -at TOKEN, --token TOKEN
+  -t TOKEN, --token TOKEN
                         Token file obtained from Web API. Required if running Step 2
   -ds DATASHEET_SAMPLE, --datasheet-sample DATASHEET_SAMPLE
                         File containing cBio-formatted sample metadata (default: datasheets/data_clinical_sample.txt from Step 1 output)
@@ -52,20 +52,21 @@ optional arguments:
                         Manifest file (default: cbio_file_name_id.txt from Step 1 output)
   -f FILE_TYPES, --file-types FILE_TYPES
                         Comma-separated file types to download
-  -t AWS_TBL, --aws-tbl AWS_TBL
+  -at AWS_TBL, --aws-tbl AWS_TBL
                         AWS table with bucket name and keys
   -sp SBG_PROFILE, --sbg-profile SBG_PROFILE
                         SBG profile name
-  -c CBIO_MANIFEST, --cbio-manifest CBIO_MANIFEST
-                        cBio manifest to limit downloads
+  -c CBIO, --cbio CBIO  cBio manifest to limit downloads
   -ao, --active-only    Only include active files
   -rm, --rm-na          Remove entries where file_id and s3_path are NA
   -d, --debug           Enable debug mode
   -o, --overwrite       Overwrite files if they already exist
-  -dpc DATA_PROCESSING_CONFIG, --data-processing-config DATA_PROCESSING_CONFIG
+  -ms MANIFEST_SUBSET, --manifest-subset MANIFEST_SUBSET
+                        Check that files were downloaded. Default: manifest_subset.tsv from Step 3
+  -dc DATA_CONFIG, --data-config DATA_CONFIG
                         Data processing configuration file. Default: value inputted for --study + '_data_processing_config.json'
-  -sf {both,kf,dgd}, --study-flag {both,kf,dgd}
-                        Study flag
+  -dgd {both,kf,dgd}, --dgd-status {both,kf,dgd}
+                        Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd). Default: kf
   -l, --legacy          Enable legacy mode
 ```
 
@@ -76,8 +77,7 @@ cbioportal_etl \
     --db-ini /path/to/db.ini \
     --token /path/to/cbioportal_data_access_token.txt \
     --study oligo_nation \
-    --sbg-profile default \
-    --study-flag kf
+    --sbg-profile default
   ```
 
 ### Required credentials files

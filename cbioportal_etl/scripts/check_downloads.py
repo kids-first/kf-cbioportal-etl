@@ -8,17 +8,6 @@ import sys
 import os
 import pdb
 
-
-parser = argparse.ArgumentParser(description="Check that files were downloaded")
-parser.add_argument(
-    "-m",
-    "--manifest-subset",
-    action="store",
-    dest="manifest",
-    help="tsv list of desired genomic files",
-)
-
-
 def check_exists(entry, t_idx, n_idx):
     info = entry.rstrip('\n').split('\t')
     fpath = "{}/{}".format(info[t_idx], info[n_idx])
@@ -27,27 +16,37 @@ def check_exists(entry, t_idx, n_idx):
     else:
         return False
 
+def run_py(args):
+    missed = open('missing_files.txt', 'w')
+    with open(args.manifest_subset) as m:
+        head = next(m)
+        header = head.rstrip('\n').split('\t')
+        t_idx = header.index('file_type')
+        n_idx = header.index('file_name')
+        missed_ct = 0
+        with concurrent.futures.ThreadPoolExecutor(40) as executor:
+            results = {executor.submit(check_exists, file_info, t_idx, n_idx): file_info for file_info in m}
+            for result in concurrent.futures.as_completed(results):
+                if result.result():
+                    print(result.result(), file=missed)
+                    missed_ct += 1
+        # debug single thread
+        # for file_info in m:
+        #     check_exists(file_info, t_idx, n_idx)
 
-args = parser.parse_args()
-missed = open('missing_files.txt', 'w')
-with open(args.manifest) as m:
-    head = next(m)
-    header = head.rstrip('\n').split('\t')
-    t_idx = header.index('file_type')
-    n_idx = header.index('file_name')
-    missed_ct = 0
-    with concurrent.futures.ThreadPoolExecutor(40) as executor:
-        results = {executor.submit(check_exists, file_info, t_idx, n_idx): file_info for file_info in m}
-        for result in concurrent.futures.as_completed(results):
-            if result.result():
-                print(result.result(), file=missed)
-                missed_ct += 1
-    # debug single thread
-    # for file_info in m:
-    #     check_exists(file_info, t_idx, n_idx)
+    missed.close
+    if missed_ct:
+        print("Missed {} files".format(missed_ct), file=sys.stderr)
+    else:
+        print("Got em all! Good job Ash!", file=sys.stderr)
 
-missed.close
-if missed_ct:
-    print("Missed {} files".format(missed_ct), file=sys.stderr)
-else:
-    print("Got em all! Good job Ash!", file=sys.stderr)
+def main():
+    parser = argparse.ArgumentParser(description="Check that files were downloaded")
+    parser.add_argument("-ms", "--manifest-subset", action="store", dest="manifest", help="tsv list of desired genomic files")
+    
+    args = parser.parse_args()
+    run_py(args)
+    
+
+if __name__ == "__main__":
+    main()

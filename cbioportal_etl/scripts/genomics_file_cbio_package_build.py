@@ -38,7 +38,7 @@ def log_cmd(cmd):
     sys.stderr.write(cmd + "\n")
     sys.stderr.flush()
 
-def check_status(status, data_type):
+def check_status(status, data_type, run_status):
     if status:
         sys.stderr.write(
             "Something when wrong while processing the "
@@ -53,13 +53,13 @@ def check_status(status, data_type):
         sys.stderr.flush()
 
 
-def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
+def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status, script_dir, run_status):
     """
     Collate and process pbta/kf style mafs. Call append if also adding dgd data
     """
     sys.stderr.write("Processing maf files\n")
     maf_dir = maf_loc_dict["kf"]
-    if args.dgd_status == "dgd":
+    if dgd_status == "dgd":
         maf_dir = maf_loc_dict["dgd"]
     else:
         # KF can be in multiple places
@@ -70,7 +70,7 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status):
     run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
 
 
-def process_append_dgd_maf(maf_loc_dict, cbio_id_table):
+def process_append_dgd_maf(maf_loc_dict, cbio_id_table, cbio_study_id, script_dir):
     """
     Append DGD mafs to existing collated kf maf
     """
@@ -87,7 +87,7 @@ def process_append_dgd_maf(maf_loc_dict, cbio_id_table):
     return status
 
 
-def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
+def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table, script_dir, run_status):
     """
     Add gene info to CNV calls, merge into table, and create GISTIC-style output
     """
@@ -113,10 +113,10 @@ def process_cnv(cnv_loc_dict, data_config_file, cbio_id_table):
     run_status["gistic"] = subprocess.Popen(gistic_style_cmd, shell=True)
 
     if "seg" in cnv_loc_dict:
-        run_status["seg"] = process_seg(cnv_loc_dict, cbio_id_table, data_config_file)
+        run_status["seg"] = process_seg(cnv_loc_dict, cbio_id_table, data_config_file, script_dir)
 
 
-def process_seg(cnv_loc_dict, cbio_id_table, data_config_file):
+def process_seg(cnv_loc_dict, cbio_id_table, data_config_file, script_dir):
     """
     Collate and process CNV seg files
     """
@@ -128,7 +128,7 @@ def process_seg(cnv_loc_dict, cbio_id_table, data_config_file):
     return status
 
 
-def process_rsem(rsem_dir, cbio_id_table):
+def process_rsem(rsem_dir, cbio_id_table, script_dir, run_status):
     """
     Merge rsem results by FPKM, calculate z-scores
     """
@@ -138,7 +138,7 @@ def process_rsem(rsem_dir, cbio_id_table):
     run_status["rsem_merge"] = subprocess.Popen(merge_rsem_cmd, shell=True)
 
 
-def process_kf_fusion(fusion_dir, cbio_id_table, mode):
+def process_kf_fusion(fusion_dir, cbio_id_table, mode, script_dir, run_status):
     """
     Collate and process annoFuse output
     """
@@ -148,7 +148,7 @@ def process_kf_fusion(fusion_dir, cbio_id_table, mode):
     run_status["fusion"] = subprocess.Popen(fusion_cmd, shell=True)
 
 
-def process_kf_fusion_legacy(fusion_dir, cbio_id_table, sq_file):
+def process_kf_fusion_legacy(fusion_dir, cbio_id_table, sq_file, script_dir, run_status):
     """
     Collate and process annoFuse output using deprecated format
     """
@@ -158,7 +158,7 @@ def process_kf_fusion_legacy(fusion_dir, cbio_id_table, sq_file):
     run_status["fusion_legacy"] = subprocess.Popen(fusion_cmd, shell=True)
 
 
-def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
+def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status, script_dir, cbio_study_id):
     """
     Collate process DGD fusion output
     """
@@ -174,187 +174,153 @@ def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status):
     status = subprocess.Popen(dgd_fusion_cmd, shell=True)
     return status
 
+def run_py(args):
+    # This part is commented out for now as there is no good solution yet for files stored in different account - need to be able to run chopaws to get key
+    # if(args.manifest != None):
+    #     sys.stderr.write('Download manifest given. Downloading files\n')
+    #     dl_file_cmd = config_data['script_dir'] + 'get_files_from_manifest.py -m ' + args.manifest + ' -f ' + join(config_data['dl_file_type_list'] + ' -p saml')
+    #     subprocess.Popen(dl_file_cmd, shell=True)
 
-# This part is commented out for now as there is no good solution yet for files stored in different account - need to be able to run chopaws to get key
-# if(args.manifest != None):
-#     sys.stderr.write('Download manifest given. Downloading files\n')
-#     dl_file_cmd = config_data['script_dir'] + 'get_files_from_manifest.py -m ' + args.manifest + ' -f ' + join(config_data['dl_file_type_list'] + ' -p saml')
-#     subprocess.Popen(dl_file_cmd, shell=True)
+    TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    CWD = os.getcwd()
+    
+    with open(args.data_config) as f:
+        config_data = json.load(f)
+    config_data = resolve_config_paths(config_data, TOOL_DIR, CWD)
+    with open(args.meta_config) as f:
+        config_meta_case = json.load(f)
 
-parser = argparse.ArgumentParser(
-    description="Download files (if needed), collate genomic files, organize load package."
-)
-parser.add_argument(
-    "-t",
-    "--table",
-    action="store",
-    dest="table",
-    help="Table with cbio project, kf bs ids, cbio IDs, and file names",
-)
-parser.add_argument(
-    "-m",
-    "--manifest",
-    action="store",
-    dest="manifest",
-    help="Download file manifest, if needed",
-)
-parser.add_argument(
-    "-c",
-    "--cbio-config",
-    action="store",
-    dest="cbio_config",
-    help="cbio case and meta config file",
-)
-parser.add_argument(
-    "-d",
-    "--data-config",
-    action="store",
-    dest="data_config",
-    help="json config file with data types and data locations",
-)
-parser.add_argument(
-    "-f",
-    "--dgd-status",
-    action="store",
-    dest="dgd_status",
-    help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)",
-    default="both",
-    const="both",
-    nargs="?",
-    choices=["both", "kf", "dgd"],
-)
-parser.add_argument(
-    "-l",
-    "--legacy", 
-    default=False,
-    action="store_true",
-    dest="legacy",
-    help="If set, will run legacy fusion output",
-)
-
-TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CWD = os.getcwd()
-
-args = parser.parse_args()
-with open(args.data_config) as f:
-    config_data = json.load(f)
-config_data = resolve_config_paths(config_data, TOOL_DIR, CWD)
-with open(args.cbio_config) as f:
-    config_meta_case = json.load(f)
-
-cbio_study_id = config_meta_case["study"]["cancer_study_identifier"]
-# iterate through config file - file should only have keys related to data to be loaded
-script_dir = os.path.join(TOOL_DIR, config_data["script_dir"])
-run_status = {}
-# Store a list of run priorities to ensure historically slower jobs kick off first using partial:
-# https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
-run_priority = ["rsem", "mafs", "fusion", "cnvs"]
-run_queue = {}
-for key in config_meta_case:
-    if key.startswith("merged_"):
-        data_type = "_".join(key.split("_")[1:])
-        if data_type == "mafs":
-            run_queue["mafs"] = partial(process_maf,
-                config_data["file_loc_defs"]["mafs"],
-                args.table,
-                args.data_config,
-                args.dgd_status
-            )
-        elif data_type == "rsem":
-            run_queue["rsem"] = partial(process_rsem, config_data["file_loc_defs"]["rsem"], args.table)
-        elif data_type == "fusion":
-            # Status both works for...both, only when one is specifically picked should one not be run
-            if args.dgd_status != "dgd":
-                if not args.legacy:
-                    run_queue["fusion"]=partial(process_kf_fusion,
-                        config_data["file_loc_defs"]["fusion"],
-                        args.table,
-                        "kfprod"
+    cbio_study_id = config_meta_case["study"]["cancer_study_identifier"]
+    # iterate through config file - file should only have keys related to data to be loaded
+    script_dir = os.path.join(TOOL_DIR, config_data["script_dir"])
+    run_status = {}
+    # Store a list of run priorities to ensure historically slower jobs kick off first using partial:
+    # https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
+    run_priority = ["rsem", "mafs", "fusion", "cnvs"]
+    run_queue = {}
+    for key in config_meta_case:
+        if key.startswith("merged_"):
+            data_type = "_".join(key.split("_")[1:])
+            if data_type == "mafs":
+                run_queue["mafs"] = partial(process_maf,
+                    config_data["file_loc_defs"]["mafs"],
+                    args.manifest,
+                    args.data_config,
+                    args.dgd_status,
+                    script_dir, 
+                    run_status
+                )
+            elif data_type == "rsem":
+                run_queue["rsem"] = partial(process_rsem, config_data["file_loc_defs"]["rsem"], args.manifest, script_dir, run_status)
+            elif data_type == "fusion":
+                # Status both works for...both, only when one is specifically picked should one not be run
+                if args.dgd_status != "dgd":
+                    if not args.legacy:
+                        run_queue["fusion"]=partial(process_kf_fusion,
+                            config_data["file_loc_defs"]["fusion"],
+                            args.manifest,
+                            "kfprod", script_dir, run_status
+                            )
+                    else:
+                        run_queue["fusion"] = partial(process_kf_fusion_legacy, 
+                            config_data["file_loc_defs"]["fusion"],
+                            args.manifest,
+                            config_data["file_loc_defs"]["fusion_sq_file"],
+                            script_dir, 
+                            run_status
                         )
-                else:
-                    run_queue["fusion"] = partial(process_kf_fusion_legacy, 
-                        config_data["file_loc_defs"]["fusion"],
-                        args.table,
-                        config_data["file_loc_defs"]["fusion_sq_file"],
-                    )
-        elif data_type == "cnvs":
-            run_queue["cnvs"] = partial(process_cnv,
-                config_data["file_loc_defs"]["cnvs"], args.data_config, args.table
-            )
-for job in run_priority:
-    if job in run_queue:
-        run_queue[job]()
+            elif data_type == "cnvs":
+                run_queue["cnvs"] = partial(process_cnv,
+                    config_data["file_loc_defs"]["cnvs"], args.data_config, args.manifest, script_dir, run_status
+                )
+    for job in run_priority:
+        if job in run_queue:
+            run_queue[job]()
 
-# Wait for concurrent processes to finish and report statuses
-x = 30
-n = 0
-done = False
+    # Wait for concurrent processes to finish and report statuses
+    x = 30
+    n = 0
+    done = False
 
-# cheat flag to add append dgd maf once KF/PBTA maf is done when set to both
-dgd_maf_append = 0
-dgd_fusion_append = 0
-while not done:
-    time.sleep(x)
-    n += x
-    # don't need to check the same process over and over again if done
-    rm_keys = []
-    done = True
-    sys.stderr.write(str(n) + " seconds have passed\n")
+    # cheat flag to add append dgd maf once KF/PBTA maf is done when set to both
+    dgd_maf_append = 0
+    dgd_fusion_append = 0
+    while not done:
+        time.sleep(x)
+        n += x
+        # don't need to check the same process over and over again if done
+        rm_keys = []
+        done = True
+        sys.stderr.write(str(n) + " seconds have passed\n")
+        sys.stderr.flush()
+        if dgd_maf_append:
+            run_queue["dgd_maf_append"] = partial(process_append_dgd_maf, config_data["file_loc_defs"]["mafs"], args.manifest, cbio_study_id, script_dir)
+            run_queue["dgd_maf_append"]()
+            sys.stderr.write("dgd status was both, appending dgd maf\n")
+            # don't want to restart this job, let regular logic take over
+            dgd_maf_append = 0
+        if dgd_fusion_append:
+            run_queue["dgd_fusion_append"] = partial(process_dgd_fusion, args.manifest, config_data["file_loc_defs"]["dgd_fusion"], args.dgd_status, script_dir, cbio_study_id)
+            run_queue["dgd_fusion_append"]()
+            sys.stderr.write("dgd status was both, appending dgd fusions\n")
+            # don't want to restart this job, let regular logic take over
+            dgd_fusion_append = 0
+
+        for key in run_status:
+            run_status[key].poll()
+            sys.stderr.write("Checking " + key + " status\n")
+            if run_status[key].returncode != None:
+                check_status(run_status[key].returncode, key, run_status)
+                rm_keys.append(key)
+                # not all studies that have DGD fusion have maf
+                if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
+                    dgd_maf_append = 1
+                    done = False
+                elif key == 'fusion' and args.dgd_status=='both':
+                    dgd_fusion_append = 1
+                    done = False
+
+            else:
+                done = False
+        for key in rm_keys:
+            sys.stderr.write("Removed " + key + " from check queue as task is complete\n")
+            del run_status[key]
+
+    # Run final package builder script
+    sys.stderr.write("Creating load packages\n")
+    pck_cmd = f"python3 {os.path.join(script_dir, 'organize_upload_packages.py')} -o processed -c {args.meta_config} 2> load_package_create.log"
+    exit_status = subprocess.call(pck_cmd, shell=True)
+    check_status(exit_status, "load package", run_status)
+
+    # Run cbioportal data validator
+    sys.stderr.write("Validating load packages\n")
     sys.stderr.flush()
-    if dgd_maf_append:
-        run_queue["dgd_maf_append"] = partial(process_append_dgd_maf, config_data["file_loc_defs"]["mafs"], args.table)
-        run_queue["dgd_maf_append"]()
-        sys.stderr.write("dgd status was both, appending dgd maf\n")
-        # don't want to restart this job, let regular logic take over
-        dgd_maf_append = 0
-    if dgd_fusion_append:
-        run_queue["dgd_fusion_append"] = partial(process_dgd_fusion, args.table, config_data["file_loc_defs"]["dgd_fusion"], args.dgd_status)
-        run_queue["dgd_fusion_append"]()
-        sys.stderr.write("dgd status was both, appending dgd fusions\n")
-        # don't want to restart this job, let regular logic take over
-        dgd_fusion_append = 0
-
-    for key in run_status:
-        run_status[key].poll()
-        sys.stderr.write("Checking " + key + " status\n")
-        if run_status[key].returncode != None:
-            check_status(run_status[key].returncode, key)
-            rm_keys.append(key)
-            # not all studies that have DGD fusion have maf
-            if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
-                dgd_maf_append = 1
-                done = False
-            elif key == 'fusion' and args.dgd_status=='both':
-                dgd_fusion_append = 1
-                done = False
-
-        else:
-            done = False
-    for key in rm_keys:
-        sys.stderr.write("Removed " + key + " from check queue as task is complete\n")
-        del run_status[key]
-
-
-
-# Run final package builder script
-sys.stderr.write("Creating load packages\n")
-pck_cmd = f"python3 {os.path.join(script_dir, 'organize_upload_packages.py')} -o processed -c {args.cbio_config} 2> load_package_create.log"
-exit_status = subprocess.call(pck_cmd, shell=True)
-check_status(exit_status, "load package")
-
-# Run cbioportal data validator
-sys.stderr.write("Validating load packages\n")
-sys.stderr.flush()
-validate = (
-    config_data["cbioportal_validator"]
-    + " -s processed/"
-    + cbio_study_id
-    + " -n -v 2> validator.errs > validator.out"
-)
-exit_status = subprocess.call(validate, shell=True)
-if exit_status:
-    sys.stderr.write(
-        "Validator quit with status "
-        + str(exit_status)
-        + ". Check validator.errs and validator.out for more info\n"
+    validate = (
+        config_data["cbioportal_validator"]
+        + " -s processed/"
+        + cbio_study_id
+        + " -n -v 2> validator.errs > validator.out"
     )
+    exit_status = subprocess.call(validate, shell=True)
+    if exit_status:
+        sys.stderr.write(
+            "Validator quit with status "
+            + str(exit_status)
+            + ". Check validator.errs and validator.out for more info\n"
+        )
+
+def main():
+    parser = argparse.ArgumentParser(description="Download files (if needed), collate genomic files, organize load package.")
+    # parser.add_argument("-t", "--table", action="store", dest="table", help="Table with cbio project, kf bs ids, cbio IDs, and file names")
+    parser.add_argument("-m", "--manifest", action="store", dest="manifest", help="Download file manifest with cbio project, kf bs ids, cbio IDs, and file names")
+    parser.add_argument("-mc", "--meta-config", action="store", dest="meta_config", help="cbio case and meta config file")
+    parser.add_argument("-dc", "--data-config", action="store", dest="data_config", help="json config file with data types and data locations")
+    parser.add_argument("-dgd", "--dgd-status", action="store", dest="dgd_status", help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)", default="both", const="both", nargs="?", choices=["both", "kf", "dgd"])
+    parser.add_argument("-l", "--legacy",  default=False, action="store_true", dest="legacy", help="If set, will run legacy fusion output")
+
+    args = parser.parse_args()
+    run_py(args)
+
+
+if __name__ == "__main__":
+    main()

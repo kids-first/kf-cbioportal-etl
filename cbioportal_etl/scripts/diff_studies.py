@@ -118,28 +118,7 @@ def data_clinical_from_study(cbio_conn, study_id, data_type, aggr_list):
         data_dict[clinical_id][attr_id] = value
     return data_dict
 
-
-def main():
-    parser = argparse.ArgumentParser(
-        description="Compare local clinical data to server"
-    )
-    parser.add_argument(
-        "-u", "--url", action="store", dest="url", help="url to search against", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs"
-    )
-    parser.add_argument(
-        "-c", "--study", action="store", dest="study", help="Cancer study ID to compare on server"
-    )
-    parser.add_argument(
-        "-t", "--token", action="store", dest="token", help="Token file obtained from Web API"
-    )
-    parser.add_argument(
-        "-s", "--datasheet-sample", action="store", dest="data_sample", help="File containing cBio-formatted sample metadata, typically named data_clinical_sample.txt"
-    )
-    parser.add_argument(
-        "-p", "--datasheet-patient", action="store", dest="data_patient", help="File containing cBio-formatted patient metadata, typically named data_clinical_patient.txt"
-    )
-
-    args = parser.parse_args()
+def run_py(args):
     with open(args.token, 'r') as token_file:
         token = token_file.read().rstrip().split(': ')[1]
 
@@ -167,7 +146,7 @@ def main():
     attr_key_obj = cbioportal.Clinical_Attributes.fetchClinicalAttributesUsingPOST(studyIds=[args.study], projection='ID').result()
     # gather sample-level metadata
     portal_sample_data = data_clinical_from_study(cbioportal, args.study, "SAMPLE", aggr_list)
-    build_sample_data, build_sample_attr_keys = table_to_dict(args.data_sample, "SAMPLE_ID", aggr_list)
+    build_sample_data, build_sample_attr_keys = table_to_dict(args.datasheet_sample, "SAMPLE_ID", aggr_list)
     portal_sample_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if not x.patientAttribute])
     # implicit attributes not returned by function that are required for sample view
     portal_sample_attr_keys.update(portal_sample_attr_implicit)
@@ -178,12 +157,23 @@ def main():
         clinical_diffs(portal_sample_data, build_sample_data, portal_sample_attr_keys, build_sample_attr_keys, "Sample", sample_diff_out)
     # patient-level diffs
     portal_patient_data =  data_clinical_from_study(cbioportal, args.study, "PATIENT", aggr_list)
-    build_patient_data, build_patient_attr_keys = table_to_dict(args.data_patient, "PATIENT_ID", aggr_list)
+    build_patient_data, build_patient_attr_keys = table_to_dict(args.datasheet_patient, "PATIENT_ID", aggr_list)
     portal_patient_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if x.patientAttribute])
     # drop attributes that are post-load portal-specific
     portal_patient_attr_keys -= set(portal_patient_attr_skip)
     with open('patient_portal_v_build.txt', 'w') as patient_diff_out:
         clinical_diffs(portal_patient_data, build_patient_data, portal_patient_attr_keys, build_patient_attr_keys, "Patient", patient_diff_out)
+
+def main():
+    parser = argparse.ArgumentParser(description="Compare local clinical data to server")
+    parser.add_argument("-u", "--url", action="store", dest="url", help="url to search against", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs")
+    parser.add_argument("-c", "--study", action="store", dest="study", help="Cancer study ID to compare on server")
+    parser.add_argument("-t", "--token", action="store", dest="token", help="Token file obtained from Web API")
+    parser.add_argument("-ds", "--datasheet-sample", action="store", dest="datasheet_sample", help="File containing cBio-formatted sample metadata, typically named data_clinical_sample.txt")
+    parser.add_argument("-dp", "--datasheet-patient", action="store", dest="datasheet_patient", help="File containing cBio-formatted patient metadata, typically named data_clinical_patient.txt")
+
+    args = parser.parse_args()
+    run_py(args)
 
 
 if __name__ == '__main__':
