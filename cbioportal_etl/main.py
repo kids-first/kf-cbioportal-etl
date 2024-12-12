@@ -24,6 +24,7 @@ import os
 import sys
 import requests
 import tarfile
+import subprocess
 from cbioportal_etl.scripts.get_study_metadata import run_py as get_study_metadata
 from cbioportal_etl.scripts.diff_studies import run_py as diff_studies
 from cbioportal_etl.scripts.get_files_from_manifest import run_py as get_files_from_manifest
@@ -33,30 +34,28 @@ from cbioportal_etl.scripts.genomics_file_cbio_package_build import run_py as ge
 
 def fetch_validator_scripts(tool_dir):
     repo_url = "https://github.com/cBioPortal/cbioportal/archive/refs/tags/v5.4.10.tar.gz"
-    tar_file = "v5.4.10.tar.gz"
     extract_dir = os.path.join(tool_dir, "external_scripts")
+    cbio_dir = os.path.join(extract_dir, "cbioportal-5.4.10")
 
-    if not os.path.exists(os.path.join(extract_dir, "cbioportal-5.4.10")):
-        sys.stderr.write("Downloading cBioPortal repository...\n")
-        response = requests.get(repo_url, stream=True)
-        with open(tar_file, "wb") as f:
-            for chunk in response.iter_content(chunk_size=1024):
-                f.write(chunk)
-
-        sys.stderr.write("Extracting cBioPortal repository...\n")
-        with tarfile.open(tar_file, "r:gz") as tar:
-            tar.extractall(path=tool_dir)
-        os.remove(tar_file)
-
-def setup_parser():
+    if not os.path.exists(cbio_dir):
+        sys.stderr.write("Fetching and extracting cBioPortal validator scripts...\n")
+        try:
+            subprocess.run(f"mkdir -p {extract_dir} && curl -sL {repo_url} | tar xz -C {extract_dir}", shell=True, check=True)
+            sys.stderr.write("cBioPortal repository successfully fetched and extracted.\n")
+        except subprocess.CalledProcessError as e:
+            sys.stderr.write(f"Error during fetching or extracting: {e}\n")
+            raise
+    
+def setup_parser(tool_dir):
     parser = argparse.ArgumentParser(description="Run cBioPortal ETL pipeline")
+
     # General arguments
     parser.add_argument("--steps", nargs="+", type=str, help="Steps to execute (e.g., 1 2 3 or all)", choices=[str(i) for i in range(1, 6)] + ["all"])
     # Arguments for Step 1 - get_study_metadata.py
     parser.add_argument("-db", "--db-ini", required=True, help="Database config file")
     parser.add_argument("-p", "--profile", default="postgresql", help="Profile name (default: postgresql)")
     parser.add_argument("-mc", "--meta-config", required=False, help="Metadata configuration file. Default: value inputted for --study + '_case_meta_config.json'")
-    parser.add_argument("-r", "--ref-dir", required=False, help="Reference directory. Defaults to tool's ref dir if not provided.")
+    parser.add_argument("-r", "--ref-dir", default=os.path.join(tool_dir, "REFS"), required=False, help="Reference directory. Defaults to tool's ref dir if not provided.")
     parser.add_argument("-a", "--all", required=False, action="store_true", help="Include all relevant files, not just status=active files, NOT RECOMMENDED")
     # Arguments for Step 2 - diff_studies.py
     parser.add_argument("-u", "--url", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs", help="URL to search against")
@@ -85,18 +84,13 @@ def setup_parser():
 
 
 def main():
-    parser = setup_parser()
-    args = parser.parse_args()
-
     tool_dir = os.path.dirname(os.path.abspath(__file__))
     configs_dir = os.path.join(tool_dir, "STUDY_CONFIGS")
-    refs_dir = os.path.join(tool_dir, "REFS")
+    
+    parser = setup_parser(tool_dir)
+    args = parser.parse_args()
     args.meta_config = args.meta_config or os.path.join(configs_dir, f"{args.study}_case_meta_config.json")
     args.data_config = args.data_config or os.path.join(configs_dir, f"{args.study}_data_processing_config.json")
-    args.ref_dir = args.ref_dir or refs_dir
-
-    if "5" in args.steps or "all" in args.steps:
-        fetch_validator_scripts(tool_dir)
 
     steps = {
         1: lambda: get_study_metadata(args),
@@ -107,9 +101,12 @@ def main():
     }
 
     if "all" in args.steps:
+        fetch_validator_scripts(tool_dir)
         selected_steps = list(steps.keys())
     else:
         selected_steps = [int(step) for step in args.steps]
+        if "5" in args.steps:
+            fetch_validator_scripts(tool_dir)
 
     for step_number in selected_steps:
         if step_number in steps:
