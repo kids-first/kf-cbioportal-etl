@@ -4,29 +4,129 @@ Further general loading notes can be found in this [Notion page](https://www.not
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
 ## Software Prerequisites
 + `python3` v3.5.3+
-  + `numpy`, `pandas`, `scipy`
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
-+ `chopaws` https://github.research.chop.edu/devops/aws-auth-cli needed for saml key generation for s3 upload
++ `IGOR` https://github.com/d3b-center/d3b-cli-igor
 + Access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo for server loading:
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
-+ [cbioportal git repo](https://github.com/cBioPortal/cbioportal) needed to validate the final study output
 
-## I have everything and I know I am doing
+[cBio load package v5.4.10](https://github.com/cBioPortal/cbioportal/releases/tag/v5.4.10) is used in this tool.
+Refer to [INSTALL.md](https://github.com/kids-first/kf-cbioportal-etl/INSTALL.md) and [setup.py](https://github.com/kids-first/kf-cbioportal-etl/setup.py) for more details.
+
+
+## Install tool
+Run on `Mgmt-Console-Dev-chopd3bprod@684194535433` EC2 instance
+```sh
+git clone https://github.com/kids-first/kf-cbioportal-etl.git
+pip install /path/to/kf-cbioportal-etl/
+```
+If the install was successful, you should be able to run `cbioportal_etl --help`, which will give you the following menu: 
+```
+usage: cbioportal_etl [-h] [--steps {1,2,3,4,5,all} [{1,2,3,4,5,all} ...]] -db DB_INI [-p PROFILE] [-mc META_CONFIG] [-r REF_DIR] [-a] [-u URL] -s STUDY [-t TOKEN] [-ds DATASHEET_SAMPLE] [-dp DATASHEET_PATIENT] [-m MANIFEST] [-f FILE_TYPES] [-at AWS_TBL]
+                      [-sp SBG_PROFILE] [-c CBIO] [-ao] [-rm] [-d] [-o] [-ms MANIFEST_SUBSET] [-dc DATA_CONFIG] [-dgd {both,kf,dgd}] [-l]
+
+Run cBioPortal ETL pipeline
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --steps {1,2,3,4,5,all} [{1,2,3,4,5,all} ...]
+                        Steps to execute (e.g., 1 2 3 or all)
+  -db DB_INI, --db-ini DB_INI
+                        Database config file
+  -p PROFILE, --profile PROFILE
+                        Profile name (default: postgresql)
+  -mc META_CONFIG, --meta-config META_CONFIG
+                        Metadata configuration file. Default: value inputted for --study + '_case_meta_config.json'
+  -r REF_DIR, --ref-dir REF_DIR
+                        Reference directory. Defaults to tool's ref dir if not provided.
+  -a, --all             Include all relevant files, not just status=active files, NOT RECOMMENDED
+  -u URL, --url URL     URL to search against
+  -s STUDY, --study STUDY
+                        Cancer study ID
+  -t TOKEN, --token TOKEN
+                        Token file obtained from Web API. Required if running Step 2
+  -ds DATASHEET_SAMPLE, --datasheet-sample DATASHEET_SAMPLE
+                        File containing cBio-formatted sample metadata (default: datasheets/data_clinical_sample.txt from Step 1 output)
+  -dp DATASHEET_PATIENT, --datasheet-patient DATASHEET_PATIENT
+                        File containing cBio-formatted patient metadata (default: datasheets/data_clinical_patient.txt from Step 1 output)
+  -m MANIFEST, --manifest MANIFEST
+                        Manifest file (default: cbio_file_name_id.txt from Step 1 output)
+  -f FILE_TYPES, --file-types FILE_TYPES
+                        Comma-separated file types to download
+  -at AWS_TBL, --aws-tbl AWS_TBL
+                        AWS table with bucket name and keys
+  -sp SBG_PROFILE, --sbg-profile SBG_PROFILE
+                        SBG profile name
+  -c CBIO, --cbio CBIO  cBio manifest to limit downloads
+  -ao, --active-only    Only include active files
+  -rm, --rm-na          Remove entries where file_id and s3_path are NA
+  -d, --debug           Enable debug mode
+  -o, --overwrite       Overwrite files if they already exist
+  -ms MANIFEST_SUBSET, --manifest-subset MANIFEST_SUBSET
+                        Check that files were downloaded. Default: manifest_subset.tsv from Step 3
+  -dc DATA_CONFIG, --data-config DATA_CONFIG
+                        Data processing configuration file. Default: value inputted for --study + '_data_processing_config.json'
+  -dgd {both,kf,dgd}, --dgd-status {both,kf,dgd}
+                        Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd). Default: kf
+  -l, --legacy          Enable legacy mode
+```
+
+## Run tool
+```sh
+cbioportal_etl \
+    --steps all \
+    --db-ini /path/to/db.ini \
+    --token /path/to/cbioportal_data_access_token.txt \
+    --study oligo_nation \
+    --sbg-profile default
+  ```
+
+### Required credentials files
+- Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
+- Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
+- Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
+
+### Steps Argument
+The `--steps` argument specifies which steps of the pipeline to run. It is outlined as follows:
+- `1` - Get study metadata
+- `2` - Compare current DWH data vs cBioPortal build
+- `3` - Get files from manifest
+- `4` - Check downloaded files
+- `5` - Build genomic file package
+
+You can specify the steps in one of the following ways:
+- **Run a single step**:
+  ```bash
+  --steps 1
+  ```
+  This will only execute Step 1 (Get study metadata).
+- **Run multiple steps**:
+  ```bash
+  --steps 2 3 4
+  ```
+  This will execute Steps 2, 3, and 4 in sequence.
+
+- **Run the whole ETL**:
+  ```bash
+  --steps all
+  ```
+  This will execute Steps 1 through 5.
+
+## Run manually without tool installation
 Below assumes you have already created the necessary tables from dbt
 1. Run commands as outlined in [scripts/get_study_metadata.py](#scriptsget_study_metadatapy). Copy/move those files to the cBio loader ec2 instance
 1. Recommended, but not required: run [scripts/diff_studies.py](docs/DIFF_STUDY_CLINICAL.md). It will give a summary of metadata changes between what is currently loaded and what you plan to load, to potentially flag any suspicious changes
 1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
-    python3 scripts/get_files_from_manifest.py -s turbo -m cbio_file_name_id.txt -r
+    python3 cbioportal_etl/scripts/get_files_from_manifest.py -s turbo -m cbio_file_name_id.txt -r
    ```
   `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name + object prefixes and aws profile name pairs
 
-1. Copy and edit `STUDY_CONFIGS/pbta_all_data_processing_config.json` and `STUDY_CONFIGS/pbta_all_case_meta_config.json` as needed
+1. Copy and edit `cbioportal_etl/STUDY_CONFIGS/pbta_all_data_processing_config.json` and `cbioportal_etl/STUDY_CONFIGS/pbta_all_case_meta_config.json` as needed
 1. Run pipeline script - ignore manifest section, it is a placeholder for a better function download method
 
    ```sh
-   scripts/genomics_file_cbio_package_build.py -t cbio_file_name_id.txt -c pbta_all_case_meta_config.json -d pbta_all_data_processing_config.json -f both
+   cbioportal_etl/scripts/genomics_file_cbio_package_build.py -t cbio_file_name_id.txt -c pbta_all_case_meta_config.json -d pbta_all_data_processing_config.json -f both
    ```
 1. Check logs and outputs for errors, especially `validator.errs` and `validator.out`, assuming everything else went fine, to see if any `ERROR` popped up that would prevent the pakcage from loading properly once pushed to the bucket and Jenkins import job is run
 
@@ -75,7 +175,7 @@ processed
 └── meta_sv.txt
 ```
 Note! Most other studies won't have a timeline set of files.
-## Upload the final packages
+### Upload the final packages
 Upload all of the directories named as study short names to `s3://kf-strides-232196027141-cbioportal-studies/studies/`. You may need to set and/or copy your aws saml key before uploading. See "access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo" bullet point in [Software Prerequisites](#software-prerequisites) to load the study.
 ### Load into QA/PROD
 An AWS step function exists to load studies on to the QA and PROD servers.
@@ -85,10 +185,10 @@ An AWS step function exists to load studies on to the QA and PROD servers.
   + aws `stateMachinePedcbioImportservice` Step function service is used to view and manage running jobs
   + To repeat a load, click on the ▶️ icon in the git repo to select the job you want to re-run
   + *Note*, if your branch importStudies.txt is the same as main, you may have tot rigger it yourself. To do so, go to [actions](https://github.com/d3b-center/aws-infra-pedcbioportal-import/actions), on the left panel choose which action you want, then from the drop down in the right panel, pick which branch you want that action to run on 
-# Details
+## Details - ETL Steps
 Use this section as a reference in case your overconfidence got the best of you
 
-## REFS
+### REFS
 In case you want to use different reference inputs...
  - From data_processing_config.json `bed_genes`:
    - This is used to collate ControlFreeC results into gene hits
@@ -103,11 +203,11 @@ cat *genomic* | cut -f 15 | cut -f 1-3 -d "/" | sort | uniq > aws_bucket_key_pai
 ```
 Just remove the `s3_path` and `None` entries
 
-## Starting file inputs
-Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `scripts/export_clinical.sh`, we now use `scripts/get_study_metadata.py` to get the files.
+### Starting file inputs
+Most starting files are exported from the D3b Warehouse. An example of file exports can be found here `cbioportal_etl/scripts/export_clinical.sh`, we now use `cbioportal_etl/scripts/get_study_metadata.py` to get the files.
 However, a python wrapper script that leverages the `x_case_meta_config.json` is recommended to use for each study.
 
-### scripts/get_study_metadata.py
+### cbioportal_etl/scripts/get_study_metadata.py
 ```
 usage: get_study_metadata.py [-h] [-d DB_INI] [-p PROFILE] [-c CONFIG_FILE]
 
@@ -128,17 +228,20 @@ optional arguments:
 ### From D3b Warehouse
 #### - Data clinical sample sheet
 This is the cBioportal-formatted sample sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-sample-columns)
+
 #### - Data clinical patient sheet
 This is the cBioportal-formatted patient sheet that follows guidelines from [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#clinical-patient-columns)
+
 #### - Genomics metadata file
 Seemingly redundant, this file contains the file locations, BS IDs, file type, and cBio-formatted sample IDs of all inputs.
 It helps simplify the process to integrate better into the downstream tools.
 This is the file that goes in as the `-t` arg in all the data collating tools
+
 ### User-edited
 #### - Data processing config file
 
 This is a json formatted file that has tool paths, reference paths, and run time params.
-An example is given in `STUDY_CONFIGS/pbta_all_data_processing_config.json`.
+An example is given in `cbioportal_etl/STUDY_CONFIGS/pbta_all_data_processing_config.json`.
 This section here:
 ```json
   "file_loc_defs": {
@@ -163,7 +266,7 @@ Will likely need the most editing existing based on your input, and should only 
 #### - Metadata processing config file
 
 This is a json config file with file descriptions and case lists required by the cbioportal.
-An example is given in `STUDY_CONFIGS/pbta_all_case_meta_config.json`.
+An example is given in `cbioportal_etl/STUDY_CONFIGS/pbta_all_case_meta_config.json`.
 Within this file is a `_doc` section with a decent explanation of the file format and layout.
 Be sure to review all data types to be loaded by review all `meta_*` to see if they match incoming data.
 Likely personalized edits would occur in the following fields:
@@ -177,10 +280,10 @@ Likely personalized edits would occur in the following fields:
   + `short_name`: This is the short version. By default, should be the same as `cancer_study_identifier`
 
 
-## Pipeline script
+### Pipeline script
 After downloading the genomic files and files above as needed, and properly editing config files as needed, this script should generate and validate the cBioportal load package
 
-### scripts/get_files_from_manifest.py
+### cbioportal_etl/scripts/get_files_from_manifest.py
 Currently, file locations are still too volatile to trust to make downloading part of the pipeline. Using various combinations of buckets and sbg file ID pulls will eventually get you everything
 ```
 usage: get_files_from_manifest.py [-h] [-m MANIFEST] [-f FTS] [-p PROFILE] [-s SBG_PROFILE] [-c CBIO] [-a] [-d]
@@ -204,7 +307,7 @@ optional arguments:
   -d, --debug           Just output manifest subset to see what would be grabbed
   -o, --overwrite       If set, overwrite if file exists
 ```
-### scripts/genomics_file_cbio_package_build.py
+### cbioportal_etl/scripts/genomics_file_cbio_package_build.py
 ```
 usage: genomics_file_cbio_package_build.py [-h] [-t TABLE] [-m MANIFEST] [-c CBIO_CONFIG] [-d DATA_CONFIG] [-f [{both,kf,dgd}]]
 
@@ -231,13 +334,13 @@ optional arguments:
 Check the pipeline log output for any errors that might have occurred.
 
 
-## Congratulations, you did it!
+### Congratulations, you did it!
 
-# Collaborative and Publication Workflows
+## Collaborative and Publication Workflows
 These are highly specialized cases in which all or most of the data come from a third party, and therefore requires specific case-by-case protocols.
 
-## OpenPedCan
+### OpenPedCan
 See [OpenPedCan README](COLLABORATIONS/openTARGETS/README.md)
 
-## OpenPBTA
+### OpenPBTA
 See [OpenPBTA README](COLLABORATIONS/openPBTA/README.md)
