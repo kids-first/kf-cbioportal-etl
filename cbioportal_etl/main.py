@@ -22,8 +22,6 @@ cbioportal_etl \
 import argparse
 import os
 import sys
-import requests
-import tarfile
 import subprocess
 from cbioportal_etl.scripts.get_study_metadata import run_py as get_study_metadata
 from cbioportal_etl.scripts.diff_studies import run_py as diff_studies
@@ -93,20 +91,16 @@ def main():
     args.data_config = args.data_config or os.path.join(configs_dir, f"{args.study}_data_processing_config.json")
 
     steps = {
-        1: lambda: get_study_metadata(args),
-        2: lambda: diff_studies(args),
-        3: lambda: get_files_from_manifest(args),
-        4: lambda: check_downloads(args),
-        5: lambda: genomics_file_cbio_package_build(args),
+        "1": lambda: get_study_metadata(args),
+        "2": lambda: diff_studies(args),
+        "3": lambda: get_files_from_manifest(args),
+        "4": lambda: check_downloads(args),
+        "5": lambda: genomics_file_cbio_package_build(args),
     }
 
-    if "all" in args.steps:
-        fetch_validator_scripts(tool_dir)
-        selected_steps = list(steps.keys())
-    else:
-        selected_steps = [int(step) for step in args.steps]
-        if "5" in args.steps:
-            fetch_validator_scripts(tool_dir)
+    selected_steps = args.steps
+    if "all" in selected_steps: selected_steps = list(steps.keys())
+    if "5" in selected_steps: fetch_validator_scripts(tool_dir)
 
     for step_number in selected_steps:
         if step_number in steps:
