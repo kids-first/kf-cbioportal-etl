@@ -184,10 +184,10 @@ def run_py(args):
     TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     CWD = os.getcwd()
     
-    with open(args.data_config) as f:
+    with open(args.study_config) as f:
         config_data = json.load(f)
     config_data = resolve_config_paths(config_data, TOOL_DIR, CWD)
-    with open(args.meta_config) as f:
+    with open(args.study_config) as f:
         config_meta_case = json.load(f)
 
     cbio_study_id = config_meta_case["study"]["cancer_study_identifier"]
@@ -205,7 +205,7 @@ def run_py(args):
                 run_queue["mafs"] = partial(process_maf,
                     config_data["file_loc_defs"]["mafs"],
                     args.manifest,
-                    args.data_config,
+                    args.study_config,
                     args.dgd_status,
                     script_dir, 
                     run_status
@@ -231,7 +231,7 @@ def run_py(args):
                         )
             elif data_type == "cnvs":
                 run_queue["cnvs"] = partial(process_cnv,
-                    config_data["file_loc_defs"]["cnvs"], args.data_config, args.manifest, script_dir, run_status
+                    config_data["file_loc_defs"]["cnvs"], args.study_config, args.manifest, script_dir, run_status
                 )
     for job in run_priority:
         if job in run_queue:
@@ -288,7 +288,7 @@ def run_py(args):
 
     # Run final package builder script
     sys.stderr.write("Creating load packages\n")
-    pck_cmd = f"python3 {os.path.join(script_dir, 'organize_upload_packages.py')} -o processed -c {args.meta_config} 2> load_package_create.log"
+    pck_cmd = f"python3 {os.path.join(script_dir, 'organize_upload_packages.py')} -o processed -c {args.study_config} 2> load_package_create.log"
     exit_status = subprocess.call(pck_cmd, shell=True)
     check_status(exit_status, "load package", run_status)
 
@@ -313,8 +313,7 @@ def main():
     parser = argparse.ArgumentParser(description="Download files (if needed), collate genomic files, organize load package.")
     # parser.add_argument("-t", "--table", action="store", dest="table", help="Table with cbio project, kf bs ids, cbio IDs, and file names")
     parser.add_argument("-m", "--manifest", action="store", dest="manifest", help="Download file manifest with cbio project, kf bs ids, cbio IDs, and file names")
-    parser.add_argument("-mc", "--meta-config", action="store", dest="meta_config", help="cbio case and meta config file")
-    parser.add_argument("-dc", "--data-config", action="store", dest="data_config", help="json config file with data types and data locations")
+    parser.add_argument("-sc", "--study-config", action="store", dest="study_config", help="cbio study config file")
     parser.add_argument("-dgd", "--dgd-status", action="store", dest="dgd_status", help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)", default="both", const="both", nargs="?", choices=["both", "kf", "dgd"])
     parser.add_argument("-l", "--legacy",  default=False, action="store_true", dest="legacy", help="If set, will run legacy fusion output")
 
