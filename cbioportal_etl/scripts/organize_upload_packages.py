@@ -10,6 +10,20 @@ import json
 import subprocess
 
 
+def resolve_config_paths(config, tool_dir):
+    """
+    Resolve paths dynamically based on assumptions:
+    - Paths starting with 'scripts/' or 'REFS/' are relative to the tool directory.
+    """
+    for key, value in config.items():
+        if isinstance(value, dict):
+            resolve_config_paths(value, tool_dir)
+        elif isinstance(value, str) and value.startswith(("REFS/", "scripts/", "external_scripts/")):
+            config[key] = os.path.abspath(os.path.join(tool_dir, value))
+
+    return config
+
+
 def process_meta_study(meta_data, output_dir):
     study = meta_data["cancer_study_identifier"]
     # fields where key matches and value is just value of dict entry
@@ -97,15 +111,16 @@ def write_case_list(case_key, attr_dict, sample_list, case_dir):
     """
     case_file = open(case_dir + case_key + ".txt", "w")
     case_file.write("cancer_study_identifier: " + canc_study_id + "\n")
-    key_list = list(attr_dict)
-    case_file.write(
-        key_list[0] + ": " + canc_study_id + "_" + attr_dict[key_list[0]] + "\n"
-    )
-    for i in range(1, len(key_list), 1):
-        to_write = key_list[i] + ": " + attr_dict[key_list[i]]
-        if key_list[i] == "case_list_description":
-            to_write += " (" + str(len(sample_list)) + ")"
+
+    for key, value in attr_dict.items():
+        if key == "case_list_description":
+            to_write = f"{key}: {value} ({len(sample_list)})"
+        elif key == "stable_id":
+            to_write = f"{key}: {canc_study_id}_{value}"
+        else:
+            to_write = f"{key}: {value}"
         case_file.write(to_write + "\n")
+
     case_file.write("case_list_ids: " + "\t".join(sample_list) + "\n")
     case_file.close()
 
@@ -230,8 +245,11 @@ parser.add_argument(
 args = parser.parse_args()
 
 cwd = os.getcwd() + "/"
+TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
 with open(args.config_file) as f:
     config_data = json.load(f)
+config_data = resolve_config_paths(config_data, TOOL_DIR)
 
 out_dir = args.out_dir
 if out_dir[-1] != "/":

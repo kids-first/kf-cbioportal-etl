@@ -6,6 +6,19 @@ import json
 from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
 
+def resolve_config_paths(config, tool_dir):
+    """
+    Resolve paths dynamically based on assumptions:
+    - Paths starting with 'scripts/' or 'REFS/' are relative to the tool directory.
+    """
+    for key, value in config.items():
+        if isinstance(value, dict):
+            resolve_config_paths(value, tool_dir)
+        elif isinstance(value, str) and value.startswith(("REFS/", "scripts/", "external_scripts/")):
+            config[key] = os.path.abspath(os.path.join(tool_dir, value))
+
+    return config
+
 
 def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc):
     """
@@ -130,8 +143,11 @@ if __name__ == '__main__':
 
 
     args = parser.parse_args()
+    TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
     with open(args.config_file) as f:
         config_data = json.load(f)
+    config_data = resolve_config_paths(config_data, TOOL_DIR)
     # Create symlinks to mafs in one place for ease of processing
     maf_dir = "MAFS/"
     maf_dirs_in = args.maf_dirs

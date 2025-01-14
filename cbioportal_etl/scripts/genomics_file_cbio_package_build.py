@@ -15,20 +15,17 @@ import time
 from functools import partial
 import pdb
 
-def resolve_config_paths(config, tool_dir, cwd):
+def resolve_config_paths(config, tool_dir):
     """
     Resolve paths dynamically based on assumptions:
     - Paths starting with 'scripts/' or 'REFS/' are relative to the tool directory.
-    - Other paths are assumed to be relative to the current working directory.
     """
     for key, value in config.items():
         if isinstance(value, dict):
-            resolve_config_paths(value, tool_dir, cwd)
-        elif isinstance(value, str) and not value.startswith(("http://", "https://")):
-            if value.startswith(("REFS/", "scripts/", "external_scripts/")):
-                config[key] = os.path.abspath(os.path.join(tool_dir, value))
-            else:
-                config[key] = os.path.abspath(os.path.join(cwd, value))
+            resolve_config_paths(value, tool_dir)
+        elif isinstance(value, str) and value.startswith(("REFS/", "scripts/", "external_scripts/")):
+            config[key] = os.path.abspath(os.path.join(tool_dir, value))
+
     return config
 
 def log_cmd(cmd):
@@ -58,12 +55,12 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status, scrip
     Collate and process pbta/kf style mafs. Call append if also adding dgd data
     """
     sys.stderr.write("Processing maf files\n")
-    maf_dir = maf_loc_dict["kf"]
     if dgd_status == "dgd":
         maf_dir = maf_loc_dict["dgd"]
     else:
-        # KF can be in multiple places
-        maf_dir = ",".join(maf_dir)
+        maf_dir = maf_loc_dict["kf"]
+        if isinstance(maf_dir, list):
+            maf_dir = ",".join(maf_dir)
     maf_header = maf_loc_dict["header"]
     maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -m {maf_dir} -j {data_config_file} -f {dgd_status} 2> collate_mafs.log"
     log_cmd(maf_cmd)
@@ -182,15 +179,12 @@ def run_py(args):
     #     subprocess.Popen(dl_file_cmd, shell=True)
 
     TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    CWD = os.getcwd()
     
     with open(args.study_config) as f:
         config_data = json.load(f)
-    config_data = resolve_config_paths(config_data, TOOL_DIR, CWD)
-    with open(args.study_config) as f:
-        config_meta_case = json.load(f)
+    config_data = resolve_config_paths(config_data, TOOL_DIR)
 
-    cbio_study_id = config_meta_case["study"]["cancer_study_identifier"]
+    cbio_study_id = config_data["study"]["cancer_study_identifier"]
     # iterate through config file - file should only have keys related to data to be loaded
     script_dir = os.path.join(TOOL_DIR, config_data["script_dir"])
     run_status = {}
@@ -198,7 +192,7 @@ def run_py(args):
     # https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
     run_priority = ["rsem", "mafs", "fusion", "cnvs"]
     run_queue = {}
-    for key in config_meta_case:
+    for key in config_data:
         if key.startswith("merged_"):
             data_type = "_".join(key.split("_")[1:])
             if data_type == "mafs":
@@ -233,6 +227,7 @@ def run_py(args):
                 run_queue["cnvs"] = partial(process_cnv,
                     config_data["file_loc_defs"]["cnvs"], args.study_config, args.manifest, script_dir, run_status
                 )
+
     for job in run_priority:
         if job in run_queue:
             run_queue[job]()

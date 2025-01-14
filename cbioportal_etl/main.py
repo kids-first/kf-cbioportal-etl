@@ -48,7 +48,7 @@ def fetch_validator_scripts(tool_dir):
 def setup_parser(tool_dir):
     parser = argparse.ArgumentParser(description="Run cBioPortal ETL pipeline")
     # General arguments
-    parser.add_argument("--steps", required=True, nargs="+", type=str, help="Steps to execute (e.g., 1 2 3 or all)", choices=[str(i) for i in range(1, 6)] + ["all"])
+    parser.add_argument("--steps", required=True, nargs="+", type=str, help="Steps to execute (e.g., 1 2 3 or all)", choices=[str(i) for i in range(1, 7)] + ["all"])
     # Arguments for Step 1 - generate_config.py
     parser.add_argument("-v", "--config-tsv", default=os.path.join(tool_dir, "STUDY_CONFIGS/all_studies_config_values.tsv"), required=False, help="Path to the input TSV file")
     parser.add_argument("-s", "--study", required=True, help="Cancer study ID")

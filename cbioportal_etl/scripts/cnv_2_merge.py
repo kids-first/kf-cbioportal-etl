@@ -13,6 +13,20 @@ import pandas as pd
 from get_file_metadata_helper import get_file_metadata
 
 
+def resolve_config_paths(config, tool_dir):
+    """
+    Resolve paths dynamically based on assumptions:
+    - Paths starting with 'scripts/' or 'REFS/' are relative to the tool directory.
+    """
+    for key, value in config.items():
+        if isinstance(value, dict):
+            resolve_config_paths(value, tool_dir)
+        elif isinstance(value, str) and value.startswith(("REFS/", "scripts/", "external_scripts/")):
+            config[key] = os.path.abspath(os.path.join(tool_dir, value))
+
+    return config
+
+
 def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
     for entry in open(cnv_fn):
         (gene, gid, value) = entry.rstrip("\n").split("\t")
@@ -112,8 +126,12 @@ parser.add_argument(
 
 
 args = parser.parse_args()
+TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 with open(args.config_file) as f:
     config_data = json.load(f)
+config_data = resolve_config_paths(config_data, TOOL_DIR)
+
 cnv_dir = args.cnv_dir
 info_dir = args.info_dir
 if cnv_dir[-1] != "/":
