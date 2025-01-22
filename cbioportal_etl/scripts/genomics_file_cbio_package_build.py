@@ -55,16 +55,24 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status, scrip
     Collate and process pbta/kf style mafs. Call append if also adding dgd data
     """
     sys.stderr.write("Processing maf files\n")
-    if dgd_status == "dgd":
-        maf_dir = maf_loc_dict["dgd"]
-    else:
-        maf_dir = maf_loc_dict["kf"]
+    # if dgd_status == "dgd":
+    #     maf_dir = maf_loc_dict["dgd"]
+    # else:
+    #     maf_dir = maf_loc_dict["kf"]
+    #     if isinstance(maf_dir, list):
+    #         maf_dir = ",".join(maf_dir)
+    maf_header = maf_loc_dict["header"]
+    for maf_type, maf_dir in maf_loc_dict.items():
+        if maf_type == "header": 
+            continue
+        if not maf_dir:
+            sys.stderr.write(f"Skipping {maf_type} as it is not defined in the config\n")
+            continue
         if isinstance(maf_dir, list):
             maf_dir = ",".join(maf_dir)
-    maf_header = maf_loc_dict["header"]
-    maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -m {maf_dir} -j {data_config_file} -f {dgd_status} 2> collate_mafs.log"
-    log_cmd(maf_cmd)
-    run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
+        maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -m {maf_dir} -j {data_config_file} -f {dgd_status} 2> collate_mafs.log"
+        log_cmd(maf_cmd)
+        run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
 
 
 def process_append_dgd_maf(maf_loc_dict, cbio_id_table, cbio_study_id, script_dir):
@@ -238,7 +246,7 @@ def run_py(args):
     done = False
 
     # cheat flag to add append dgd maf once KF/PBTA maf is done when set to both
-    dgd_maf_append = 0
+    # dgd_maf_append = 0
     dgd_fusion_append = 0
     while not done:
         time.sleep(x)
@@ -248,12 +256,12 @@ def run_py(args):
         done = True
         sys.stderr.write(str(n) + " seconds have passed\n")
         sys.stderr.flush()
-        if dgd_maf_append:
-            run_queue["dgd_maf_append"] = partial(process_append_dgd_maf, config_data["file_loc_defs"]["mafs"], args.manifest, cbio_study_id, script_dir)
-            run_queue["dgd_maf_append"]()
-            sys.stderr.write("dgd status was both, appending dgd maf\n")
-            # don't want to restart this job, let regular logic take over
-            dgd_maf_append = 0
+        # if dgd_maf_append:
+        #     run_queue["dgd_maf_append"] = partial(process_append_dgd_maf, config_data["file_loc_defs"]["mafs"], args.manifest, cbio_study_id, script_dir)
+        #     run_queue["dgd_maf_append"]()
+        #     sys.stderr.write("dgd status was both, appending dgd maf\n")
+        #     # don't want to restart this job, let regular logic take over
+        #     dgd_maf_append = 0
         if dgd_fusion_append:
             run_queue["dgd_fusion_append"] = partial(process_dgd_fusion, args.manifest, config_data["file_loc_defs"]["dgd_fusion"], args.dgd_status, script_dir, cbio_study_id)
             run_queue["dgd_fusion_append"]()
@@ -268,10 +276,10 @@ def run_py(args):
                 check_status(run_status[key].returncode, key, run_status)
                 rm_keys.append(key)
                 # not all studies that have DGD fusion have maf
-                if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
-                    dgd_maf_append = 1
-                    done = False
-                elif key == 'fusion' and args.dgd_status=='both':
+                # if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
+                #     dgd_maf_append = 1
+                #     done = False
+                if key == 'fusion' and args.dgd_status=='both':
                     dgd_fusion_append = 1
                     done = False
 

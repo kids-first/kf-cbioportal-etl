@@ -82,7 +82,7 @@ def mt_type_download(file_type, key_dict, selected, api, overwrite, err_types, s
     if len(selected.loc[selected["file_type"] == file_type]):
         print("Downloading " + file_type + " files", file=sys.stderr)
         try:
-            os.mkdir(file_type)
+            os.makedirs(file_type, exist_ok=True)
         except Exception as e:
             print("{} error while making directory for {}".format(e, file_type), file=sys.stderr)
         if aws_tbl:
