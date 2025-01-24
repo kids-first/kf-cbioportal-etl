@@ -7,6 +7,7 @@ import argparse
 from bravado.client import SwaggerClient
 from bravado.requests_client import RequestsClient
 from urllib.parse import urlparse
+import pdb
 
 
 def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out):
@@ -89,12 +90,19 @@ def table_to_dict(in_file, key, aggr_list):
     return data_dict, attr_set
 
 
+def data_clinical_treatment_from_study():
+    """
+    Get and compare treatment data when available
+    """
+    # gets treatmemt info grouped by treatment
+    # cbioportal.Treatments.getAllPatientTreatmentsUsingPOST(studyViewFilter={'studyIds': ['pbta_all']}).result()
 def data_clinical_from_study(cbio_conn, study_id, data_type, aggr_list):
     """
     Get all the column-value pairs for each data_type(SAMPLE or PATIENT) for a specific study
     Convert result to dict
     Also return a set of attribute keys
     """
+    pdb.set_trace()
     # object is a big ass array of struct, one entry per attribute, per patient/sample - so like if a table were just concatenated into a single vector 
     data_clinical = cbio_conn.Clinical_Data.getAllClinicalDataInStudyUsingGET(studyId=study_id, projection='DETAILED', clinicalDataType=data_type).result()
     data_dict = {}
@@ -129,7 +137,7 @@ def run_py(args):
         '{}'.format(url_object.hostname), 'Bearer {}'.format(token),
         param_name='Authorization', param_in='header'
     )
-
+    
     cbioportal = SwaggerClient.from_url(args.url,
                                         http_client=http_client,
                                         config={"validate_requests":False,
@@ -142,6 +150,9 @@ def run_py(args):
     portal_sample_attr_implicit = ['PATIENT_ID']
     portal_patient_attr_skip = ['SAMPLE_COUNT']
     portal_sample_attr_skip = ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT']
+    pdb.set_trace()
+    hold=1
+
     # get attribute keys
     attr_key_obj = cbioportal.Clinical_Attributes.fetchClinicalAttributesUsingPOST(studyIds=[args.study], projection='ID').result()
     # gather sample-level metadata
