@@ -6,19 +6,6 @@ import json
 from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
 
-def resolve_config_paths(config, tool_dir):
-    """
-    Resolve paths dynamically based on assumptions:
-    - Paths starting with 'scripts/' or 'REFS/' are relative to the tool directory.
-    """
-    for key, value in config.items():
-        if isinstance(value, dict):
-            resolve_config_paths(value, tool_dir)
-        elif isinstance(value, str) and value.startswith(("REFS/", "scripts/", "external_scripts/")):
-            config[key] = os.path.abspath(os.path.join(tool_dir, value))
-
-    return config
-
 
 def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc):
     """
@@ -41,45 +28,42 @@ def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id):
     Iterate over maf file, skipping header lines since the files are being merged.
     With possibility of mixed source, search headers
     """
-    try:
-        cur_maf = open(maf_fn)
-        next(cur_maf)
-        head = next(cur_maf)
+    cur_maf = open(maf_fn)
+    next(cur_maf)
+    head = next(cur_maf)
 
-        cur_header = head.rstrip('\n').split('\t')
-        h_dict = {}
-        for item in print_header:
-            if item in cur_header:
-                h_dict[item] = cur_header.index(item)
-            else:
-                h_dict[item] = None
+    cur_header = head.rstrip('\n').split('\t')
+    h_dict = {}
+    for item in print_header:
+        if item in cur_header:
+            h_dict[item] = cur_header.index(item)
+        else:
+            h_dict[item] = None
 
-        tid_idx = cur_header.index("Tumor_Sample_Barcode")
-        nid_idx = cur_header.index("Matched_Norm_Sample_Barcode")
-        v_idx = cur_header.index("Variant_Classification")
-        h_idx = cur_header.index("Hugo_Symbol")
+    tid_idx = cur_header.index("Tumor_Sample_Barcode")
+    nid_idx = cur_header.index("Matched_Norm_Sample_Barcode")
+    v_idx = cur_header.index("Variant_Classification")
+    h_idx = cur_header.index("Hugo_Symbol")
 
-        with concurrent.futures.ThreadPoolExecutor(16) as executor: 
-            results = {
-                executor.submit(
-                    filter_entry, entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc
-                )
-                for entry in cur_maf
-            }
-            for result in concurrent.futures.as_completed(results):
-                filtered = result.result()
-                if filtered != None:
-                    to_print = []
-                    for item in print_header:
-                        if h_dict[item] != None:
-                            to_print.append(filtered[h_dict[item]])
-                        else:
-                            to_print.append("")
+    with concurrent.futures.ThreadPoolExecutor(16) as executor:
+        results = {
+            executor.submit(
+                filter_entry, entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc
+            )
+            for entry in cur_maf
+        }
+        for result in concurrent.futures.as_completed(results):
+            filtered = result.result()
+            if filtered != None:
+                to_print = []
+                for item in print_header:
+                    if h_dict[item] != None:
+                        to_print.append(filtered[h_dict[item]])
+                    else:
+                        to_print.append("")
 
-                    new_maf.write("\t".join(to_print) + "\n")
-        cur_maf.close()
-    except Exception as e:
-        print(f"Error in process_maf: {e}")
+                new_maf.write("\t".join(to_print) + "\n")
+    cur_maf.close()
 
 
 def process_tbl(cbio_dx, file_meta_dict, print_head):
@@ -146,11 +130,8 @@ if __name__ == '__main__':
 
 
     args = parser.parse_args()
-    TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
     with open(args.config_file) as f:
         config_data = json.load(f)
-    config_data = resolve_config_paths(config_data, TOOL_DIR)
     # Create symlinks to mafs in one place for ease of processing
     maf_dir = "MAFS/"
     maf_dirs_in = args.maf_dirs
@@ -163,10 +144,6 @@ if __name__ == '__main__':
             try:
                 src = os.path.join(abs_path, fname)
                 dest = os.path.join(maf_dir, fname)
-                # Re-link if symlink already exists
-                if os.path.islink(dest):
-                    os.unlink(dest)
-                    print(f"Removed existing symlink for {fname} to relink.", file=sys.stderr)
                 os.symlink(src, dest)
             except Exception as e:
                 print(e, file=sys.stderr)
@@ -208,9 +185,9 @@ if __name__ == '__main__':
         sys.stderr.write("output dir already exists\n")
 
     for cbio_dx in file_meta_dict:
-        try:
-            process_tbl(cbio_dx, file_meta_dict, print_head)
-        except Exception as e:
-            print(f"Error in process_tbl for {cbio_dx}: {e}", file=sys.stderr)
+        process_tbl(
+            cbio_dx, file_meta_dict, print_head
+        )
 
     sys.stderr.write("Done, check logs\n")
+    
