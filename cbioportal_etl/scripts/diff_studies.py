@@ -4,9 +4,8 @@ Script to check a study on pedcbioportal for differences against a local build
 """
 
 import argparse
-from bravado.client import SwaggerClient
-from bravado.requests_client import RequestsClient
 from urllib.parse import urlparse
+import requests
 import pdb
 
 
@@ -90,32 +89,39 @@ def table_to_dict(in_file, key, aggr_list):
     return data_dict, attr_set
 
 
-def data_clinical_treatment_from_study():
+def data_clinical_treatment_from_study(url, token, study_id):
     """
     Get and compare treatment data when available
     """
-    # gets treatmemt info grouped by treatment
-    # cbioportal.Treatments.getAllPatientTreatmentsUsingPOST(studyViewFilter={'studyIds': ['pbta_all']}).result()
-def data_clinical_from_study(cbio_conn, study_id, data_type, aggr_list):
+    headers = { "Authorization": f"Bearer {token}"}
+    api_url = f"{url}api/studies/{study_id}/clinical-events?projection=DETAILED"
+    study_timeline_data = requests.get(api_url, headers=headers, timeout=360).json()
+    return study_timeline_data
+
+
+def data_clinical_from_study(url, auth_headers, study_id, data_type, aggr_list):
     """
     Get all the column-value pairs for each data_type(SAMPLE or PATIENT) for a specific study
-    Convert result to dict
-    Also return a set of attribute keys
+    Convert result to simplified dict
     """
-    pdb.set_trace()
-    # object is a big ass array of struct, one entry per attribute, per patient/sample - so like if a table were just concatenated into a single vector 
-    data_clinical = cbio_conn.Clinical_Data.getAllClinicalDataInStudyUsingGET(studyId=study_id, projection='DETAILED', clinicalDataType=data_type).result()
+    params = {
+        "studyId": study_id,
+        "projection": "DETAILED",
+        "clinicalDataType": data_type
+    }
+    get_all_clinical_data_study_path = f"api/studies/{study_id}/clinical-data"
+    data_clinical = requests.get(f"{url}/{get_all_clinical_data_study_path}", headers=auth_headers, params=params, timeout=60).json()
     data_dict = {}
     # Use sampleId or patientID, clinicalAttributeId (column name) and value
     attr_dict = {"SAMPLE": "sampleId", "PATIENT": "patientId" }
     status = ["OS_STATUS"]
     for entry in data_clinical:
-        clinical_id = getattr(entry, attr_dict[data_type])
+        clinical_id = entry[attr_dict[data_type]]
         if clinical_id not in data_dict:
             # every entry per sample as sampleId and patientId, patient just patientId. Add keys to match
-            data_dict[clinical_id] = {"PATIENT_ID": entry.patientId}
-        value = entry.value
-        attr_id = entry.clinicalAttributeId
+            data_dict[clinical_id] = {"PATIENT_ID":entry['patientId']}
+        value = entry['value']
+        attr_id = entry['clinicalAttributeId']
         # For ease of comparison, aggregate attributes concatenated by a separator may not be in the same order, but order does not matter
         # Therefore, sort them so that when compared, no errors are triggered
         if attr_id in aggr_list:
@@ -126,39 +132,30 @@ def data_clinical_from_study(cbio_conn, study_id, data_type, aggr_list):
         data_dict[clinical_id][attr_id] = value
     return data_dict
 
+
 def run_py(args):
     with open(args.token, 'r') as token_file:
         token = token_file.read().rstrip().split(': ')[1]
 
     url_object = urlparse(args.url)
-
-    http_client = RequestsClient()
-    http_client.set_api_key(
-        '{}'.format(url_object.hostname), 'Bearer {}'.format(token),
-        param_name='Authorization', param_in='header'
-    )
-    
-    cbioportal = SwaggerClient.from_url(args.url,
-                                        http_client=http_client,
-                                        config={"validate_requests":False,
-                                                "validate_responses":False,
-                                                "validate_swagger_spec": False}
-    )
-    
+    formatted_url = "{}://{}".format(url_object.scheme, url_object.hostname)
+    auth_headers = { "Authorization": f"Bearer {token}"}
+ 
     # hardcode for now names of aggregate fields, implicit, and skip fields
     aggr_list = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
     portal_sample_attr_implicit = ['PATIENT_ID']
     portal_patient_attr_skip = ['SAMPLE_COUNT']
     portal_sample_attr_skip = ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT']
-    pdb.set_trace()
-    hold=1
 
     # get attribute keys
-    attr_key_obj = cbioportal.Clinical_Attributes.fetchClinicalAttributesUsingPOST(studyIds=[args.study], projection='ID').result()
+    fetch_attr_path = 'api/clinical-attributes/fetch'
+    attr_key_json = requests.post(f"{formatted_url}/{fetch_attr_path}", headers=auth_headers, json=[args.study], params={"projection":"ID"}, timeout=30).json()
+    portal_sample_attr_keys = set([x['clinicalAttributeId'] for x in attr_key_json if not x['patientAttribute']])
+    portal_patient_attr_keys = set([x['clinicalAttributeId'] for x in attr_key_json if x['patientAttribute']])
+
     # gather sample-level metadata
-    portal_sample_data = data_clinical_from_study(cbioportal, args.study, "SAMPLE", aggr_list)
+    portal_sample_data = data_clinical_from_study(formatted_url, auth_headers, args.study, "SAMPLE", aggr_list)
     build_sample_data, build_sample_attr_keys = table_to_dict(args.datasheet_sample, "SAMPLE_ID", aggr_list)
-    portal_sample_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if not x.patientAttribute])
     # implicit attributes not returned by function that are required for sample view
     portal_sample_attr_keys.update(portal_sample_attr_implicit)
     # drop attributes that are post-load portal-specific
@@ -167,21 +164,25 @@ def run_py(args):
     with open('sample_portal_v_build.txt', 'w') as sample_diff_out:
         clinical_diffs(portal_sample_data, build_sample_data, portal_sample_attr_keys, build_sample_attr_keys, "Sample", sample_diff_out)
     # patient-level diffs
-    portal_patient_data =  data_clinical_from_study(cbioportal, args.study, "PATIENT", aggr_list)
+    portal_patient_data = data_clinical_from_study(formatted_url, auth_headers, args.study, "PATIENT", aggr_list)
     build_patient_data, build_patient_attr_keys = table_to_dict(args.datasheet_patient, "PATIENT_ID", aggr_list)
-    portal_patient_attr_keys = set([x.clinicalAttributeId for x in attr_key_obj if x.patientAttribute])
+    # timeline-diffs
+    # if args.dt:
+    #     data_clinical_treatment_from_study(url=[url_object.scheme, url_object.hostname].join("//"), token=token, study_id=args.study)
     # drop attributes that are post-load portal-specific
     portal_patient_attr_keys -= set(portal_patient_attr_skip)
     with open('patient_portal_v_build.txt', 'w') as patient_diff_out:
         clinical_diffs(portal_patient_data, build_patient_data, portal_patient_attr_keys, build_patient_attr_keys, "Patient", patient_diff_out)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Compare local clinical data to server")
-    parser.add_argument("-u", "--url", action="store", dest="url", help="url to search against", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs")
+    parser.add_argument("-u", "--url", action="store", dest="url", help="url to search against", default="https://pedcbioportal.kidsfirstdrc.org")
     parser.add_argument("-c", "--study", action="store", dest="study", help="Cancer study ID to compare on server")
     parser.add_argument("-t", "--token", action="store", dest="token", help="Token file obtained from Web API")
     parser.add_argument("-ds", "--datasheet-sample", action="store", dest="datasheet_sample", help="File containing cBio-formatted sample metadata, typically named data_clinical_sample.txt")
     parser.add_argument("-dp", "--datasheet-patient", action="store", dest="datasheet_patient", help="File containing cBio-formatted patient metadata, typically named data_clinical_patient.txt")
+    parser.add_argument("-dt", "--datasheet-timeline", action="store", dest="datasheet_timeline", help="Dir containing cBio-formatted timeline data, typically named data_clinical_timeline*")
 
     args = parser.parse_args()
     run_py(args)
