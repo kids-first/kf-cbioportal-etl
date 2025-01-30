@@ -8,8 +8,8 @@ import re
 from get_file_metadata_helper import get_file_metadata
 import pandas as pd
 import numpy as np
-import pdb
 import os
+from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 parser = argparse.ArgumentParser(
     description="Convert merged cnv values to discrete coded values."
@@ -42,19 +42,6 @@ parser.add_argument(
     dest="table",
     help="Table with cbio project, kf bs ids, cbio IDs, and file names",
 )
-
-def resolve_config_paths(config, tool_dir):
-    """
-    Resolve paths dynamically based on assumptions:
-    - Paths starting with 'scripts/' or 'REFS/' are relative to the tool directory.
-    """
-    for key, value in config.items():
-        if isinstance(value, dict):
-            resolve_config_paths(value, tool_dir)
-        elif isinstance(value, str) and value.startswith(("REFS/", "scripts/", "external_scripts/")):
-            config[key] = os.path.abspath(os.path.join(tool_dir, value))
-
-    return config
 
 def mt_adjust_cn(obj):
     try:

@@ -76,7 +76,6 @@ def setup_parser(tool_dir):
     # Arguments for Step 5 - check_downloads.py
     parser.add_argument("-ms", "--manifest-subset", default="manifest_subset.tsv", required=False, help="Check that files were downloaded. Default: manifest_subset.tsv from Step 3")
     # Arguments for Step 6 - genomics_file_cbio_package_build.py
-    # parser.add_argument("-dc", "--data-config", required=False, help="Data processing configuration file. Default: value inputted for --study + '_data_processing_config.json'")
     parser.add_argument("-dgd", "--dgd-status", default="kf", required=False, choices=["both", "kf", "dgd"], help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd). Default: kf")
     parser.add_argument("-l", "--legacy", required=False, action="store_true", help="Enable legacy mode")
 

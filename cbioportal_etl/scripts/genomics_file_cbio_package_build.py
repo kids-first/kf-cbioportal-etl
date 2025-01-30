@@ -14,19 +14,7 @@ import subprocess
 import time
 from functools import partial
 import pdb
-
-def resolve_config_paths(config, tool_dir):
-    """
-    Resolve paths dynamically based on assumptions:
-    - Paths starting with 'scripts/' or 'REFS/' are relative to the tool directory.
-    """
-    for key, value in config.items():
-        if isinstance(value, dict):
-            resolve_config_paths(value, tool_dir)
-        elif isinstance(value, str) and value.startswith(("REFS/", "scripts/", "external_scripts/")):
-            config[key] = os.path.abspath(os.path.join(tool_dir, value))
-
-    return config
+from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 def log_cmd(cmd):
     """
@@ -246,7 +234,7 @@ def run_py(args):
     done = False
 
     # cheat flag to add append dgd maf once KF/PBTA maf is done when set to both
-    # dgd_maf_append = 0
+    dgd_maf_append = 0
     dgd_fusion_append = 0
     while not done:
         time.sleep(x)
@@ -261,7 +249,7 @@ def run_py(args):
         #     run_queue["dgd_maf_append"]()
         #     sys.stderr.write("dgd status was both, appending dgd maf\n")
         #     # don't want to restart this job, let regular logic take over
-        #     dgd_maf_append = 0
+            # dgd_maf_append = 0
         if dgd_fusion_append:
             run_queue["dgd_fusion_append"] = partial(process_dgd_fusion, args.manifest, config_data["file_loc_defs"]["dgd_fusion"], args.dgd_status, script_dir, cbio_study_id)
             run_queue["dgd_fusion_append"]()
@@ -276,9 +264,9 @@ def run_py(args):
                 check_status(run_status[key].returncode, key, run_status)
                 rm_keys.append(key)
                 # not all studies that have DGD fusion have maf
-                # if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
-                #     dgd_maf_append = 1
-                #     done = False
+                if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
+                    dgd_maf_append = 1
+                    done = False
                 if key == 'fusion' and args.dgd_status=='both':
                     dgd_fusion_append = 1
                     done = False
