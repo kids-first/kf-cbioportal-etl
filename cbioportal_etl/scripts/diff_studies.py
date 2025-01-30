@@ -5,9 +5,10 @@ Script to check a study on pedcbioportal for differences against a local build
 
 import argparse
 from urllib.parse import urlparse
-import requests
 import glob
-import pdb
+import sys
+import requests
+import os
 
 
 def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out):
@@ -134,7 +135,7 @@ def data_clinical_treatment_from_study(url, auth_headers, study_id):
         "Clinical Status": ["CLINICAL_EVENT_TYPE"],
         "IMAGING": ["DIAGNOSTIC_TYPE", "DIAGNOSTIC_TYPE_DETAILED", "BODY_PART", "FLYWHEEL_URL"],
         "SPECIMEN": ["SAMPLE_ID", "SPECIMEN_SITE", "SPECIMEN_TYPE"],
-        "SURGERY": ["EVENT_TYPE", "SUBTYPE", "EXTENT_OF_TUMOR_RESECTION"],
+        "SURGERY": ["SUBTYPE", "EXTENT_OF_TUMOR_RESECTION"],
         "TREATMENT": ["TREATMENT_TYPE", "SUBTYPE", "AGENT"]
     }
 
@@ -160,23 +161,46 @@ def data_clinical_treatment_from_study(url, auth_headers, study_id):
             else:
                 temp_event_list.append("")
         portal_timeline_data_dict[event_type].append("\t".join(map(str, temp_event_list)))
-
-
     return portal_timeline_data_dict
 
 
 def data_clinical_timeline_file_to_dict(file_path):
+    """
+    Read in load flat file headers and data into list
+    """
     with open(file_path) as flat_file:
+        head = next(flat_file)
         data_list = flat_file.read().splitlines()
-    return data_list
+    return head, data_list
 
 
-def compare_timeline_data(portal_timeline, load_timeline):
+def output_treatment_delta_by_patient(diff, load_list, header, outfile_name):
+    """
+    Get patient IDs from diff, then get all values from load set to output to incremental load data file
+    """
+    pt_list = list(set([item.split('\t')[0] for item in diff]))
+    load_list = [ item for item in load_list if item.split('\t')[0] in pt_list ]
+    with open(outfile_name, 'w') as event_delta:
+        event_delta.write(header)
+        event_delta.write("\n".join(load_list))
+
+
+def compare_timeline_data(portal_timeline, load_timeline, out_dir, header_dict, file_ext_dict):
+    """
+    Compare each event type between portal and load candidate to see if any differences exists
+    """
     event_type = portal_timeline.keys()
+    event_ext_dict = {v: k for k, v in file_ext_dict.items()}
     for event in event_type:
         portal_set = set(portal_timeline[event])
         load_set = set(load_timeline[event])
-        print(load_set - portal_set)
+        diff = list(load_set - portal_set)
+        if len(diff) > 1:
+            print(f"Changes in {event} found for this study. Outputting delta files", file=sys.stderr)
+            suffix = event_ext_dict[event]
+            outfilename = f"{out_dir}/data_clinical_timeline_{suffix}"
+            output_treatment_delta_by_patient(diff=diff, load_list=load_timeline[event], header=header_dict[event], outfile_name=outfilename)
+
 
 
 def run_py(args):
@@ -186,7 +210,10 @@ def run_py(args):
     url_object = urlparse(args.url)
     formatted_url = "{}://{}".format(url_object.scheme, url_object.hostname)
     auth_headers = { "Authorization": f"Bearer {token}"}
- 
+
+    # Create incremental study updates dir
+    inc_dir = f"{args.study}_data"
+    os.makedirs(inc_dir, exist_ok=True)
     # hardcode for now names of aggregate fields, implicit, and skip fields
     aggr_list = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
     portal_sample_attr_implicit = ['PATIENT_ID']
@@ -194,6 +221,7 @@ def run_py(args):
     portal_sample_attr_skip = ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT']
 
     # get attribute keys
+    print("Processing data clinical info", file=sys.stderr)
     fetch_attr_path = 'api/clinical-attributes/fetch'
     attr_key_json = requests.post(f"{formatted_url}/{fetch_attr_path}", headers=auth_headers, json=[args.study], params={"projection":"ID"}, timeout=30).json()
     portal_sample_attr_keys = set([x['clinicalAttributeId'] for x in attr_key_json if not x['patientAttribute']])
@@ -214,6 +242,7 @@ def run_py(args):
     build_patient_data, build_patient_attr_keys = table_to_dict(args.datasheet_patient, "PATIENT_ID", aggr_list)
     # timeline-diffs
     if args.datasheet_timeline:
+        print("Getting portal timeline data, please wait...", file=sys.stderr)
         timeline_event_dict = {
             "clinical_event.txt": "Clinical Status",
             "imaging.txt": "IMAGING",
@@ -225,16 +254,22 @@ def run_py(args):
         timeline_dir = args.datasheet_timeline.rstrip("/")
         timeline_flatfile_prefix = f"{timeline_dir}/data_clinical_timeline_"
         timeline_flatfile_list = glob.glob(f"{timeline_flatfile_prefix}*")
+        # store file data in memory by event type to match portal pull dict created
         timeline_flatfile_dict = {}
+        # store file headers to repurpose
+        event_file_head = {}
         for path in timeline_flatfile_list:
             suffix = path.replace(timeline_flatfile_prefix, "")
-            timeline_flatfile_dict[timeline_event_dict[suffix]] = data_clinical_timeline_file_to_dict(path)
-        compare_timeline_data(portal_timeline=timeline_portal, load_timeline=timeline_flatfile_dict)
+            event_type = timeline_event_dict[suffix]
+            event_file_head[event_type], timeline_flatfile_dict[event_type] = data_clinical_timeline_file_to_dict(path)
+        print("Comparing portal timeline to local", file=sys.stderr)
+        compare_timeline_data(portal_timeline=timeline_portal, load_timeline=timeline_flatfile_dict, out_dir=inc_dir, header_dict=event_file_head, file_ext_dict=timeline_event_dict)
 
     # drop attributes that are post-load portal-specific
     portal_patient_attr_keys -= set(portal_patient_attr_skip)
     with open('patient_portal_v_build.txt', 'w') as patient_diff_out:
         clinical_diffs(portal_patient_data, build_patient_data, portal_patient_attr_keys, build_patient_attr_keys, "Patient", patient_diff_out)
+    print("Done!", file=sys.stderr)
 
 
 def main():
