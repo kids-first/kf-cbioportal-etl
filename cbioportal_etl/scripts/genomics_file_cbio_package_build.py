@@ -264,9 +264,9 @@ def run_py(args):
                 check_status(run_status[key].returncode, key, run_status)
                 rm_keys.append(key)
                 # not all studies that have DGD fusion have maf
-                if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
-                    dgd_maf_append = 1
-                    done = False
+                # if key == 'maf' and args.dgd_status=='both' and 'dgd' in config_data["file_loc_defs"]["mafs"]:
+                #     dgd_maf_append = 1
+                #     done = False
                 if key == 'fusion' and args.dgd_status=='both':
                     dgd_fusion_append = 1
                     done = False
