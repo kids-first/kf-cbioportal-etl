@@ -178,7 +178,7 @@ def main():
     parser = argparse.ArgumentParser(description="Pull clinical data and genomics file etl support from D3b data warehouse.")
     parser.add_argument("-db", "--db-ini", action="store", dest="db_ini", help="Database config file - formatting like aws or sbg creds")
     parser.add_argument("-p", "--profile", action="store", dest="profile", help="ini profile name", default="postgresql")
-    parser.add_argument("-mc", "--meta-config", action="store", dest="config_file", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example")
+    parser.add_argument("-mc", "--meta-config", action="store", dest="meta_config", help="json config file with meta information; see REFS/pbta_all_case_meta_config.json example")
     parser.add_argument("-r", "--ref-dir", action="store", dest="ref_dir", help="dir name containing template data_clinical* header files")
     parser.add_argument("-a", "--all", action="store_true", dest="all", help="flag to include all relevant files, not just status=active files, NOT RECOMMENDED")
 
