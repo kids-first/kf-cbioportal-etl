@@ -11,7 +11,7 @@ import requests
 import os
 
 
-def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out, file_header, file_as_list, out_inc_dir):
+def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out, file_header, file_as_list, out_inc_dir, big_head):
     """
     Compare differences in portal sample data and build.
     """
@@ -48,7 +48,7 @@ def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out, file_
     if len(inc_list) > 1:
         suffix = ("sample.txt" if clin_type == "Sample" else "patient.txt")
         outfilename = f"{out_inc_dir}/data_clinical_{suffix}"
-        output_delta_by_id( diff_id_list=inc_list, load_list=file_as_list, header=file_header, id_field=("SAMPLE_ID" if clin_type=="Sample" else "PATIENT_ID"), outfile_name=outfilename )
+        output_delta_by_id( diff_id_list=inc_list, load_list=file_as_list, header=file_header, id_field=("SAMPLE_ID" if clin_type=="Sample" else "PATIENT_ID"), outfile_name=outfilename, big_head=big_head )
     # print change summary to STDOUT
     print(clin_type +" CHANGE SUMMARY:")
     if len(portal_only) > 0:
@@ -72,8 +72,10 @@ def table_to_dict(in_file, key, aggr_list):
     Lastly return file header and list of rows in the event there are load differences
     """
     with open(in_file) as f:
-        # skip lines starting with hash until normal header is reached
+        # track full 5 line header, for diff file printing, use fits non-hash line for finding positions of attributes
+        big_head = ""
         for entry in f:
+            big_head += entry
             if not entry.startswith("#"):
                 header = entry.rstrip('\n').split('\t')
                 primary = header.index(key)
@@ -101,7 +103,7 @@ def table_to_dict(in_file, key, aggr_list):
     attr_set = set(header)
     # no need for primary key to be reported as an attribute
     attr_set.remove(key)
-    return data_dict, attr_set, "\t".join(header) + "\n", data_clinical_list
+    return data_dict, attr_set, "\t".join(header) +"\n", data_clinical_list, big_head
 
 
 def data_clinical_from_study(url, auth_headers, study_id, data_type, aggr_list):
@@ -187,14 +189,14 @@ def data_clinical_timeline_file_to_dict(file_path):
     return head, data_list
 
 
-def output_delta_by_id(diff_id_list, load_list, header, id_field, outfile_name):
+def output_delta_by_id(diff_id_list, load_list, header, id_field, outfile_name, big_head=None):
     """
     Use IDs from diff_list, then get all values from load set to output to incremental load data file
     """
     id_index = header.split('\t').index(id_field)
     load_list = [ item for item in load_list if item.split('\t')[id_index] in diff_id_list ]
     with open(outfile_name, 'w') as event_delta:
-        event_delta.write(header)
+        event_delta.write(header if big_head==None else big_head)
         event_delta.write("\n".join(load_list))
 
 
@@ -243,17 +245,17 @@ def run_py(args):
 
     # gather sample-level metadata
     portal_sample_data = data_clinical_from_study(url=formatted_url, auth_headers=auth_headers, study_id=args.study, data_type="SAMPLE", aggr_list=aggr_list)
-    build_sample_data, build_sample_attr_keys, sample_file_header, sample_file_as_list = table_to_dict(args.datasheet_sample, "SAMPLE_ID", aggr_list)
+    build_sample_data, build_sample_attr_keys, sample_file_header, sample_file_as_list, sample_big_head = table_to_dict(args.datasheet_sample, "SAMPLE_ID", aggr_list)
     # implicit attributes not returned by function that are required for sample view
     portal_sample_attr_keys.update(portal_sample_attr_implicit)
     # drop attributes that are post-load portal-specific
     portal_sample_attr_keys -= set(portal_sample_attr_skip)
     # sample-level diffs
     with open('sample_portal_v_build.txt', 'w') as sample_diff_out:
-        clinical_diffs(portal_sample_data, build_sample_data, portal_sample_attr_keys, build_sample_attr_keys, "Sample", sample_diff_out, sample_file_header, sample_file_as_list, out_inc_dir=inc_dir)
+        clinical_diffs(portal_sample_data, build_sample_data, portal_sample_attr_keys, build_sample_attr_keys, "Sample", sample_diff_out, sample_file_header, sample_file_as_list, out_inc_dir=inc_dir, big_head=sample_big_head)
     # patient-level diffs
     portal_patient_data = data_clinical_from_study(url=formatted_url, auth_headers=auth_headers, study_id=args.study, data_type="PATIENT", aggr_list=aggr_list)
-    build_patient_data, build_patient_attr_keys, patient_file_header, patient_file_as_list = table_to_dict(args.datasheet_patient, "PATIENT_ID", aggr_list)
+    build_patient_data, build_patient_attr_keys, patient_file_header, patient_file_as_list, patient_big_head = table_to_dict(args.datasheet_patient, "PATIENT_ID", aggr_list)
     # timeline-diffs
     if args.datasheet_timeline:
         print("Getting portal timeline data, please wait...", file=sys.stderr)
@@ -282,7 +284,7 @@ def run_py(args):
     # drop attributes that are post-load portal-specific
     portal_patient_attr_keys -= set(portal_patient_attr_skip)
     with open('patient_portal_v_build.txt', 'w') as patient_diff_out:
-        clinical_diffs(portal_patient_data, build_patient_data, portal_patient_attr_keys, build_patient_attr_keys, "Patient", patient_diff_out, patient_file_header, patient_file_as_list, out_inc_dir=inc_dir)
+        clinical_diffs(portal_patient_data, build_patient_data, portal_patient_attr_keys, build_patient_attr_keys, "Patient", patient_diff_out, patient_file_header, patient_file_as_list, out_inc_dir=inc_dir, big_head=patient_big_head)
     print("Done!", file=sys.stderr)
 
 
