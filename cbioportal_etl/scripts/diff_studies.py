@@ -31,7 +31,7 @@ def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out, file_
     print(clin_type + "\tattribute\tbefore\tafter", file=out)
     attr_cts = {}
     # track at row level what as changed
-    id_w_change = []
+    id_w_change = set()
     for clinical_id in common_clinical_ids:
         for attr in common_attr:
             # portal will not have a value for that attr in the struct if none
@@ -41,8 +41,8 @@ def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out, file_
                 if attr not in attr_cts:
                     attr_cts[attr] = 0
                 attr_cts[attr] += 1
-                id_w_change.append(clinical_id)
-    id_w_change = list(set(id_w_change))
+                id_w_change.add(clinical_id)
+    id_w_change = list(id_w_change)
     # output diff file
     inc_list = build_only + id_w_change
     if len(inc_list) > 1:
