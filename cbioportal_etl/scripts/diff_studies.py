@@ -168,7 +168,7 @@ def data_clinical_treatment_from_study(url, auth_headers, study_id):
             else:
                 temp_event_list.append("")
         # event-specific attributes have funky organization,like 'attributes': [{'key': 'CLINICAL_EVENT_TYPE', 'value': 'Initial CNS Tumor'}], easier to flatten it into a normal dict: 
-        flatten_attrs = {k: v for d in [ {x['key']: x['value']} for x in entry['attributes'] ] for k, v in d.items()}
+        flatten_attrs = {x['key']: x['value'] for x in entry['attributes']}
         event_specific = portal_timeline_attr_dict[event_type]
         for field in event_specific:
             if field in flatten_attrs:
