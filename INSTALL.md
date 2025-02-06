@@ -1,5 +1,11 @@
 ## Prerequisites
 1. **System-Level Dependencies**:
+  Before using this tool, ensure the following are installed: 
+    - `bedtools`
+    - `Try::Tiny`: Perl module that can be installed via CPAN 
+      ```
+      sudo cpan install Try::Tiny
+      ```
   Not required, but depending on your system, might be needed:
     - `pkg-config`: May be required for building some Python libraries.
     - `libmysqlclient-dev`: May be required for `mysqlclient`.

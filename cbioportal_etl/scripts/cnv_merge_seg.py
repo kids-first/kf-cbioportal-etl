@@ -5,6 +5,7 @@ import argparse
 import json
 from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
+from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
 def process_seg(cur_seg, new_seg, cbio_tum_id):
@@ -70,8 +71,12 @@ parser.add_argument(
 
 args = parser.parse_args()
 if __name__ == "__main__":
+    TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
     with open(args.config_file) as f:
         config_data = json.load(f)
+    config_data = resolve_config_paths(config_data, TOOL_DIR)
+    
     seg_file_header = "ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean\n"
     # get maf file ext
     seg_dir = args.seg_dir

@@ -8,7 +8,8 @@ import re
 from get_file_metadata_helper import get_file_metadata
 import pandas as pd
 import numpy as np
-import pdb
+import os
+from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 parser = argparse.ArgumentParser(
     description="Convert merged cnv values to discrete coded values."
@@ -41,7 +42,6 @@ parser.add_argument(
     dest="table",
     help="Table with cbio project, kf bs ids, cbio IDs, and file names",
 )
-
 
 def mt_adjust_cn(obj):
     try:
@@ -83,8 +83,11 @@ def mt_adjust_cn(obj):
 
 
 args = parser.parse_args()
+TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
 with open(args.config_file) as f:
     config_data = json.load(f)
+config_data = resolve_config_paths(config_data, TOOL_DIR)
 
 
 flist = subprocess.check_output(

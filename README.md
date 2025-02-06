@@ -5,12 +5,13 @@ See [below](#collaborative-and-publication-workflows) for special cases like pub
 ## Software Prerequisites
 + `python3` v3.5.3+
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
-+ `IGOR` https://github.com/d3b-center/d3b-cli-igor
++ `Try::Tiny` Perl module
++ `saml2aws` (https://github.com/Versent/saml2aws) [directions to use](https://www.notion.so/d3b/Setup-SAML-Login-1056131f1200806ba182f7b7c1793a40?pvs=4)
 + Access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo for server loading:
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
 
 [cBio load package v5.4.10](https://github.com/cBioPortal/cbioportal/releases/tag/v5.4.10) is used in this tool.
-Refer to [INSTALL.md](https://github.com/kids-first/kf-cbioportal-etl/INSTALL.md) and [setup.py](https://github.com/kids-first/kf-cbioportal-etl/setup.py) for more details.
+Refer to [INSTALL.md](INSTALL.md) and [setup.py](setup.py) for more details.
 
 
 ## Install tool
@@ -87,11 +88,12 @@ cbioportal_etl \
 
 ### Steps Argument
 The `--steps` argument specifies which steps of the pipeline to run. It is outlined as follows:
-- `1` - Get study metadata
-- `2` - Compare current DWH data vs cBioPortal build
-- `3` - Get files from manifest
-- `4` - Check downloaded files
-- `5` - Build genomic file package
+1. Generate config JSON
+1. Get study metadata
+1. Compare current DWH data vs cBioPortal build
+1. Get files from manifest
+1. Check downloaded files
+1. Build genomic file package
 
 You can specify the steps in one of the following ways:
 - **Run a single step**:

@@ -5,7 +5,7 @@ import argparse
 import json
 import subprocess
 import concurrent.futures
-
+from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 def process_cnv(cpath):
     try:
@@ -66,8 +66,12 @@ parser.add_argument(
 )
 
 args = parser.parse_args()
+TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 with open(args.config_file) as f:
     config_data = json.load(f)
+config_data = resolve_config_paths(config_data, TOOL_DIR)
+
 
 suffix = config_data["dna_ext_list"]["copy_number"]
 print("Getting cnv list", file=sys.stderr)
