@@ -72,7 +72,7 @@ def table_to_dict(in_file, key, aggr_list):
     Lastly return file header and list of rows in the event there are load differences
     """
     with open(in_file) as f:
-        # track full 5 line header, for diff file printing, use fits non-hash line for finding positions of attributes
+        # track full 5 line header, for diff file printing, uses first non-hash line for finding positions of attributes
         big_head = ""
         for entry in f:
             big_head += entry
@@ -154,11 +154,11 @@ def data_clinical_treatment_from_study(url, auth_headers, study_id):
         "TREATMENT": ["TREATMENT_TYPE", "SUBTYPE", "AGENT"]
     }
 
-    clinical_events_study_path = f"api/studies/{study_id}/clinical-events?projection=DETAILED"
-    study_timeline_data = requests.get(f"{url}/{clinical_events_study_path}", headers=auth_headers, timeout=360).json()
     portal_timeline_data_dict = {}
     for attr in portal_timeline_attr_dict:
         portal_timeline_data_dict[attr] = []
+    clinical_events_study_path = f"api/studies/{study_id}/clinical-events?projection=DETAILED"
+    study_timeline_data = requests.get(f"{url}/{clinical_events_study_path}", headers=auth_headers, timeout=360).json()
     for entry in study_timeline_data:
         event_type = entry['eventType']
         temp_event_list = []
@@ -167,9 +167,9 @@ def data_clinical_treatment_from_study(url, auth_headers, study_id):
                 temp_event_list.append(entry[common])
             else:
                 temp_event_list.append("")
-        event_specific = portal_timeline_attr_dict[event_type]
         # event-specific attributes have funky organization,like 'attributes': [{'key': 'CLINICAL_EVENT_TYPE', 'value': 'Initial CNS Tumor'}], easier to flatten it into a normal dict: 
         flatten_attrs = {k: v for d in [ {x['key']: x['value']} for x in entry['attributes'] ] for k, v in d.items()}
+        event_specific = portal_timeline_attr_dict[event_type]
         for field in event_specific:
             if field in flatten_attrs:
                 temp_event_list.append(flatten_attrs[field])
@@ -179,7 +179,7 @@ def data_clinical_treatment_from_study(url, auth_headers, study_id):
     return portal_timeline_data_dict
 
 
-def data_clinical_timeline_file_to_dict(file_path):
+def data_clinical_timeline_file_to_list(file_path):
     """
     Read in load flat file headers and data into list
     """
@@ -214,8 +214,8 @@ def compare_timeline_data(portal_timeline, load_timeline, out_dir, header_dict, 
             print(f"Changes in {event} found for this study. Outputting delta files", file=sys.stderr)
             suffix = event_ext_dict[event]
             outfilename = f"{out_dir}/data_clinical_timeline_{suffix}"
-            pt_list = list(set([item.split('\t')[0] for item in diff]))
-            output_delta_by_id(diff_id_list=pt_list, load_list=load_timeline[event], header=header_dict[event], id_field="PATIENT_ID", outfile_name=outfilename)
+            uniq_patients = list(set([item.split('\t')[0] for item in diff]))
+            output_delta_by_id(diff_id_list=uniq_patients, load_list=load_timeline[event], header=header_dict[event], id_field="PATIENT_ID", outfile_name=outfilename)
 
 
 
