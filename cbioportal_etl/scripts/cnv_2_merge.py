@@ -11,6 +11,7 @@ import json
 import concurrent.futures
 import pandas as pd
 from get_file_metadata_helper import get_file_metadata
+from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
 def process_cnv(cnv_fn, cur_cnv_dict, samp_id):
@@ -112,8 +113,12 @@ parser.add_argument(
 
 
 args = parser.parse_args()
+TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 with open(args.config_file) as f:
     config_data = json.load(f)
+config_data = resolve_config_paths(config_data, TOOL_DIR)
+
 cnv_dir = args.cnv_dir
 info_dir = args.info_dir
 if cnv_dir[-1] != "/":

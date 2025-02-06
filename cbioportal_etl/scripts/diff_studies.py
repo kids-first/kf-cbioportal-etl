@@ -167,7 +167,7 @@ def run_py(args):
 def main():
     parser = argparse.ArgumentParser(description="Compare local clinical data to server")
     parser.add_argument("-u", "--url", action="store", dest="url", help="url to search against", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs")
-    parser.add_argument("-c", "--study", action="store", dest="study", help="Cancer study ID to compare on server")
+    parser.add_argument("-s", "--study", action="store", dest="study", help="Cancer study ID to compare on server")
     parser.add_argument("-t", "--token", action="store", dest="token", help="Token file obtained from Web API")
     parser.add_argument("-ds", "--datasheet-sample", action="store", dest="datasheet_sample", help="File containing cBio-formatted sample metadata, typically named data_clinical_sample.txt")
     parser.add_argument("-dp", "--datasheet-patient", action="store", dest="datasheet_patient", help="File containing cBio-formatted patient metadata, typically named data_clinical_patient.txt")
