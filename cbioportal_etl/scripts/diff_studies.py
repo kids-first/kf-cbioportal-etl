@@ -19,14 +19,14 @@ def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out, file_
     portal_clinical_ids = set(portal.keys())
     build_clinical_ids = set(build.keys())
     # this list is basically rows to be deleted
-    portal_only = sorted(portal_clinical_ids - build_clinical_ids)
+    portal_only = portal_clinical_ids - build_clinical_ids
     # this list is basically rows to be added
-    build_only = sorted(build_clinical_ids - portal_clinical_ids)
-    common_clinical_ids = sorted(portal_clinical_ids & build_clinical_ids)
+    build_only = build_clinical_ids - portal_clinical_ids
+    common_clinical_ids = portal_clinical_ids & build_clinical_ids
     # gross attribute diffs
-    portal_attr_only = list(portal_attr - build_attr)
-    build_attr_only = list(build_attr - portal_attr)
-    common_attr = list(portal_attr & build_attr)
+    portal_attr_only = portal_attr - build_attr
+    build_attr_only = build_attr - portal_attr
+    common_attr = portal_attr & build_attr
     # focus on common samp and common attr, as "everything is different for x" is not that useful
     print(clin_type + "\tattribute\tbefore\tafter", file=out)
     attr_cts = {}
@@ -42,9 +42,8 @@ def clinical_diffs(portal, build, portal_attr, build_attr, clin_type, out, file_
                     attr_cts[attr] = 0
                 attr_cts[attr] += 1
                 id_w_change.add(clinical_id)
-    id_w_change = list(id_w_change)
     # output diff file
-    inc_list = build_only + id_w_change
+    inc_list = build_only.union(id_w_change)
     if len(inc_list) > 1:
         suffix = ("sample.txt" if clin_type == "Sample" else "patient.txt")
         outfilename = f"{out_inc_dir}/data_clinical_{suffix}"
@@ -86,9 +85,9 @@ def table_to_dict(in_file, key, aggr_list):
                         aggr_head.append(header.index(aggr))
                 break
         data_dict = {}
-        data_clinical_list = f.read().splitlines()
+        data_clinical_list = f.readlines()
         for entry in data_clinical_list:
-            data = entry.split('\t')
+            data = entry.rstrip('\n').split('\t')
             # Replace empty string with NA as that is how the portal will return it
             data = ["NA" if d == "" else d for d in data]
             data_dict[data[primary]] = {}
@@ -142,9 +141,9 @@ def data_clinical_from_study(url, auth_headers, study_id, data_type, aggr_list):
 
 def data_clinical_treatment_from_study(url, auth_headers, study_id):
     """
-    Get and compare treatment data when available
+    Pull all clinical event data (treatment, imaging, etc) for a study currently on a cBio server if the study has such data available.
+    This will be used to compare to proposed data to load on to the server
     """
-    # from https://realpython.com/python-data-structures/#dataclassesdataclass-python-37-data-classes
     common_fields = ["patientId", "startNumberOfDaysSinceDiagnosis", "endNumberOfDaysSinceDiagnosis", "eventType"]
     portal_timeline_attr_dict = {
         "Clinical Status": ["CLINICAL_EVENT_TYPE"],
@@ -185,7 +184,7 @@ def data_clinical_timeline_file_to_list(file_path):
     """
     with open(file_path) as flat_file:
         head = next(flat_file)
-        data_list = flat_file.read().splitlines()
+        data_list = flat_file.readlines()
     return head, data_list
 
 
@@ -197,7 +196,7 @@ def output_delta_by_id(diff_id_list, load_list, header, id_field, outfile_name, 
     load_list = [ item for item in load_list if item.split('\t')[id_index] in diff_id_list ]
     with open(outfile_name, 'w') as event_delta:
         event_delta.write(header if big_head==None else big_head)
-        event_delta.write("\n".join(load_list))
+        event_delta.write("".join(load_list))
 
 
 def compare_timeline_data(portal_timeline, load_timeline, out_dir, header_dict, file_ext_dict):
@@ -209,12 +208,12 @@ def compare_timeline_data(portal_timeline, load_timeline, out_dir, header_dict, 
     for event in event_type:
         portal_set = set(portal_timeline[event])
         load_set = set(load_timeline[event])
-        diff = list(load_set - portal_set)
+        diff = load_set - portal_set
         if len(diff) > 1:
             print(f"Changes in {event} found for this study. Outputting delta files", file=sys.stderr)
             suffix = event_ext_dict[event]
             outfilename = f"{out_dir}/data_clinical_timeline_{suffix}"
-            uniq_patients = list(set([item.split('\t')[0] for item in diff]))
+            uniq_patients = [item.split('\t')[0] for item in diff]
             output_delta_by_id(diff_id_list=uniq_patients, load_list=load_timeline[event], header=header_dict[event], id_field="PATIENT_ID", outfile_name=outfilename)
 
 
@@ -277,7 +276,7 @@ def run_py(args):
         for path in timeline_flatfile_list:
             suffix = path.replace(timeline_flatfile_prefix, "")
             event_type = timeline_event_dict[suffix]
-            event_file_head[event_type], timeline_flatfile_dict[event_type] = data_clinical_timeline_file_to_dict(path)
+            event_file_head[event_type], timeline_flatfile_dict[event_type] = data_clinical_timeline_file_to_list(path)
         print("Comparing portal timeline to local", file=sys.stderr)
         compare_timeline_data(portal_timeline=timeline_portal, load_timeline=timeline_flatfile_dict, out_dir=inc_dir, header_dict=event_file_head, file_ext_dict=timeline_event_dict)
 
