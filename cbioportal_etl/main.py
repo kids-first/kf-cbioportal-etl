@@ -63,6 +63,7 @@ def setup_parser(tool_dir):
     parser.add_argument("-t", "--token", required=False, help="Token file obtained from Web API. Required if running Step 2")
     parser.add_argument("-ds", "--datasheet-sample", default=os.path.join(os.getcwd(), "datasheets/data_clinical_sample.txt"), help="File containing cBio-formatted sample metadata (default: datasheets/data_clinical_sample.txt from Step 1 output)")
     parser.add_argument("-dp", "--datasheet-patient", default=os.path.join(os.getcwd(), "datasheets/data_clinical_patient.txt"), help="File containing cBio-formatted patient metadata (default: datasheets/data_clinical_patient.txt from Step 1 output)")
+    parser.add_argument("-dt", "--datasheet-timeline", default=os.path.join(os.getcwd(), "datasheets"), action="store", dest="datasheet_timeline", help="Dir containing cBio-formatted timeline data, typically named data_clinical_timeline*")
     # Arguments for Step 4 - get_files_from_manifest.py
     parser.add_argument("-m", "--manifest", default="cbio_file_name_id.txt", help="Manifest file (default: cbio_file_name_id.txt from Step 1 output)")
     parser.add_argument("-f", "--file-types", required=False, help="Comma-separated file types to download")

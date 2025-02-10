@@ -207,10 +207,11 @@ def compare_timeline_data(portal_timeline, load_timeline, out_dir, header_dict, 
     event_ext_dict = {v: k for k, v in file_ext_dict.items()}
     for event in event_type:
         portal_set = set(portal_timeline[event])
-        load_set = set(load_timeline[event])
+        # strip new line
+        load_set = set([ item.rstrip('\n') for item in load_timeline[event] ])
         diff = load_set - portal_set
         if len(diff) > 1:
-            print(f"Changes in {event} found for this study. Outputting delta files", file=sys.stderr)
+            print(f"{len(diff)} changes in {event} found for this study. Outputting delta files")
             suffix = event_ext_dict[event]
             outfilename = f"{out_dir}/data_clinical_timeline_{suffix}"
             uniq_patients = [item.split('\t')[0] for item in diff]
