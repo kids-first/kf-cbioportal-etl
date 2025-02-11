@@ -3,7 +3,7 @@ import os
 
 setup(
     name="cbioportal_etl",
-    version="2.1.0",
+    version="1.0.0",
     author="Jessica Wong & Miguel Brown",
     description="A tool/ETL for converting data from CAVATICA and Data Warehouse to PedcBioportal format",
     packages=find_packages(),

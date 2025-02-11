@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 """
-Script to check a study on pedcbioportal for differences against a local build
+Script to check a CURRENT study on pedcbioportal for differences against a local UPDATE build
 """
 
 import argparse
 from urllib.parse import urlparse
 import glob
 import sys
-import requests
 import os
 import csv
 import typing
+import requests
 
 
 def clinical_diffs(current_data: dict, update_data: dict, current_attr: set, update_attr: set, clin_type: str, out: typing.IO, file_header: str, file_as_list: list, out_inc_dir: str, big_head: str) -> None:
     """
-    Compare differences in portal sample data and build, output lists for downstream action
+    Compare differences in current sample data and update, output lists for downstream action
     """
     # gross ID diffs
     current_clinical_ids = set(current_data.keys())
@@ -24,22 +24,20 @@ def clinical_diffs(current_data: dict, update_data: dict, current_attr: set, upd
     current_only_ids: set = current_clinical_ids - update_clinical_ids
     # this list is basically rows to be added
     update_only_ids: set = update_clinical_ids - current_clinical_ids
-    common_clinical_ids: set = current_clinical_ids & update_clinical_ids
     # gross attribute diffs
     current_attr_only: set = current_attr - update_attr
     update_attr_only: set = update_attr - current_attr
-    common_attr: set = current_attr & update_attr
     # focus on common sample and common attr, as "everything is different for x" is not that useful
-    print(clin_type + "\tattribute\tbefore\tafter", file=out)
+    print( f"{clin_type}\tattribute\tbefore\tafter", file=out )
     attr_cts: dict = {}
     # track at row level what as changed
     id_w_change: set = set()
-    for clinical_id in common_clinical_ids:
-        for attr in common_attr:
-            # portal will not have a value for that attr in the struct if none
+    for clinical_id in current_clinical_ids & update_clinical_ids:
+        for attr in current_attr & update_attr:
+            # current will not have a value for that attr in the struct if none
             current_value: str = current_data[clinical_id].get(attr, "NA")
             if current_value != update_data[clinical_id][attr]:
-                print("{}\t{}\t{}\t{}".format(clinical_id, attr, current_value, update_data[clinical_id][attr]), file=out)
+                print( f"{clinical_id}\t{attr}\t{current_value}\t{update_data[clinical_id][attr]}", file=out )
                 if attr not in attr_cts:
                     attr_cts[attr] = 0
                 attr_cts[attr] += 1
@@ -47,27 +45,26 @@ def clinical_diffs(current_data: dict, update_data: dict, current_attr: set, upd
     # output diff file
     update_ids: set = update_only_ids.union(id_w_change)
     if len(update_ids) > 1:
-        suffix = ("sample.txt" if clin_type == "Sample" else "patient.txt")
-        outfilename = f"{out_inc_dir}/data_clinical_{suffix}"
-        output_delta_by_id( diff_id=update_ids, load_list=file_as_list, header=file_header, id_field=("SAMPLE_ID" if clin_type=="Sample" else "PATIENT_ID"), outfile_name=outfilename, big_head=big_head )
+        suffix: str = ("sample.txt" if clin_type == "Sample" else "patient.txt")
+        output_delta_by_id( diff_id=update_ids, update_list=file_as_list, header=file_header, id_field=("SAMPLE_ID" if clin_type=="Sample" else "PATIENT_ID"), outfile_name=f"{out_inc_dir}/data_clinical_{suffix}", big_head=big_head )
     # print change summary to STDOUT
-    print(clin_type +" CHANGE SUMMARY:")
+    print( f"{clin_type} CHANGE SUMMARY:" )
     if len(current_only_ids) > 0:
-        print("{} {}s in portal would be removed".format(len(current_only_ids), clin_type))
+        print( f"{len(current_only_ids)} {clin_type}s in current would be removed" )
         with open(f"delete_id_list_{suffix}", 'w') as del_list:
             writer = csv.writer(del_list, delimiter='\n')
             writer.writerow(current_only_ids)
     if len(update_only_ids) > 0:
-        print("{} {}s in build would be added to the portal".format(len(update_only_ids), clin_type))
+        print( f"{len(update_only_ids)} {clin_type}s in update would be added to the current" )
         with open(f"added_id_list_{suffix}", 'w') as add_list:
             writer = csv.writer(add_list, delimiter='\n')
             writer.writerow(update_only_ids)
     if len(current_attr_only) > 0:
-        print("{} attributes in portal would be removed: {}".format(len(current_attr_only), ",".join(current_attr_only)))
+        print( f"{len(current_attr_only)} attributes in current would be removed: {','.join(current_attr_only)}" )
     if len(update_attr_only) > 0:
-        print("{} attributes in build would be added to the portal: {}".format(len(update_attr_only), ",".join(update_attr_only)))
-    for attr in attr_cts:
-        print("{} has {} change(s)".format(attr, attr_cts[attr]))
+        print( f"{len(update_attr_only)} attributes in update would be added to the current: {','.join(update_attr_only)}" )
+    for attr, count in attr_cts.items():
+        print( f"{attr} has {count} change(s)" )
     # Print extra newline for readability
     print ("")
 
@@ -76,7 +73,7 @@ def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, s
     """
     Take a text file and convert to dict with certain row value as primary, all other row values as subkeys.
     Return a set of attribute keys.
-    Lastly return file header and list of rows in the event there are load differences
+    Lastly return file header and list of rows in the event there are update differences
     """
     with open(in_file) as f:
         # track full 5 line header, for diff file printing, uses first non-hash line for finding positions of attributes
@@ -96,7 +93,7 @@ def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, s
         data_clinical: list = f.readlines()
         for entry in data_clinical:
             data: list = entry.rstrip('\n').split('\t')
-            # Replace empty string with NA as that is how the portal will return it
+            # Replace empty string with NA as that is how the current will return it
             data = ["NA" if d == "" else d for d in data]
             data_dict[data[primary]] = {}
             # For ease of comparison, aggregate attributes concatenated by a separator may not be in the same order, but order does not matter
@@ -104,7 +101,7 @@ def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, s
             for i in aggr_head:
                 data[i] = ';'.join(sorted(data[i].split(';')))
             # two loops, for up until primary key, then after.
-            for i in range(len(data)):
+            for i in enumerate(data):
                 if i == primary: continue
                 data_dict[data[primary]][header[i]] = data[i]
     attributes: set = set(header)
@@ -150,7 +147,7 @@ def data_clinical_from_study(url: str, auth_headers: dict, study_id: str, data_t
 def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: str) -> dict:
     """
     Pull all clinical event data (treatment, imaging, etc) for a study currently on a cBio server if the study has such data available.
-    This will be used to compare to proposed data to load on to the server
+    This will be used to compare to proposed data to update on to the server
     """
     common_fields: list = ["patientId", "startNumberOfDaysSinceDiagnosis", "endNumberOfDaysSinceDiagnosis", "eventType"]
     current_timeline_attr: dict = {
@@ -164,8 +161,7 @@ def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: 
     current_timeline_data: dict = {}
     for attr in current_timeline_attr:
         current_timeline_data[attr] = []
-    clinical_events_study_path: str = f"api/studies/{study_id}/clinical-events?projection=DETAILED"
-    study_timeline_data: list = requests.get(f"{url}/{clinical_events_study_path}", headers=auth_headers, timeout=360).json()
+    study_timeline_data: list = requests.get(f"{url}/api/studies/{study_id}/clinical-events?projection=DETAILED", headers=auth_headers, timeout=360).json()
     for entry in study_timeline_data:
         event_type: str = entry['eventType']
         temp_event: list = []
@@ -186,9 +182,9 @@ def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: 
     return current_timeline_data
 
 
-def data_clinical_timeline_file_to_list(file_path: str) -> (str, list):
+def data_clinical_timeline_file_to_list(file_path: str) -> tuple[str, list]:
     """
-    Read in load flat file headers and data into list
+    Read in update flat file headers and data into list
     """
     with open(file_path) as flat_file:
         head = next(flat_file)
@@ -196,20 +192,20 @@ def data_clinical_timeline_file_to_list(file_path: str) -> (str, list):
     return head, data
 
 
-def output_delta_by_id(diff_id: set, load_list: list, header: str, id_field: str, outfile_name: str, big_head: str | None) -> None:
+def output_delta_by_id(diff_id: set, update_list: list, header: str, id_field: str, outfile_name: str, big_head: str | None) -> None:
     """
-    Use IDs from diff_list, then get all values from load set to output to incremental load data file
+    Use IDs from diff_list, then get all values from update set to output to incremental update data file
     """
     id_index: list = header.split('\t').index(id_field)
-    load_list = [ item for item in load_list if item.split('\t')[id_index] in diff_id ]
+    update_list = [ item for item in update_list if item.split('\t')[id_index] in diff_id ]
     with open(outfile_name, 'w') as event_delta:
-        event_delta.write(header if big_head==None else big_head)
-        event_delta.write("".join(load_list))
+        event_delta.write(header if big_head is None else big_head)
+        event_delta.write("".join(update_list))
 
 
 def compare_timeline_data(current_timeline: dict, update_timeline: dict, out_dir: str, header_info: dict, file_ext_dict: dict) -> None:
     """
-    Compare each event type between portal and load candidate to see if any differences exists
+    Compare each event type between current and update candidate to see if any differences exists
     """
     event_type = current_timeline.keys()
     event_ext_dict = {v: k for k, v in file_ext_dict.items()}
@@ -223,7 +219,7 @@ def compare_timeline_data(current_timeline: dict, update_timeline: dict, out_dir
             suffix: str = event_ext_dict[event]
             outfilename: str = f"{out_dir}/data_clinical_timeline_{suffix}"
             uniq_patients: set = [item.split('\t')[0] for item in diff_ids]
-            output_delta_by_id(diff_id=uniq_patients, load_list=update_timeline[event], header=header_info[event], id_field="PATIENT_ID", outfile_name=outfilename, big_head=None)
+            output_delta_by_id(diff_id=uniq_patients, update_list=update_timeline[event], header=header_info[event], id_field="PATIENT_ID", outfile_name=outfilename, big_head=None)
 
 
 def run_py(args):
@@ -255,17 +251,17 @@ def run_py(args):
     update_sample_data, update_sample_attr_keys, sample_file_header, sample_file_as_list, sample_big_head = table_to_dict(in_file=args.datasheet_sample, key="SAMPLE_ID", aggr_list=aggregate_vals)
     # implicit attributes not returned by function that are required for sample view
     current_sample_attr_keys.update(current_sample_attr_implicit)
-    # drop attributes that are post-load portal-specific
+    # drop attributes that are post-update current-specific
     current_sample_attr_keys -= set(current_sample_attr_skip)
     # sample-level diffs
-    with open('sample_portal_v_build.txt', 'w') as sample_diff_out:
+    with open('sample_current_v_update.txt', 'w') as sample_diff_out:
         clinical_diffs(current_data=current_sample_data, update_data=update_sample_data, current_attr=current_sample_attr_keys, update_attr=update_sample_attr_keys, clin_type="Sample", out=sample_diff_out, file_header=sample_file_header, file_as_list=sample_file_as_list, out_inc_dir=update_dir, big_head=sample_big_head)
     # patient-level diffs
     current_patient_data: dict = data_clinical_from_study(url=formatted_url, auth_headers=auth_headers, study_id=args.study, data_type="PATIENT", aggr_list=aggregate_vals)
     update_patient_data, update_patient_attr_keys, patient_file_header, patient_file_as_list, patient_big_head = table_to_dict(in_file=args.datasheet_patient, key="PATIENT_ID", aggr_list=aggregate_vals)
     # timeline-diffs
     if args.datasheet_timeline:
-        print("Getting portal timeline data, please wait...", file=sys.stderr)
+        print("Getting current timeline data, please wait...", file=sys.stderr)
         timeline_event_dict: dict = {
             "clinical_event.txt": "Clinical Status",
             "imaging.txt": "IMAGING",
@@ -277,7 +273,7 @@ def run_py(args):
         timeline_dir: str = args.datasheet_timeline.rstrip("/")
         timeline_update_file_prefix: str = f"{timeline_dir}/data_clinical_timeline_"
         timeline_update_files: list = glob.glob(f"{timeline_update_file_prefix}*")
-        # store file data in memory by event type to match portal pull dict created
+        # store file data in memory by event type to match current pull dict created
         timeline_update: dict = {}
         # store file headers to repurpose
         event_file_head: dict = {}
@@ -288,9 +284,9 @@ def run_py(args):
         print("Comparing current timeline to update", file=sys.stderr)
         compare_timeline_data(current_timeline=timeline_current, update_timeline=timeline_update, out_dir=update_dir, header_info=event_file_head, file_ext_dict=timeline_event_dict)
 
-    # drop attributes that are post-load portal-specific
+    # drop attributes that are post-update current-specific
     current_patient_attr_keys -= set(current_patient_attr_skip)
-    with open('patient_portal_v_build.txt', 'w') as patient_diff_out:
+    with open('patient_current_v_update.txt', 'w') as patient_diff_out:
         clinical_diffs(current_data=current_patient_data, update_data=update_patient_data, current_attr=current_patient_attr_keys, update_attr=update_patient_attr_keys, clin_type="Patient", out=patient_diff_out, file_header=patient_file_header, file_as_list=patient_file_as_list, out_inc_dir=update_dir, big_head=patient_big_head)
     print("Done!", file=sys.stderr)
 
