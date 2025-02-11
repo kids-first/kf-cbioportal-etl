@@ -76,6 +76,7 @@ def generate_json(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate JSON from TSV based on study")
+    ## needs to be edited so that if user uses default tsv, then stick with this regular script. if user enters their own, then just use theirs without doing all this above code
     parser.add_argument("-v", "--config-tsv", action="store", dest="config_tsv", help="Path to the input TSV file")
     parser.add_argument("-s", "--study", action="store", dest="study", help="Cancer study ID to compare on server")
     
