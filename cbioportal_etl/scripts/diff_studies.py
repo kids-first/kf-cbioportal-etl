@@ -112,28 +112,19 @@ def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, s
             big_head += entry
             if not entry.startswith("#"):
                 header: list = entry.rstrip('\n').split('\t')
-                primary: str = header.index(key)
-                # get aggregate field indices
-                aggr_head: list = []
-                for aggr in aggr_list:
-                    if aggr in header:
-                        aggr_head.append(header.index(aggr))
                 break
         data_dict: dict = {}
         data_clinical: list = f.readlines()
         for entry in data_clinical:
             data: list = entry.rstrip('\n').split('\t')
-            # Replace empty string with NA as that is how the current will return it
-            data = ["NA" if d == "" else d for d in data]
-            data_dict[data[primary]] = {}
-            # For ease of comparison, aggregate attributes concatenated by a separator may not be in the same order, but order does not matter
+            # Create a dictionary by zipping together the line with the header; sub in "NA" for empty columns
+            entry_dict: dict[str, str] = { k: ("NA" if v == "" else v) for k,v in zip(header, data) }
+            # Aggregate attributes have multiple entries in a random order separated by a semicolon
             # Therefore, sort them so that when compared, no errors are triggered
-            for i in aggr_head:
-                data[i] = ';'.join(sorted(data[i].split(';')))
-            # two loops, for up until primary key, then after.
-            for i, value in enumerate(data):
-                if i == primary: continue
-                data_dict[data[primary]][header[i]] = value
+            for aggr in aggr_list:
+                if aggr in header: entry_dict[aggr] = ';'.join(sorted(entry_dict[aggr].split(';')))
+            key_value = entry_dict.pop(key)
+            data_dict[key_value] = entry_dict
     attributes: set = set(header)
     # no need for primary key to be reported as an attribute
     attributes.remove(key)
@@ -318,7 +309,7 @@ def run_py(args):
         current_attr_keys -= set(comparisons[comp]["attr_skip"])
         current_attr_keys |= set(comparisons[comp]["attr_implicit"])
 
-        # gather datasets
+        # Pull current data from portal URL; build update data from file
         current_data: dict = data_clinical_from_study(url=formatted_url, auth_headers=auth_headers, study_id=args.study, data_type=comp, aggr_list=aggregate_vals)
         update_data, update_attr_keys, file_header, file_as_list, big_head = table_to_dict(in_file=comparisons[comp]["data_table"], key=comparisons[comp]["data_table_key"], aggr_list=aggregate_vals)
 
