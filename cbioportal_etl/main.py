@@ -4,11 +4,12 @@ Wrapper script to run all scripts in ETL pipeline
 Run on Mgmt-Console-Dev-chopd3bprod@684194535433 EC2 instance
 
 Steps list:
-1 - Get study metadata
-2 - Compare studies on the server and local
-3 - Get files from manifest
-4 - Check downloaded files
-5 - Build genomic file package
+1 - Generate config
+2 - Get study metadata
+3 - Compare studies on the server and local
+4 - Get files from manifest
+5 - Check downloaded files
+6 - Build genomic file package
 
 Example Usage: 
 pip install /path/to/kf-cbioportal-etl/
@@ -23,7 +24,7 @@ import argparse
 import os
 import sys
 import subprocess
-from cbioportal_etl.scripts.generate_config import generate_json as generate_config
+from cbioportal_etl.scripts.generate_config import run_py as generate_config
 from cbioportal_etl.scripts.get_study_metadata import run_py as get_study_metadata
 from cbioportal_etl.scripts.diff_studies import run_py as diff_studies
 from cbioportal_etl.scripts.get_files_from_manifest import run_py as get_files_from_manifest
@@ -50,7 +51,8 @@ def setup_parser(tool_dir):
     # General arguments
     parser.add_argument("--steps", required=True, nargs="+", type=str, help="Steps to execute (e.g., 1 2 3 or all)", choices=[str(i) for i in range(1, 7)] + ["all"])
     # Arguments for Step 1 - generate_config.py
-    parser.add_argument("-v", "--config-tsv", default=os.path.join(tool_dir, "STUDY_CONFIGS/all_studies_config_values.tsv"), required=False, help="Path to the input TSV file")
+    parser.add_argument("-ctsv", "--config-tsv", default=os.path.join(tool_dir, "STUDY_CONFIGS/all_studies_config_values.tsv"), required=False, help="Path to the input TSV file containing static values (preset)")
+    parser.add_argument("-stsv", "--study-tsv", required=False, help="Path to the input TSV file containing completed values for json generation")
     parser.add_argument("-s", "--study", required=True, help="Cancer study ID")
     # Arguments for Step 2 - get_study_metadata.py
     parser.add_argument("-db", "--db-ini", required=True, help="Database config file")
