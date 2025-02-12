@@ -99,7 +99,7 @@ def main():
     steps = {
         "1": lambda: generate_config(args),
         "2": lambda: get_study_metadata(args),
-        "3": lambda: diff_studies(args),
+        # "3": lambda: diff_studies(args),  # needs some updates since MB's latest changes
         "4": lambda: get_files_from_manifest(args),
         "5": lambda: check_downloads(args),
         "6": lambda: genomics_file_cbio_package_build(args),

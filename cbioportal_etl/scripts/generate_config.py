@@ -78,10 +78,11 @@ def get_merged(db_cur, study, tbl_name, config_tsv_df):
             merged_entries.append([study, merged_key, f"{study}_case_meta_config.json", "dir", merged_key])
             
             # Extract rows from TSV where Key == "merged_{type}"
-            extracted_rows = config_tsv_df[config_tsv_df["Key"] == merged_key].copy()
-            extracted_rows["Study"] = study  
-            extracted_rows["File"] = f"{study}_case_meta_config.json"  
-            
+            extracted_rows = config_tsv_df[
+                ((config_tsv_df["Key"] == merged_key) & (config_tsv_df["Study"] == study)) |
+                ((config_tsv_df["Key"] == merged_key) & (config_tsv_df["Study"] == f"{file_type}_File_Type_only"))
+            ].copy()
+
             merged_entries.extend(extracted_rows.values.tolist())
 
     return pd.DataFrame(merged_entries, columns=["Study", "Key", "File", "Sub-Key", "Value"]) if merged_entries else pd.DataFrame(columns=["Study", "Key", "File", "Sub-Key", "Value"])
@@ -91,14 +92,14 @@ def get_dna_rna_ext_list(db_cur, study, tbl_name):
     tbl_sql = sql.SQL("""SELECT DISTINCT substring("File_Name" FROM position ('.' IN "File_Name") + 1) AS file_name_ext, "file_type" FROM prod_cbio.{};""").format(sql.Identifier(tbl_name))
     
     db_cur.execute(tbl_sql)
-    file_exts = [row[0].lower() for row in db_cur.fetchall()]
+    file_exts = [row[0] for row in db_cur.fetchall()]
 
     entries = []
     
     file_type_mapping = {
         "rna_ext_list": {
             "expression": "rsem.genes.results.gz",
-            "fusion": "annofuse_filter.tsv"
+            "fusion": "annoFuse_filter.tsv"
         },
         "dna_ext_list": {
             "seg": "controlfreec.seg"
@@ -112,7 +113,7 @@ def get_dna_rna_ext_list(db_cur, study, tbl_name):
                 entries.append([study, key, f"{study}_data_processing_config.json", sub_key, file_name])
 
     # Check for "CNVs.p.value.txt" as a suffix (not an exact match)
-    has_cnv = any(ext.endswith("cnvs.p.value.txt") for ext in file_exts)
+    has_cnv = any(ext.endswith("CNVs.p.value.txt") for ext in file_exts)
     if has_cnv:
         entries.append([study, "dna_ext_list", f"{study}_data_processing_config.json", "copy_number", "CNVs.p.value.txt"])
 
@@ -407,7 +408,7 @@ def generate_tsv(args):
         cur = conn.cursor()
 
         config_tsv_df = pd.read_csv(args.config_tsv, sep="\t")
-        static_df = config_tsv_df[(config_tsv_df["Study"] == "static") | (config_tsv_df["Study"] == study)]
+        static_df = config_tsv_df[((config_tsv_df["Study"] == "static")) | ((config_tsv_df["Study"] == study) & ~config_tsv_df["Key"].str.startswith("merged_"))]
 
         file_type_df = get_file_type(cur, study, tbl_name)
         merged_types_df = get_merged(cur, study, tbl_name, config_tsv_df)
