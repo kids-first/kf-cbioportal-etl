@@ -292,7 +292,8 @@ def run_py(args):
     # Hardcoding a JSON-like payload that will dictate do similar comparisons
     # For each comparison it has implicit and skip attributes
     # Also includes the name of the data table that has the relevant information as well as the key in that table to locate the information
-    comparisons = {
+    aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
+    comparisons: dict[str, str] = {
         "SAMPLE": {
             "attr_implicit": ['PATIENT_ID'],
             "attr_skip": ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT'],
