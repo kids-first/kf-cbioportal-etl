@@ -117,13 +117,13 @@ You can specify the steps in one of the following ways:
 Below assumes you have already created the necessary tables from dbt
 1. Run commands as outlined in [scripts/get_study_metadata.py](#scriptsget_study_metadatapy). Copy/move those files to the cBio loader ec2 instance
 1. Recommended, but not required: run [scripts/diff_studies.py](docs/DIFF_STUDY_CLINICAL.md). It will give a summary of metadata changes between what is currently loaded and what you plan to load, to potentially flag any suspicious changes
+Also will output delta files and ID changes lists for server incremental upload functionality
 1. Copy over the appropriate aws account key and download files. Example using `pbta_all` study:
 
    ```sh
     python3 cbioportal_etl/scripts/get_files_from_manifest.py -s turbo -m cbio_file_name_id.txt -r
    ```
-  `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name + object prefixes and aws profile name pairs
-
+    `aws_bucket_key_pairs.txt` is a headerless tsv file with bucket name + object prefixes and aws profile name pairs
 1. Copy and edit `cbioportal_etl/STUDY_CONFIGS/pbta_all_data_processing_config.json` and `cbioportal_etl/STUDY_CONFIGS/pbta_all_case_meta_config.json` as needed
 1. Run pipeline script - ignore manifest section, it is a placeholder for a better function download method
 
