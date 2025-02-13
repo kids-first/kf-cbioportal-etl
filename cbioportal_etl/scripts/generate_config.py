@@ -17,7 +17,6 @@ import json
 import ast
 
 
-""" put this in it's own script (to log into database) to import """
 def config(filename='database.ini', section='postgresql'):
     # stolen from https://www.postgresqltutorial.com/postgresql-python/connect/
     # create a parser
