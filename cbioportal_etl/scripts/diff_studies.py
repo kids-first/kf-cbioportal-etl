@@ -252,6 +252,9 @@ def compare_timeline_data(current_timeline: dict, update_timeline: dict, out_dir
     event_ext_dict = {v: k for k, v in file_ext.items()}
     for event in event_type:
         current_ids: set = set(current_timeline[event])
+        # temp workaround for testing
+        if event not in update_timeline:
+            update_timeline[event] = []
         # strip new line
         update_ids = set([ item.rstrip('\n') for item in update_timeline[event] ])
         diff_ids: set = update_ids - current_ids
