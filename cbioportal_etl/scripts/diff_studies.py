@@ -60,7 +60,7 @@ def output_clinical_changes(clin_type: str, current_only_ids: set, update_only_i
     print ("")
 
 
-def catalogue_and_print_delta_ids(current_data: dict, update_data: dict, shared_attrs: set[str], shared_ids: set[str], clin_type: str, out: typing.IO) -> tuple[set, set, set, set, set, dict]:
+def catalog_and_print_delta_ids(current_data: dict, update_data: dict, shared_attrs: set[str], shared_ids: set[str], clin_type: str, out: typing.IO) -> tuple[set, set, set, set, set, dict]:
     """Compare the entries where the current and updated dataset share clinical_ids and attributes. Catalogue the differences (aka deltas) and print them to a file
     Args:
         current_data: dict with data pulled from a current cbioportal instance with clinical id (based on clin_type) as the primary key, clinical attribute as subkey. For example: current_data['7316-7113']['BROAD_HISTOLOGY']='Tumors of sellar region'
@@ -68,7 +68,7 @@ def catalogue_and_print_delta_ids(current_data: dict, update_data: dict, shared_
         shared_attr: set of attributes shared by current and update
         shared_ids: set of clinical ids shared by current and update
         clin_type: str can be PATIENT or SAMPLE
-        out: typeing.IO file to print to
+        out: typing.IO file to print to
     Returns:
         update_delta_ids: set of IDs that exist in both current_data and update_data but have at least 1 differing attribute
         update_delta_attr_cts: dict with counts of attribute changes for clin_type
@@ -321,7 +321,7 @@ def run_py(args):
 
         # Get and print ids that are present in both but have had updated attrs
         with open(f"{comp.lower()}_current_v_update.txt", 'w') as diff_out:
-            update_delta_ids, update_delta_attr_cts = catalogue_and_print_delta_ids(current_data=current_data, update_data=update_data, shared_attrs=shared_attr, shared_ids=shared_ids, clin_type=comp, out=diff_out)
+            update_delta_ids, update_delta_attr_cts = catalog_and_print_delta_ids(current_data=current_data, update_data=update_data, shared_attrs=shared_attr, shared_ids=shared_ids, clin_type=comp, out=diff_out)
 
         # Get the complete list of new and updated ids
         updated_only_or_delta_ids: set[str] = update_only_ids | update_delta_ids
