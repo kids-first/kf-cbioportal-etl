@@ -75,7 +75,7 @@ def catalogue_and_print_delta_ids(current_data: dict, update_data: dict, shared_
     """
     # focus on common sample and common attr, as "everything is different for x" is not that useful
     print( f"{clin_type}\tattribute\tbefore\tafter", file=out )
-    attr_cts: dict = {}
+    update_delta_attr_cts: dict = {}
     # track at row level what as changed
     update_delta_ids: set = set()
     for clinical_id in shared_ids:
@@ -84,9 +84,9 @@ def catalogue_and_print_delta_ids(current_data: dict, update_data: dict, shared_
             current_value: str = current_data[clinical_id].get(attr, "NA")
             if current_value != update_data[clinical_id][attr]:
                 print( f"{clinical_id}\t{attr}\t{current_value}\t{update_data[clinical_id][attr]}", file=out )
-                if attr not in attr_cts:
-                    attr_cts[attr] = 0
-                attr_cts[attr] += 1
+                if attr not in update_delta_attr_cts:
+                    update_delta_attr_cts[attr] = 0
+                update_delta_attr_cts[attr] += 1
                 update_delta_ids.add(clinical_id)
     return update_delta_ids, update_delta_attr_cts
 
@@ -314,16 +314,18 @@ def run_py(args):
         update_data, update_attr_keys, file_header, file_as_list, big_head = table_to_dict(in_file=comparisons[comp]["data_table"], key=comparisons[comp]["data_table_key"], aggr_list=aggregate_vals)
 
         # Get attrs/ids uniq to the current and update datasets
-        current_only_attr: set[str], update_only_attr: set[str], shared_attr: set[str] = get_set_venn(left = current_attr_keys, right = update_attr_keys)
-        current_only_ids: set[str], update_only_ids: set[str], shared_ids: set[str] = get_set_venn(left = set(current_data.keys()), right = set(update_data.keys()))
+        current_only_attr: set[str]; update_only_attr: set[str]; shared_attr: set[str]
+        current_only_attr, update_only_attr, shared_attr = get_set_venn(left = current_attr_keys, right = update_attr_keys)
+        current_only_ids: set[str]; update_only_ids: set[str]; shared_ids: set[str]
+        current_only_ids, update_only_ids, shared_ids= get_set_venn(left = set(current_data.keys()), right = set(update_data.keys()))
 
         # Get and print ids that are present in both but have had updated attrs
         with open(f"{comp.lower()}_current_v_update.txt", 'w') as diff_out:
-            update_delta_ids, update_delta_attr_cts = catalogue_and_print_delta_ids(current_data=current_data, update_data=update_data, shared_attrs=shared_attr, shared_ids=shared_ids, clin_type=comp, out=sample_diff_out)
+            update_delta_ids, update_delta_attr_cts = catalogue_and_print_delta_ids(current_data=current_data, update_data=update_data, shared_attrs=shared_attr, shared_ids=shared_ids, clin_type=comp, out=diff_out)
 
         # Get the complete list of new and updated ids
         updated_only_or_delta_ids: set[str] = update_only_ids | update_delta_ids
-        if len(updated_only_or_delta) > 1:
+        if len(updated_only_or_delta_ids) > 1:
             output_delta_by_id( diff_id=updated_only_or_delta_ids, update_list=file_as_list, header=file_header, id_field=comparisons[comp]["data_table_key"], outfile_name=f"{delta_dir}/data_clinical_{comp.lower()}.txt", big_head=big_head )
         output_clinical_changes(clin_type=comp, current_only_ids=current_only_ids , update_only_ids=update_only_ids, current_attr_only=current_only_attr, update_attr_only=update_only_attr, attr_cts=update_delta_attr_cts, suffix=f"{comp}.txt")
 
