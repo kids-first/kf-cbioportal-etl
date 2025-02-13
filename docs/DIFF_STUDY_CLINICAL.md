@@ -1,4 +1,4 @@
-# Compare current versus build
+# Compare current cbioportal instance versus updated flat files
 This documentation addresses a [QC script](../scripts/diff_studies.py) for clinical metadata. It streamlines the process of identifying and summarizing changes slated to be made.
 
 ```sh
@@ -25,16 +25,36 @@ options:
  - `-d, --datasheet-dir`: Name of directory containing `data_clinical_patient.txt` and `data_clinical_sample.txt` being vetted for upload
 
 ## OUTPUTS:
-Essentially two change log files, `patient_portal_v_build.txt` and `sample_portal_v_build.txt`.
+### Tree:
+```
+./
+├── added_id_list_sample.txt
+├── delete_id_list_patient.txt
+├── delete_id_list_sample.txt
+├── patient_current_v_update.txt
+├── pbta_all_delta_data
+│   ├── data_clinical_patient.txt
+│   ├── data_clinical_sample.txt
+│   ├── data_clinical_timeline_clinical_event.txt
+│   ├── data_clinical_timeline_imaging.txt
+│   ├── data_clinical_timeline_specimen.txt
+│   ├── data_clinical_timeline_surgery.txt
+│   └── data_clinical_timeline_treatment.txt
+├── prod_update_summary.txt
+└── sample_current_v_update.txt
+```
+ - Two change log files, `patient_current_v_update.txt` and `sample_current_v_update.txt`.
 For the patient and sample views, each file respectively has:
- - A list, one per line, per ID, per attribute, of what would change if the data were loaded
- - A list of IDs that would be removed from the portal, if any
- - A list of IDs that would be added if any
- - A summary of the number of changes of each attribute type printed to STDOUT
+   - A list, one per line, per ID, per attribute, of what would change if the data were loaded
+   - A list of IDs that would be removed from the portal, if any
+   - A list of IDs that would be added if any
+   - A summary of the number of changes of each attribute type printed to STDOUT
+ - Zero or more id lists for patients and samples to be deleted and/or added
+ - A directory in the form of {study_id}_delta_data with delta files for incremental output
 
 ### patient_portal_v_build.txt example:
 ```
-Patient attribute       before  after
+PATIENT attribute       before  after
 PT_017WC8PS     ETHNICITY       NA      Not Available
 PT_01HNFSBZ     CANCER_PREDISPOSITIONS  None documented NA
 PT_01HNFSBZ     ETHNICITY       NA      Not Available
@@ -54,7 +74,7 @@ PT_0CVRX4SJ     OS_MONTHS       NA      149
 
 ### sample_portal_v_build.txt example:
 ```
-Sample  attribute       before  after
+SAMPLE  attribute       before  after
 16510-1 TUMOR_FRACTION  0.349951221921  0.34995122192100003
 16510-15        TUMOR_FRACTION  0.892871847605  0.8928718476049999
 16510-2 TUMOR_FRACTION  0.242536563786  0.24253656378600005
