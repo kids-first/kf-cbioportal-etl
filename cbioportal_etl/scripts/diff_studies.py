@@ -13,6 +13,21 @@ import typing
 import requests
 
 
+def get_set_venn(left: set[str], right: set[str]) -> tuple[set[str], set[str], set[str]]:
+    """Get items in left set not in right + items in right set not in left + items in both sets
+    Args:
+        left: set of strings
+        right: set of strings
+    Return:
+        left_only: set of strings found in left but not right
+        right_only: set of strings found in right but not left
+        shared: set of strings shared by left and right
+    """
+    left_only = left - right
+    right_only = right - left
+    shared = left & right
+    return left_only, right_only, shared
+
 def output_clinical_changes(clin_type: str, current_only_ids: set, update_only_ids: set, current_attr_only: set, update_attr_only: set, attr_cts: dict, suffix: str) -> None:
     """Print change summary to STDOUT and add/delete ids to file based on clin_type
     Args:
@@ -45,50 +60,35 @@ def output_clinical_changes(clin_type: str, current_only_ids: set, update_only_i
     print ("")
 
 
-def assess_clinical_diffs(current_data: dict, update_data: dict, current_attr: set, update_attr: set, clin_type: str, out: typing.IO) -> tuple[set, set, set, set, set, dict]:
-    """Compare differences in current sample data and update, output lists for downstream action.
+def catalog_and_print_delta_ids(current_data: dict, update_data: dict, shared_attrs: set[str], shared_ids: set[str], clin_type: str, out: typing.IO) -> tuple[set, set, set, set, set, dict]:
+    """Compare the entries where the current and updated dataset share clinical_ids and attributes. Catalogue the differences (aka deltas) and print them to a file
     Args:
         current_data: dict with data pulled from a current cbioportal instance with clinical id (based on clin_type) as the primary key, clinical attribute as subkey. For example: current_data['7316-7113']['BROAD_HISTOLOGY']='Tumors of sellar region'
         update_data: dict with data pulled from flat file source. Exact format as current_data
-        current_attr: set of attributes present for clin_type on cbioportal server
-        update_attr: set of attributes present for clin_type from flat file source
+        shared_attr: set of attributes shared by current and update
+        shared_ids: set of clinical ids shared by current and update
         clin_type: str can be PATIENT or SAMPLE
+        out: typing.IO file to print to
     Returns:
-        update_delta_ids: set of IDs to subset update files for incremental updates
-        update_only_ids: set of IDs with info only in update flat file
-        update_attr_only: set of attributes (basically columns) found only in update flat file
-        current_only_ids: set of IDs with info only on current cbioportal instance
-        current_attr_only: set of attributes (basically columns) found only on current cbioportal instance
-        attr_cts: dict with counts of attribute changes for clin_type
+        update_delta_ids: set of IDs that exist in both current_data and update_data but have at least 1 differing attribute
+        update_delta_attr_cts: dict with counts of attribute changes for clin_type
     """
-    # gross ID diffs
-    current_clinical_ids = set(current_data.keys())
-    update_clinical_ids = set(update_data.keys())
-    # this list is basically rows to be deleted
-    current_only_ids: set = current_clinical_ids - update_clinical_ids
-    # this list is basically rows to be added
-    update_only_ids: set = update_clinical_ids - current_clinical_ids
-    # gross attribute diffs
-    current_attr_only: set = current_attr - update_attr
-    update_attr_only: set = update_attr - current_attr
     # focus on common sample and common attr, as "everything is different for x" is not that useful
     print( f"{clin_type}\tattribute\tbefore\tafter", file=out )
-    attr_cts: dict = {}
+    update_delta_attr_cts: dict = {}
     # track at row level what as changed
-    id_w_change: set = set()
-    for clinical_id in current_clinical_ids & update_clinical_ids:
-        for attr in current_attr & update_attr:
+    update_delta_ids: set = set()
+    for clinical_id in shared_ids:
+        for attr in shared_attrs:
             # current will not have a value for that attr in the struct if none
             current_value: str = current_data[clinical_id].get(attr, "NA")
             if current_value != update_data[clinical_id][attr]:
                 print( f"{clinical_id}\t{attr}\t{current_value}\t{update_data[clinical_id][attr]}", file=out )
-                if attr not in attr_cts:
-                    attr_cts[attr] = 0
-                attr_cts[attr] += 1
-                id_w_change.add(clinical_id)
-    # get IDs for future output diff file
-    update_delta_ids: set = update_only_ids.union(id_w_change)
-    return update_delta_ids, update_only_ids, update_attr_only, current_only_ids, current_attr_only, attr_cts
+                if attr not in update_delta_attr_cts:
+                    update_delta_attr_cts[attr] = 0
+                update_delta_attr_cts[attr] += 1
+                update_delta_ids.add(clinical_id)
+    return update_delta_ids, update_delta_attr_cts
 
 
 def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, str, list, str]:
@@ -112,28 +112,19 @@ def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, s
             big_head += entry
             if not entry.startswith("#"):
                 header: list = entry.rstrip('\n').split('\t')
-                primary: str = header.index(key)
-                # get aggregate field indices
-                aggr_head: list = []
-                for aggr in aggr_list:
-                    if aggr in header:
-                        aggr_head.append(header.index(aggr))
                 break
         data_dict: dict = {}
         data_clinical: list = f.readlines()
         for entry in data_clinical:
             data: list = entry.rstrip('\n').split('\t')
-            # Replace empty string with NA as that is how the current will return it
-            data = ["NA" if d == "" else d for d in data]
-            data_dict[data[primary]] = {}
-            # For ease of comparison, aggregate attributes concatenated by a separator may not be in the same order, but order does not matter
+            # Create a dictionary by zipping together the line with the header; sub in "NA" for empty columns
+            entry_dict: dict[str, str] = { k: ("NA" if v == "" else v) for k,v in zip(header, data) }
+            # Aggregate attributes have multiple entries in a random order separated by a semicolon
             # Therefore, sort them so that when compared, no errors are triggered
-            for i in aggr_head:
-                data[i] = ';'.join(sorted(data[i].split(';')))
-            # two loops, for up until primary key, then after.
-            for i, value in enumerate(data):
-                if i == primary: continue
-                data_dict[data[primary]][header[i]] = value
+            for aggr in aggr_list:
+                if aggr in header: entry_dict[aggr] = ';'.join(sorted(entry_dict[aggr].split(';')))
+            key_value = entry_dict.pop(key)
+            data_dict[key_value] = entry_dict
     attributes: set = set(header)
     # no need for primary key to be reported as an attribute
     attributes.remove(key)
@@ -211,7 +202,7 @@ def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: 
                 temp_event.append(entry[common])
             else:
                 temp_event.append("")
-        # event-specific attributes have funky organization,like 'attributes': [{'key': 'CLINICAL_EVENT_TYPE', 'value': 'Initial CNS Tumor'}], easier to flatten it into a normal dict: 
+        # event-specific attributes have funky organization,like 'attributes': [{'key': 'CLINICAL_EVENT_TYPE', 'value': 'Initial CNS Tumor'}], easier to flatten it into a normal dict:
         flatten_attrs: dict = {x['key']: x['value'] for x in entry['attributes']}
         event_specific: list = current_timeline_attr[event_type]
         for field in event_specific:
@@ -236,7 +227,7 @@ def data_clinical_timeline_file_to_list(file_path: str) -> tuple[str, list]:
 def output_delta_by_id(diff_id: set, update_list: list, header: str, id_field: str, outfile_name: str, big_head: str | None) -> None:
     """Use IDs from diff_list, then get all values from update set to output to incremental update data file
     diff_id: set of IDs to filter down update_list for output
-    update_list: list of entries from update flat file 
+    update_list: list of entries from update flat file
     header: str of column names to output unless big_head is populated
     outfile_name: str output file name
     big_head: str lead header lines, if applicable
@@ -273,53 +264,70 @@ def compare_timeline_data(current_timeline: dict, update_timeline: dict, out_dir
 
 
 def run_py(args):
-    with open(args.token, 'r') as token_file:
-        token: str = token_file.read().rstrip().split(': ')[1]
-
-    url_object = urlparse(args.url)
-    formatted_url: str = f"{url_object.scheme}://{url_object.hostname}"
-    auth_headers: dict = { "Authorization": f"Bearer {token}"}
-
     # Create incremental study updates dir
     delta_dir: str = f"{args.study}_delta_data"
     os.makedirs(delta_dir, exist_ok=True)
-    # hardcode for now names of aggregate fields, implicit, and skip fields
-    aggregate_vals: list = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
-    current_sample_attr_implicit: list = ['PATIENT_ID']
-    current_patient_attr_skip: list = ['SAMPLE_COUNT']
-    current_sample_attr_skip: list = ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT']
 
-    # get attribute keys
+    # Set Up URL pulling
     print("Processing data clinical info", file=sys.stderr)
+    with open(args.token, 'r') as token_file:
+        token: str = token_file.read().rstrip().split(': ')[1]
+    auth_headers: dict = { "Authorization": f"Bearer {token}"}
+    url_object = urlparse(args.url)
+    formatted_url: str = f"{url_object.scheme}://{url_object.hostname}"
+
+    # Fetch attribute keys
     fetch_attr_path: str = 'api/clinical-attributes/fetch'
-    attr_keys: list = requests.post(f"{formatted_url}/{fetch_attr_path}", headers=auth_headers, json=[args.study], params={"projection":"ID"}, timeout=30).json()
-    current_sample_attr_keys: set = set([x['clinicalAttributeId'] for x in attr_keys if not x['patientAttribute']])
-    current_patient_attr_keys: set = set([x['clinicalAttributeId'] for x in attr_keys if x['patientAttribute']])
+    attr_keys: list[dict[str, str]] = requests.post(f"{formatted_url}/{fetch_attr_path}", headers=auth_headers, json=[args.study], params={"projection":"ID"}, timeout=30).json()
 
-    # gather sample-level metadata
-    current_sample_data: dict = data_clinical_from_study(url=formatted_url, auth_headers=auth_headers, study_id=args.study, data_type="SAMPLE", aggr_list=aggregate_vals)
-    update_sample_data, update_sample_attr_keys, sample_file_header, sample_file_as_list, sample_big_head = table_to_dict(in_file=args.datasheet_sample, key="SAMPLE_ID", aggr_list=aggregate_vals)
-    # implicit attributes not returned by function that are required for sample view
-    current_sample_attr_keys.update(current_sample_attr_implicit)
-    # drop attributes that are post-update current-specific
-    current_sample_attr_keys -= set(current_sample_attr_skip)
-    # sample-level diffs
-    with open('sample_current_v_update.txt', 'w') as sample_diff_out:
-        sample_update_delta_ids, sample_update_only_ids, sample_update_attr_only, sample_current_only_ids, sample_current_attr_only, sample_attr_cts = assess_clinical_diffs(current_data=current_sample_data, update_data=update_sample_data, current_attr=current_sample_attr_keys, update_attr=update_sample_attr_keys, clin_type="SAMPLE", out=sample_diff_out)
-    if len(sample_update_delta_ids) > 1:
-        output_delta_by_id( diff_id=sample_update_delta_ids, update_list=sample_file_as_list, header=sample_file_header, id_field="SAMPLE_ID", outfile_name=f"{delta_dir}/data_clinical_sample.txt", big_head=sample_big_head )
-    output_clinical_changes(clin_type="SAMPLE", current_only_ids=sample_current_only_ids , update_only_ids=sample_update_only_ids, current_attr_only=sample_current_attr_only, update_attr_only=sample_update_attr_only, attr_cts=sample_attr_cts, suffix="sample.txt")
+    # Hardcoding a JSON-like payload that will dictate do similar comparisons
+    # For each comparison it has implicit and skip attributes
+    # Also includes the name of the data table that has the relevant information as well as the key in that table to locate the information
+    aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
+    comparisons: dict[str, str] = {
+        "SAMPLE": {
+            "attr_implicit": ['PATIENT_ID'],
+            "attr_skip": ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT'],
+            "data_table": args.datasheet_sample,
+            "data_table_key": "SAMPLE_ID"
+        },
+        "PATIENT": {
+            "attr_implicit": [],
+            "attr_skip": ['SAMPLE_COUNT'],
+            "data_table": args.datasheet_patient,
+            "data_table_key": "PATIENT_ID"
+        }
+    }
 
-    # patient-level diffs
-    current_patient_data: dict = data_clinical_from_study(url=formatted_url, auth_headers=auth_headers, study_id=args.study, data_type="PATIENT", aggr_list=aggregate_vals)
-    update_patient_data, update_patient_attr_keys, patient_file_header, patient_file_as_list, patient_big_head = table_to_dict(in_file=args.datasheet_patient, key="PATIENT_ID", aggr_list=aggregate_vals)
-    # drop attributes that are post-update current-specific
-    current_patient_attr_keys -= set(current_patient_attr_skip)
-    with open('patient_current_v_update.txt', 'w') as patient_diff_out:
-        patient_update_delta_ids, patient_update_only_ids, patient_update_attr_only, patient_current_only_ids, patient_current_attr_only, patient_attr_cts = assess_clinical_diffs(current_data=current_patient_data, update_data=update_patient_data, current_attr=current_patient_attr_keys, update_attr=update_patient_attr_keys, clin_type="PATIENT", out=patient_diff_out)
-    if len(patient_update_delta_ids) > 1:
-        output_delta_by_id( diff_id=patient_update_delta_ids, update_list=patient_file_as_list, header=patient_file_header, id_field="PATIENT_ID", outfile_name=f"{delta_dir}/data_clinical_patient.txt", big_head=patient_big_head )
-    output_clinical_changes(clin_type="PATIENT", current_only_ids=patient_current_only_ids , update_only_ids=patient_update_only_ids, current_attr_only=patient_current_attr_only, update_attr_only=patient_update_attr_only, attr_cts=patient_attr_cts, suffix="patient.txt")
+    for comp in comparisons:
+        if comp == "PATIENT":
+            current_attr_keys: set[str] = set([x['clinicalAttributeId'] for x in attr_keys if x['patientAttribute']])
+        else:
+            current_attr_keys: set[str] = set([x['clinicalAttributeId'] for x in attr_keys if not x['patientAttribute']])
+
+        # Remove skip attrs and add implicit attrs
+        current_attr_keys -= set(comparisons[comp]["attr_skip"])
+        current_attr_keys |= set(comparisons[comp]["attr_implicit"])
+
+        # Pull current data from portal URL; build update data from file
+        current_data: dict = data_clinical_from_study(url=formatted_url, auth_headers=auth_headers, study_id=args.study, data_type=comp, aggr_list=aggregate_vals)
+        update_data, update_attr_keys, file_header, file_as_list, big_head = table_to_dict(in_file=comparisons[comp]["data_table"], key=comparisons[comp]["data_table_key"], aggr_list=aggregate_vals)
+
+        # Get attrs/ids uniq to the current and update datasets
+        current_only_attr: set[str]; update_only_attr: set[str]; shared_attr: set[str]
+        current_only_attr, update_only_attr, shared_attr = get_set_venn(left = current_attr_keys, right = update_attr_keys)
+        current_only_ids: set[str]; update_only_ids: set[str]; shared_ids: set[str]
+        current_only_ids, update_only_ids, shared_ids= get_set_venn(left = set(current_data.keys()), right = set(update_data.keys()))
+
+        # Get and print ids that are present in both but have had updated attrs
+        with open(f"{comp.lower()}_current_v_update.txt", 'w') as diff_out:
+            update_delta_ids, update_delta_attr_cts = catalog_and_print_delta_ids(current_data=current_data, update_data=update_data, shared_attrs=shared_attr, shared_ids=shared_ids, clin_type=comp, out=diff_out)
+
+        # Get the complete list of new and updated ids
+        updated_only_or_delta_ids: set[str] = update_only_ids | update_delta_ids
+        if len(updated_only_or_delta_ids) > 1:
+            output_delta_by_id( diff_id=updated_only_or_delta_ids, update_list=file_as_list, header=file_header, id_field=comparisons[comp]["data_table_key"], outfile_name=f"{delta_dir}/data_clinical_{comp.lower()}.txt", big_head=big_head )
+        output_clinical_changes(clin_type=comp, current_only_ids=current_only_ids , update_only_ids=update_only_ids, current_attr_only=current_only_attr, update_attr_only=update_only_attr, attr_cts=update_delta_attr_cts, suffix=f"{comp}.txt")
 
     # timeline-diffs
     if args.datasheet_timeline:
@@ -329,7 +337,7 @@ def run_py(args):
             "imaging.txt": "IMAGING",
             "specimen.txt": "SPECIMEN",
             "surgery.txt": "SURGERY",
-            "treatment.txt": "TREATMENT", 
+            "treatment.txt": "TREATMENT",
         }
         timeline_current: dict = data_clinical_timeline_from_current(url=formatted_url, auth_headers=auth_headers, study_id=args.study)
         timeline_dir: str = args.datasheet_timeline.rstrip("/")
