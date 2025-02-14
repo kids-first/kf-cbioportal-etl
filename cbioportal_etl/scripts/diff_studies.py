@@ -279,7 +279,7 @@ def run_py(args):
     # Create incremental study updates dirs
     delta_dir: str = f"{args.study}_delta_data"
     os.makedirs(delta_dir, exist_ok=True)
-    add_dir: str = f"{args.study}_add_data"
+    add_dir: str = f"{args.study}_add_data/datasheets"
     os.makedirs(add_dir, exist_ok=True)
 
     # Set Up URL pulling
@@ -350,7 +350,7 @@ def run_py(args):
             # Also process cbio_file_name_id if at sample level
             if comp == "SAMPLE":
                 _ignore, etl_header, etl_data  = parse_file(file_path=args.manifest, header_symbol=None, column_names=True)
-                output_file_by_id( select_id=etl_header, update_list=etl_data, header=etl_header, id_field="Cbio_Tumor_Name", outfile_name=f"{add_dir}/cbio_file_name_id.txt", big_head=_ignore )
+                output_file_by_id( select_id=update_only_ids, update_list=etl_data, header=etl_header, id_field="Cbio_Tumor_Name", outfile_name=f"{args.study}_add_data/cbio_file_name_id.txt", big_head=_ignore )
 
         output_clinical_changes(clin_type=comp, current_only_ids=current_only_ids , update_only_ids=update_only_ids, current_attr_only=current_only_attr, update_attr_only=update_only_attr, attr_cts=update_delta_attr_cts, suffix=f"{comp}.txt")
 
