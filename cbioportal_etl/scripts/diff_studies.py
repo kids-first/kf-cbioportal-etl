@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Script to check a CURRENT study on a current cbioportal instance for differences against a local UPDATE build
+Script to check a CURRENT study on a current cbioportal instance for differences against a local UPDATE build.
+Outputs files that are the foundation for incremental updates and clinical data QC
 """
 
 import argparse
@@ -11,6 +12,34 @@ import os
 import csv
 import typing
 import requests
+
+
+def parse_file(file_path: str, header_symbol: str | None = None, column_names: bool = False) -> tuple[list[str] | None, list[str] | None, list[str]]:
+    """Break up a file into header, column names, and body
+    Args:
+        file_path: string path to file to process
+        column_names: boolean value declaring whether the file has a line that contains the column names (first line after header)
+        header_symbol: string value that precedes all
+    Return:
+        header: List of strings containing all lines with a header symbol and the column name line
+        columns: List of strings containing the column name line split by tab
+        body: List of strings containing all non-header lines in the file
+    """
+    with open(file_path, 'rt') as fh:
+        all_lines = fh.readlines()
+    end_header_index = 0
+    if header_symbol:
+        for index, line in enumerate(all_lines):
+            if not line.startswith(header_symbol):
+                end_header_index = index
+                break
+    columns = None
+    if column_names:
+        columns = all_lines[end_header_index].strip().split('\t')
+        end_header_index += 1
+    header = all_lines[:end_header_index] if len(all_lines[:end_header_index]) > 0 else None
+    body = all_lines[end_header_index:]
+    return header, columns, body
 
 
 def get_set_venn(left: set[str], right: set[str]) -> tuple[set[str], set[str], set[str]]:
@@ -105,30 +134,22 @@ def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, s
         big_head: str of header lines from in_file
 
     """
-    with open(in_file) as f:
-        # track full 5 line header, for diff file printing, uses first non-hash line for finding positions of attributes
-        big_head: str = ""
-        for entry in f:
-            big_head += entry
-            if not entry.startswith("#"):
-                header: list = entry.rstrip('\n').split('\t')
-                break
-        data_dict: dict = {}
-        data_clinical: list = f.readlines()
-        for entry in data_clinical:
-            data: list = entry.rstrip('\n').split('\t')
-            # Create a dictionary by zipping together the line with the header; sub in "NA" for empty columns
-            entry_dict: dict[str, str] = { k: ("NA" if v == "" else v) for k,v in zip(header, data) }
-            # Aggregate attributes have multiple entries in a random order separated by a semicolon
-            # Therefore, sort them so that when compared, no errors are triggered
-            for aggr in aggr_list:
-                if aggr in header: entry_dict[aggr] = ';'.join(sorted(entry_dict[aggr].split(';')))
-            key_value = entry_dict.pop(key)
-            data_dict[key_value] = entry_dict
+    big_head, header, data_clinical = parse_file(file_path=in_file, header_symbol="#", column_names=True)
+    data_dict: dict = {}
+    for entry in data_clinical:
+        data: list = entry.rstrip('\n').split('\t')
+        # Create a dictionary by zipping together the line with the header; sub in "NA" for empty columns
+        entry_dict: dict[str, str] = { k: ("NA" if v == "" else v) for k,v in zip(header, data) }
+        # Aggregate attributes have multiple entries in a random order separated by a semicolon
+        # Therefore, sort them so that when compared, no errors are triggered
+        for aggr in aggr_list:
+            if aggr in header: entry_dict[aggr] = ';'.join(sorted(entry_dict[aggr].split(';')))
+        key_value = entry_dict.pop(key)
+        data_dict[key_value] = entry_dict
     attributes: set = set(header)
     # no need for primary key to be reported as an attribute
     attributes.remove(key)
-    return data_dict, attributes, "\t".join(header) +"\n", data_clinical, big_head
+    return data_dict, attributes, header, data_clinical, big_head
 
 
 def data_clinical_from_study(url: str, auth_headers: dict, study_id: str, data_type: str, aggr_list: list) -> dict:
@@ -214,17 +235,7 @@ def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: 
     return current_timeline_data
 
 
-def data_clinical_timeline_file_to_list(file_path: str) -> tuple[str, list]:
-    """
-    Read in update flat file headers and data into list
-    """
-    with open(file_path) as flat_file:
-        head = next(flat_file)
-        data: list = flat_file.readlines()
-    return head, data
-
-
-def output_delta_by_id(diff_id: set, update_list: list, header: str, id_field: str, outfile_name: str, big_head: str | None) -> None:
+def output_delta_by_id(diff_id: set, update_list: list, header: list[str], id_field: str, outfile_name: str, big_head: list | None) -> None:
     """Use IDs from diff_list, then get all values from update set to output to incremental update data file
     diff_id: set of IDs to filter down update_list for output
     update_list: list of entries from update flat file
@@ -232,10 +243,10 @@ def output_delta_by_id(diff_id: set, update_list: list, header: str, id_field: s
     outfile_name: str output file name
     big_head: str lead header lines, if applicable
     """
-    id_index: list = header.split('\t').index(id_field)
+    id_index: int = header.index(id_field)
     update_list = [ item for item in update_list if item.split('\t')[id_index] in diff_id ]
     with open(outfile_name, 'w') as event_delta:
-        event_delta.write(header if big_head is None else big_head)
+        event_delta.write("".join(header) if big_head is None else "".join(big_head))
         event_delta.write("".join(update_list))
 
 
@@ -353,7 +364,8 @@ def run_py(args):
         for path in timeline_update_files:
             suffix: str = path.replace(timeline_update_file_prefix, "")
             event_type: str = timeline_event_dict[suffix]
-            event_file_head[event_type], timeline_update[event_type] = data_clinical_timeline_file_to_list(file_path=path)
+            _ignore, event_file_head[event_type], timeline_update[event_type]  = parse_file(file_path=path, header_symbol=None, column_names=True)
+            del _ignore
         print("Comparing current timeline to update", file=sys.stderr)
         compare_timeline_data(current_timeline=timeline_current, update_timeline=timeline_update, out_dir=delta_dir, header_info=event_file_head, file_ext=timeline_event_dict)
 
