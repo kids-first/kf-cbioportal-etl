@@ -244,7 +244,7 @@ def output_file_by_id(select_id: set, update_list: list, header: list[str], id_f
     id_index: int = header.index(id_field)
     update_list = [ item for item in update_list if item.split('\t')[id_index] in select_id ]
     with open(outfile_name, 'w') as event_delta:
-        event_delta.write("".join(header) if big_head is None else "".join(big_head))
+        event_delta.write("\t".join(header) + "\n" if big_head is None else "".join(big_head))
         event_delta.write("".join(update_list))
 
 
