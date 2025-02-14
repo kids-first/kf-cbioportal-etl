@@ -11,6 +11,7 @@ import sys
 import os
 import csv
 import typing
+import re
 import requests
 
 
@@ -72,13 +73,10 @@ def output_clinical_changes(clin_type: str, current_only_ids: set, update_only_i
     if len(current_only_ids) > 0:
         print( f"{len(current_only_ids)} {clin_type}s in current would be removed" )
         with open(f"delete_id_list_{suffix}", 'w') as del_list:
-            writer = csv.writer(del_list, delimiter='\n')
+            writer = csv.writer(del_list)
             writer.writerow(current_only_ids)
     if len(update_only_ids) > 0:
         print( f"{len(update_only_ids)} {clin_type}s in update would be added to the current" )
-        with open(f"added_id_list_{suffix}", 'w') as add_list:
-            writer = csv.writer(add_list, delimiter='\n')
-            writer.writerow(update_only_ids)
     if len(current_attr_only) > 0:
         print( f"{len(current_attr_only)} attributes in current would be removed: {','.join(current_attr_only)}" )
     if len(update_attr_only) > 0:
@@ -235,16 +233,16 @@ def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: 
     return current_timeline_data
 
 
-def output_delta_by_id(diff_id: set, update_list: list, header: list[str], id_field: str, outfile_name: str, big_head: list | None) -> None:
+def output_file_by_id(select_id: set, update_list: list, header: list[str], id_field: str, outfile_name: str, big_head: list | None) -> None:
     """Use IDs from diff_list, then get all values from update set to output to incremental update data file
-    diff_id: set of IDs to filter down update_list for output
+    select_id: set of IDs to filter down update_list for output
     update_list: list of entries from update flat file
     header: str of column names to output unless big_head is populated
     outfile_name: str output file name
     big_head: str lead header lines, if applicable
     """
     id_index: int = header.index(id_field)
-    update_list = [ item for item in update_list if item.split('\t')[id_index] in diff_id ]
+    update_list = [ item for item in update_list if item.split('\t')[id_index] in select_id ]
     with open(outfile_name, 'w') as event_delta:
         event_delta.write("".join(header) if big_head is None else "".join(big_head))
         event_delta.write("".join(update_list))
@@ -274,13 +272,15 @@ def compare_timeline_data(current_timeline: dict, update_timeline: dict, out_dir
             suffix: str = event_ext_dict[event]
             outfilename: str = f"{out_dir}/data_clinical_timeline_{suffix}"
             uniq_patients: set = [item.split('\t')[0] for item in diff_ids]
-            output_delta_by_id(diff_id=uniq_patients, update_list=update_timeline[event], header=header_info[event], id_field="PATIENT_ID", outfile_name=outfilename, big_head=None)
+            output_file_by_id(select_id=uniq_patients, update_list=update_timeline[event], header=header_info[event], id_field="PATIENT_ID", outfile_name=outfilename, big_head=None)
 
 
 def run_py(args):
-    # Create incremental study updates dir
+    # Create incremental study updates dirs
     delta_dir: str = f"{args.study}_delta_data"
     os.makedirs(delta_dir, exist_ok=True)
+    add_dir: str = f"{args.study}_add_data"
+    os.makedirs(add_dir, exist_ok=True)
 
     # Set Up URL pulling
     print("Processing data clinical info", file=sys.stderr)
@@ -298,17 +298,21 @@ def run_py(args):
     # For each comparison it has implicit and skip attributes
     # Also includes the name of the data table that has the relevant information as well as the key in that table to locate the information
     aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
+    # get all datasheets
+    datasheet_dir: str = args.datasheets.rstrip("/")
+    datasheet_update_files: list = glob.glob(f"{datasheet_dir}/data_clinical*")
+
     comparisons: dict[str, str] = {
         "SAMPLE": {
             "attr_implicit": ['PATIENT_ID'],
             "attr_skip": ['FRACTION_GENOME_ALTERED', 'MUTATION_COUNT'],
-            "data_table": args.datasheet_sample,
+            "data_table": f"{datasheet_dir}/data_clinical_sample.txt",
             "data_table_key": "SAMPLE_ID"
         },
         "PATIENT": {
             "attr_implicit": [],
             "attr_skip": ['SAMPLE_COUNT'],
-            "data_table": args.datasheet_patient,
+            "data_table": f"{datasheet_dir}/data_clinical_patient.txt",
             "data_table_key": "PATIENT_ID"
         }
     }
@@ -337,14 +341,24 @@ def run_py(args):
         with open(f"{comp.lower()}_current_v_update.txt", 'w') as diff_out:
             update_delta_ids, update_delta_attr_cts = catalog_and_print_delta_ids(current_data=current_data, update_data=update_data, shared_attrs=shared_attr, shared_ids=shared_ids, clin_type=comp, out=diff_out)
 
-        # Get the complete list of new and updated ids
-        updated_only_or_delta_ids: set[str] = update_only_ids | update_delta_ids
-        if len(updated_only_or_delta_ids) > 1:
-            output_delta_by_id( diff_id=updated_only_or_delta_ids, update_list=file_as_list, header=file_header, id_field=comparisons[comp]["data_table_key"], outfile_name=f"{delta_dir}/data_clinical_{comp.lower()}.txt", big_head=big_head )
+        # Create delta file outputs if update_delta_ids is populated
+        if len(update_delta_ids) > 1:
+            output_file_by_id( select_id=update_delta_ids, update_list=file_as_list, header=file_header, id_field=comparisons[comp]["data_table_key"], outfile_name=f"{delta_dir}/data_clinical_{comp.lower()}.txt", big_head=big_head )
+        # Create add file outputs if update_only_ids is populated
+        if len(update_only_ids) > 1:
+            output_file_by_id( select_id=update_only_ids, update_list=file_as_list, header=file_header, id_field=comparisons[comp]["data_table_key"], outfile_name=f"{add_dir}/data_clinical_{comp.lower()}.txt", big_head=big_head )
+            # Also process cbio_file_name_id if at sample level
+            if comp == "SAMPLE":
+                _ignore, etl_header, etl_data  = parse_file(file_path=args.manifest, header_symbol=None, column_names=True)
+                output_file_by_id( select_id=etl_header, update_list=etl_data, header=etl_header, id_field="Cbio_Tumor_Name", outfile_name=f"{add_dir}/cbio_file_name_id.txt", big_head=_ignore )
+
         output_clinical_changes(clin_type=comp, current_only_ids=current_only_ids , update_only_ids=update_only_ids, current_attr_only=current_only_attr, update_attr_only=update_only_attr, attr_cts=update_delta_attr_cts, suffix=f"{comp}.txt")
 
+
     # timeline-diffs
-    if args.datasheet_timeline:
+    r = re.compile(".*timeline.*")
+    timeline_update_files: list = list(filter(r.match, datasheet_update_files))
+    if len(timeline_update_files):
         print("Getting current timeline data, please wait...", file=sys.stderr)
         timeline_event_dict: dict = {
             "clinical_event.txt": "Clinical Status",
@@ -354,9 +368,7 @@ def run_py(args):
             "treatment.txt": "TREATMENT",
         }
         timeline_current: dict = data_clinical_timeline_from_current(url=formatted_url, auth_headers=auth_headers, study_id=args.study)
-        timeline_dir: str = args.datasheet_timeline.rstrip("/")
-        timeline_update_file_prefix: str = f"{timeline_dir}/data_clinical_timeline_"
-        timeline_update_files: list = glob.glob(f"{timeline_update_file_prefix}*")
+        timeline_update_file_prefix: str = f"{datasheet_dir}/data_clinical_timeline_"
         # store file data in memory by event type to match current pull dict created
         timeline_update: dict = {}
         # store file headers to repurpose
@@ -373,14 +385,13 @@ def run_py(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compare update clinical and timeline data to current cbioportal instance. Outputs changes summaries, id lists, and delta files")
+    parser = argparse.ArgumentParser(description="Compare update clinical and timeline data to current cbioportal instance. Outputs changes summaries, id lists, and delta files. \
+                                     Recommend running cbioportal_etl/scripts/get_study_metadata.py to get file inputs")
     parser.add_argument("-u", "--url", action="store", dest="url", help="url to search against", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs")
     parser.add_argument("-s", "--study", action="store", dest="study", help="Cancer study ID to compare on server")
     parser.add_argument("-t", "--token", action="store", dest="token", help="Token file obtained from Web API")
-    parser.add_argument("-ds", "--datasheet-sample", action="store", dest="datasheet_sample", help="File containing cBio-formatted sample metadata, typically named data_clinical_sample.txt")
-    parser.add_argument("-dp", "--datasheet-patient", action="store", dest="datasheet_patient", help="File containing cBio-formatted patient metadata, typically named data_clinical_patient.txt")
-    parser.add_argument("-dt", "--datasheet-timeline", action="store", dest="datasheet_timeline", help="Dir containing cBio-formatted timeline data, typically named data_clinical_timeline*")
-
+    parser.add_argument("-ds", "--datasheet-dir", action="store", dest="datasheets", help="Directory containing cBio-formatted  metadata, typically named data_clinical_*")
+    parser.add_argument("-m", "--manifest", default="cbio_file_name_id.txt", help="Manifest file (default: cbio_file_name_id.txt from Step 1 output)")
     args = parser.parse_args()
     run_py(args)
 
