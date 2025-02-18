@@ -233,11 +233,11 @@ def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: 
     return current_timeline_data
 
 
-def output_file_by_id(select_id: set, update_list: list, header: list[str], id_field: str, outfile_name: str, big_head: list | None) -> None:
-    """Use IDs from diff_list, then get all values from update set to output to incremental update data file
+def output_file_by_id(select_id: set, update_list: list, header: list[str], id_field: str, outfile_name: str, big_head: list | None = None) -> None:
+    """Given a list containing tab-separated entries, select those entries where a field matches a key from a set and print those selections to a file.
     select_id: set of IDs to filter down update_list for output
     update_list: list of entries from update flat file
-    header: str of column names to output unless big_head is populated
+    header: list containing column name strings
     outfile_name: str output file name
     big_head: str lead header lines, if applicable
     """
@@ -349,15 +349,14 @@ def run_py(args):
             output_file_by_id( select_id=update_only_ids, update_list=file_as_list, header=file_header, id_field=comparisons[comp]["data_table_key"], outfile_name=f"{add_dir}/data_clinical_{comp.lower()}.txt", big_head=big_head )
             # Also process cbio_file_name_id if at sample level
             if comp == "SAMPLE":
-                _ignore, etl_header, etl_data  = parse_file(file_path=args.manifest, header_symbol=None, column_names=True)
-                output_file_by_id( select_id=update_only_ids, update_list=etl_data, header=etl_header, id_field="Cbio_Tumor_Name", outfile_name=f"{args.study}_add_data/cbio_file_name_id.txt", big_head=_ignore )
+                _, etl_header, etl_data  = parse_file(file_path=args.manifest, header_symbol=None, column_names=True)
+                output_file_by_id( select_id=update_only_ids, update_list=etl_data, header=etl_header, id_field="Cbio_Tumor_Name", outfile_name=f"{args.study}_add_data/cbio_file_name_id.txt" )
 
         output_clinical_changes(clin_type=comp, current_only_ids=current_only_ids , update_only_ids=update_only_ids, current_attr_only=current_only_attr, update_attr_only=update_only_attr, attr_cts=update_delta_attr_cts, suffix=f"{comp}.txt")
 
 
     # timeline-diffs
-    r = re.compile(".*timeline.*")
-    timeline_update_files: list = list(filter(r.match, datasheet_update_files))
+    timeline_update_files: list = glob.glob(f"{datasheet_dir}/data_clinical*timeline*")
     if len(timeline_update_files):
         print("Getting current timeline data, please wait...", file=sys.stderr)
         timeline_event_dict: dict = {
@@ -376,8 +375,7 @@ def run_py(args):
         for path in timeline_update_files:
             suffix: str = path.replace(timeline_update_file_prefix, "")
             event_type: str = timeline_event_dict[suffix]
-            _ignore, event_file_head[event_type], timeline_update[event_type]  = parse_file(file_path=path, header_symbol=None, column_names=True)
-            del _ignore
+            _, event_file_head[event_type], timeline_update[event_type]  = parse_file(file_path=path, header_symbol=None, column_names=True)
         print("Comparing current timeline to update", file=sys.stderr)
         compare_timeline_data(current_timeline=timeline_current, update_timeline=timeline_update, out_dir=delta_dir, header_info=event_file_head, file_ext=timeline_event_dict)
 
