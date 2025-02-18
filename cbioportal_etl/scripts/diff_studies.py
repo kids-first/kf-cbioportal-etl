@@ -112,7 +112,7 @@ def catalog_and_print_delta_ids(
     shared_ids: set[str],
     clin_type: str,
     out: typing.IO,
-) -> tuple[set, set, set, set, set, dict]:
+) -> tuple[set, dict[str, int]]:
     """Compare the entries where the current and updated dataset share clinical_ids and attributes. Catalogue the differences (aka deltas) and print them to a file
 
     Args:
@@ -129,7 +129,7 @@ def catalog_and_print_delta_ids(
     """
     # focus on common sample and common attr, as "everything is different for x" is not that useful
     print(f"{clin_type}\tattribute\tbefore\tafter", file=out)
-    update_delta_attr_cts: dict = {}
+    update_delta_attr_cts: dict[str, int] = {}
     # track at row level what as changed
     update_delta_ids: set = set()
     for clinical_id in shared_ids:
@@ -148,7 +148,7 @@ def catalog_and_print_delta_ids(
     return update_delta_ids, update_delta_attr_cts
 
 
-def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, str, list, str]:
+def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict[str, dict], set, str, list[str], list[str] | None]:
     """Take a text file and convert to dict with certain row value as primary, all other row values as subkeys
 
     Args:
@@ -164,9 +164,9 @@ def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict, set, s
 
     """
     big_head, header, data_clinical = parse_file(
-        file_path=in_file, header_symbol="#", column_names=True
+        file_path=in_file, header_symbol="#", column_names=True,
     )
-    data_dict: dict = {}
+    data_dict: dict[str, dict] = {}
     for entry in data_clinical:
         data: list = entry.rstrip("\n").split("\t")
         # Create a dictionary by zipping together the line with the header; sub in "NA" for empty columns
@@ -347,7 +347,7 @@ def compare_timeline_data(
             )
             suffix: str = event_ext_dict[event]
             outfilename: str = f"{out_dir}/data_clinical_timeline_{suffix}"
-            uniq_patients: set = [item.split("\t")[0] for item in diff_ids]
+            uniq_patients: set[str] = {item.split("\t")[0] for item in diff_ids}
             output_file_by_id(
                 select_id=uniq_patients,
                 update_list=update_timeline[event],
@@ -390,7 +390,7 @@ def run_py(args):
     # get all datasheets
     datasheet_dir: str = args.datasheets.rstrip("/")
 
-    comparisons: dict[str, str] = {
+    comparisons: dict[str, dict[str, list[str] | str]] = {
         "SAMPLE": {
             "attr_implicit": ["PATIENT_ID"],
             "attr_skip": ["FRACTION_GENOME_ALTERED", "MUTATION_COUNT"],
