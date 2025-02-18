@@ -3,9 +3,9 @@ This documentation addresses a [QC script](../scripts/diff_studies.py) for clini
 
 ```sh
 python3 scripts/diff_studies.py --help
-usage: diff_studies.py [-h] [-u URL] [-s STUDY] [-t TOKEN] [-d DATA_DIR]
+usage: diff_studies.py [-h] [-u URL] [-s STUDY] [-t TOKEN] [-ds DATASHEETS] [-m MANIFEST]
 
-Compare local clinical data to server
+Compare update clinical and timeline data to current cbioportal instance. Outputs changes summaries, id lists, and delta files. Recommend running cbioportal_etl/scripts/get_study_metadata.py to get file inputs
 
 options:
   -h, --help            show this help message and exit
@@ -14,24 +14,31 @@ options:
                         Cancer study ID to compare on server
   -t TOKEN, --token TOKEN
                         Token file obtained from Web API
-  -d DATA_DIR, --datasheet-dir DATA_DIR
-                        Directory containing data_clinical_*.txt
+  -ds DATASHEETS, --datasheet-dir DATASHEETS
+                        Directory containing cBio-formatted metadata, typically named data_clinical_*
+  -m MANIFEST, --manifest MANIFEST
+                        Manifest file (default: cbio_file_name_id.txt from Step 1 output)
 ```
 
 ## INPUTS:
  - `-u, --url`: cBioportal api deployment site. Default: https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs
  - `-s, --study`: cBioportal cancer study ID, i.e. `pbta_all`
  - `-t, --token`: File obtained from navigating to https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens, then clicking on `Download Token`. File is reusable
- - `-d, --datasheet-dir`: Name of directory containing `data_clinical_patient.txt` and `data_clinical_sample.txt` being vetted for upload
+ - `-ds, --datasheet-dir`: directory containing cBio-formatted metadata, typically named data_clinical_* being vetted for upload
+ - `-m, --manifest`: cbio_file_name_id.txt from Step 1/`scripts/get_study_metadata.py` output
 
 ## OUTPUTS:
+Below is an example of script output
 ### Tree:
 ```
 ./
-├── added_id_list_sample.txt
 ├── delete_id_list_patient.txt
 ├── delete_id_list_sample.txt
 ├── patient_current_v_update.txt
+├── pbta_all_add_data
+│   ├── cbio_file_name_id.txt
+│   ├── datasheets
+│   │   └── data_clinical_sample.txt
 ├── pbta_all_delta_data
 │   ├── data_clinical_patient.txt
 │   ├── data_clinical_sample.txt
@@ -51,6 +58,7 @@ For the patient and sample views, each file respectively has:
    - A summary of the number of changes of each attribute type printed to STDOUT
  - Zero or more id lists for patients and samples to be deleted and/or added
  - A directory in the form of {study_id}_delta_data with delta files for incremental output
+ - A directory in the form of {study_id}_add_data with new data files for incremental output
 
 ### patient_portal_v_build.txt example:
 ```
@@ -132,4 +140,7 @@ EFS_STATUS has 18 change(s)
 SEX has 9 change(s)
 AGE has 6 change(s)
 OS_STATUS has 4 change(s)
+
+7 changes in Clinical Status found for this study. Outputting delta files
+36 changes in SPECIMEN found for this study. Outputting delta files
 ```

@@ -261,7 +261,7 @@ def compare_timeline_data(current_timeline: dict, update_timeline: dict, out_dir
     event_ext_dict = {v: k for k, v in file_ext.items()}
     for event in event_type:
         current_ids: set = set(current_timeline[event])
-        # temp workaround for testing
+        # set to empty to match behavior of current_timeline dict generation
         if event not in update_timeline:
             update_timeline[event] = []
         # strip new line
