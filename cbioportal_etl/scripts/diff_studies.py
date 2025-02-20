@@ -11,6 +11,7 @@ import os
 import sys
 import typing
 from urllib.parse import urlparse
+from typing import TypedDict
 
 import requests
 
@@ -119,7 +120,7 @@ def split_data_file(
         aggr_list: list,
         current_data: dict[str,str],
         shared_attrs: set[str],
-) -> tuple[dict[str, dict], list[str], dict[str, dict], list[str] | None]:
+) -> tuple[dict[str, dict[str, str]], list[str], dict[str, dict[str,str]], list[str] | None]:
     """Take a text file and convert to dict with certain row value as primary, all other row values as subkeys
 
     Args:
@@ -401,8 +402,12 @@ def run_py(args):
     aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
     # get all datasheets
     datasheet_dir: str = args.datasheets.rstrip("/")
-
-    comparisons: dict[str, dict[str, list[str] | str]] = {
+    class Data(TypedDict):
+        attr_implicit: list[str]
+        attr_skip: list[str]
+        data_table: str
+        data_table_key: str
+    comparisons: dict[str, Data] = {
         "SAMPLE": {
             "attr_implicit": ["PATIENT_ID"],
             "attr_skip": ["FRACTION_GENOME_ALTERED", "MUTATION_COUNT"],
