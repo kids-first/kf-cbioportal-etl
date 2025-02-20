@@ -11,9 +11,19 @@ import os
 import sys
 import typing
 from urllib.parse import urlparse
+from typing import TypedDict
 
 import requests
 
+
+class Config(TypedDict):
+    """
+    Class to type run configuration for the standard diff anaylsis (current_only, delta, update_only)
+    """
+    attr_implicit: list[str]
+    attr_skip: list[str]
+    data_table: str
+    data_table_key: str
 
 def parse_file(
     file_path: str, header_symbol: str | None = None, column_names: bool = False
@@ -44,6 +54,21 @@ def parse_file(
     header = all_lines[:end_header_index] if len(all_lines[:end_header_index]) > 0 else None
     body = all_lines[end_header_index:]
     return header, columns, body
+
+
+def print_parsed_file(header: list[str] | None, body: list[str], out_filename: str) -> None:
+    """Print a header, if given, and body to an output file
+    Args:
+        header: List containing strings that represent the file header
+        body: List containing strings that represent the file body
+        out_filename: string name for output file
+    Return:
+        None: prints a file and returns nothing
+    """
+    with open(out_filename, "wt") as out_file:
+        if header:
+            out_file.write("".join(header))
+        out_file.write("".join(body))
 
 
 def get_set_venn(left: set[str], right: set[str]) -> tuple[set[str], set[str], set[str]]:
@@ -105,84 +130,110 @@ def output_clinical_changes(
     print("")
 
 
-def catalog_and_print_delta_ids(
-    current_data: dict,
-    update_data: dict,
-    shared_attrs: set[str],
-    shared_ids: set[str],
-    clin_type: str,
-    out: typing.IO,
-) -> tuple[set, dict[str, int]]:
-    """Compare the entries where the current and updated dataset share clinical_ids and attributes. Catalogue the differences (aka deltas) and print them to a file
-
-    Args:
-        current_data: dict with data pulled from a current cbioportal instance with clinical id (based on clin_type) as the primary key, clinical attribute as subkey.
-            For example: current_data['7316-7113']['BROAD_HISTOLOGY']='Tumors of sellar region'
-        update_data: dict with data pulled from flat file source. Exact format as current_data
-        shared_attrs: set of attributes shared by current and update
-        shared_ids: set of clinical ids shared by current and update
-        clin_type: str can be PATIENT or SAMPLE
-        out: typing.IO file to print to
-    Returns:
-        update_delta_ids: set of IDs that exist in both current_data and update_data but have at least 1 differing attribute
-        update_delta_attr_cts: dict with counts of attribute changes for clin_type
-    """
-    # focus on common sample and common attr, as "everything is different for x" is not that useful
-    print(f"{clin_type}\tattribute\tbefore\tafter", file=out)
-    update_delta_attr_cts: dict[str, int] = {}
-    # track at row level what as changed
-    update_delta_ids: set = set()
-    for clinical_id in shared_ids:
-        for attr in shared_attrs:
-            # current will not have a value for that attr in the struct if none
-            current_value: str = current_data[clinical_id].get(attr, "NA")
-            if current_value != update_data[clinical_id][attr]:
-                print(
-                    f"{clinical_id}\t{attr}\t{current_value}\t{update_data[clinical_id][attr]}",
-                    file=out,
-                )
-                if attr not in update_delta_attr_cts:
-                    update_delta_attr_cts[attr] = 0
-                update_delta_attr_cts[attr] += 1
-                update_delta_ids.add(clinical_id)
-    return update_delta_ids, update_delta_attr_cts
-
-
-def table_to_dict(in_file: str, key: str, aggr_list: list) -> tuple[dict[str, dict], set, str, list[str], list[str] | None]:
+def split_data_file(
+        data_lines: list[str],
+        column_names: list[str],
+        key: str,
+        aggr_list: list,
+        current_data: dict[str,dict[str,str]],
+        shared_attrs: set[str],
+) -> tuple[dict[str, dict[str, str]], list[str], dict[str, dict[str,str]], list[str] | None, set[str]]:
     """Take a text file and convert to dict with certain row value as primary, all other row values as subkeys
 
     Args:
-        in_file: str of input flat file name to parse
-        key: str of column name containing primary key to use to aggregate data
-        aggr_list: list of column names in which data values are are to be split and sorted to avoid a;b != b;a scenarios
+        data_lines: list of strings representing the lines of data
+        column_names: list of strings representing the column names
+        key: str of column name to use as primary key in dict for all other columns
+        aggr_list: list of column names in which data values are to be split and sorted to avoid a;b != b;a scenarios
+        current_data: dict containing the current dataset
+        shared_attrs: set containing the current attributes
     Returns:
-        data_dict: dict with flat file data converted as key value as primary key, associated column name as sub key, and row value as value
-        attributes: set of col names sans primary key
-        "\t".join(header) +"\n": str col names
-        data_clinical: list in_file read in as array of strings
-        big_head: str of header lines from in_file
-
+        delta_data
+        delta_lines
+        new_data
+        new_lines
+        shared_ids
     """
-    big_head, header, data_clinical = parse_file(
-        file_path=in_file, header_symbol="#", column_names=True,
-    )
-    data_dict: dict[str, dict] = {}
-    for entry in data_clinical:
+    delta_data: dict[str, dict] = {}
+    delta_lines: list[str] = []
+    new_data: dict[str, dict] = {}
+    new_lines: list[str] = []
+    shared_ids: set[str] = set()
+    for entry in data_lines:
         data: list = entry.rstrip("\n").split("\t")
         # Create a dictionary by zipping together the line with the header; sub in "NA" for empty columns
-        entry_dict: dict[str, str] = {k: ("NA" if v == "" else v) for k, v in zip(header, data)}
+        entry_dict: dict[str, str] = {k: ("NA" if v == "" else v) for k, v in zip(column_names, data)}
         # Aggregate attributes have multiple entries in a random order separated by a semicolon
         # Therefore, sort them so that when compared, no errors are triggered
         for aggr in aggr_list:
-            if aggr in header:
+            if aggr in column_names:
                 entry_dict[aggr] = ";".join(sorted(entry_dict[aggr].split(";")))
         key_value = entry_dict.pop(key)
-        data_dict[key_value] = entry_dict
-    attributes: set = set(header)
-    # no need for primary key to be reported as an attribute
-    attributes.remove(key)
-    return data_dict, attributes, header, data_clinical, big_head
+        if key_value in current_data:
+            shared_ids.add(key_value)
+            if is_delta(current_data[key_value], entry_dict, shared_attrs):
+                delta_data[key_value] = entry_dict
+                delta_lines.append(entry)
+        else:
+            new_data[key_value] = entry_dict
+            new_lines.append(entry)
+    return delta_data, delta_lines, new_data, new_lines, shared_ids
 
+
+def is_delta(
+        current: dict[str, str],
+        update: dict[str, str],
+        shared_attrs: set[str],
+) -> bool:
+    """Given two dicts, compare their shared keys and report if any of values differ
+    Args:
+        current: Dictionary of the current data; keys are attribute names, values are attribute values
+        update: Dictionary of the update data; keys are attribute names, values are attribute values
+        shared_attrs: Set of attributes shared names between current and update data
+    Return:
+        bool: True if one of the shared attribute key values differ in the two data inputs; otherwise False
+    """
+    for attr in shared_attrs:
+        # current will not have a value for that attr in the struct if none
+        current_value: str = current.get(attr, "NA")
+        if current_value != update[attr]:
+            return True
+    return False
+
+def print_and_count_delta_attr(
+        clin_type: str,
+        delta_data: dict[str, dict[str,str]],
+        current_data: dict[str, dict[str,str]],
+        shared_attr: set[str],
+        out_filename: str
+) -> dict[str, int]:
+    """Iterate through a dict that has changed attributes. Print which attributes have changed (from what, to what) and
+    return the total count of each changed attribute.
+    Args:
+        delta_data: dict containing data that has experienced a change; keys are ids, values are dicts of attribute names:values
+        current_data: dict containing the data from which the delta has changed; keys are ids, values are dicts of attribute names:values
+        shared_attr: set of attribute names shared between delta and current datasets
+        out_filename: string to use as output filename
+        clin_type: string of the clinical type to report in output file
+    Return:
+        delta_attr_cts: dict of counts for changed attributes; keys are attribute names, values are count of changes
+        prints to file
+    """
+    delta_attr_cts: dict[str, int] = {}
+    with open(out_filename, "w") as diff_out:
+        print(f"{clin_type}\tattribute\tbefore\tafter", file=diff_out)
+        for clinical_id in delta_data:
+            for attr in shared_attr:
+                current_value: str = current_data[clinical_id].get(attr, "NA")
+                if current_value != delta_data[clinical_id][attr]:
+                    print(
+                        f"{clinical_id}\t{attr}\t{current_value}\t{delta_data[clinical_id][attr]}",
+                        file=diff_out,
+                    )
+                    if attr not in delta_attr_cts:
+                        delta_attr_cts[attr] = 0
+                    delta_attr_cts[attr] += 1
+    return delta_attr_cts
 
 def data_clinical_from_study(
     url: str, auth_headers: dict, study_id: str, data_type: str, aggr_list: list
@@ -390,7 +441,7 @@ def run_py(args):
     # get all datasheets
     datasheet_dir: str = args.datasheets.rstrip("/")
 
-    comparisons: dict[str, dict[str, list[str] | str]] = {
+    comparisons: dict[str, Config] = {
         "SAMPLE": {
             "attr_implicit": ["PATIENT_ID"],
             "attr_skip": ["FRACTION_GENOME_ALTERED", "MUTATION_COUNT"],
@@ -419,7 +470,7 @@ def run_py(args):
         current_attr_keys -= set(comparisons[comp]["attr_skip"])
         current_attr_keys |= set(comparisons[comp]["attr_implicit"])
 
-        # Pull current data from portal URL; build update data from file
+        # Pull current data from portal URL
         current_data: dict = data_clinical_from_study(
             url=formatted_url,
             auth_headers=auth_headers,
@@ -427,57 +478,59 @@ def run_py(args):
             data_type=comp,
             aggr_list=aggregate_vals,
         )
-        update_data, update_attr_keys, file_header, file_as_list, big_head = table_to_dict(
-            in_file=comparisons[comp]["data_table"],
-            key=comparisons[comp]["data_table_key"],
-            aggr_list=aggregate_vals,
+
+        # build update data from file
+        update_header, update_columns, update_body = parse_file(
+            file_path=comparisons[comp]["data_table"], header_symbol="#", column_names=True,
         )
 
-        # Get attrs/ids uniq to the current and update datasets
+        # Build update_attr_keys from column names
+        update_attr_keys: set[str] = set(update_columns)
+        update_attr_keys.remove(comparisons[comp]["data_table_key"])
+
+        # Get attrs uniq to the current and update datasets
         current_only_attr: set[str]
         update_only_attr: set[str]
         shared_attr: set[str]
         current_only_attr, update_only_attr, shared_attr = get_set_venn(
             left=current_attr_keys, right=update_attr_keys
         )
-        current_only_ids: set[str]
-        update_only_ids: set[str]
-        shared_ids: set[str]
-        current_only_ids, update_only_ids, shared_ids = get_set_venn(
-            left=set(current_data.keys()), right=set(update_data.keys())
+
+        delta_data, delta_lines, update_only_data, update_only_lines, shared_ids = split_data_file(
+            data_lines=update_body,
+            column_names=update_columns,
+            key=comparisons[comp]["data_table_key"],
+            aggr_list=aggregate_vals,
+            current_data=current_data,
+            shared_attrs=shared_attr,
         )
-        # Get and print ids that are present in both but have had updated attrs
-        with open(f"{comp.lower()}_current_v_update.txt", "w") as diff_out:
-            update_delta_ids, update_delta_attr_cts = catalog_and_print_delta_ids(
-                current_data=current_data,
-                update_data=update_data,
-                shared_attrs=shared_attr,
-                shared_ids=shared_ids,
+
+        # Get ids uniq to the current and update datasets
+        update_only_ids: set[str] = set(update_only_data.keys())
+        current_only_ids: set[str] = set(current_data.keys()) - shared_ids
+
+        # report before and after for deltas
+        delta_attr_count: dict[str, int] = {}
+        if delta_data:
+            delta_attr_count = print_and_count_delta_attr(
                 clin_type=comp,
-                out=diff_out,
+                delta_data=delta_data,
+                current_data=current_data,
+                shared_attr=shared_attr,
+                out_filename=f"{comp.lower()}_current_v_update.txt",
+            )
+            print_parsed_file(
+                header=update_header,
+                body=delta_lines,
+                out_filename=f"{delta_dir}/data_clinical_{comp.lower()}.txt"
             )
 
-        # Create delta file outputs if update_delta_ids is populated
-        if len(update_delta_ids) > 1:
-            output_file_by_id(
-                select_id=update_delta_ids,
-                update_list=file_as_list,
-                header=file_header,
-                id_field=comparisons[comp]["data_table_key"],
-                outfile_name=f"{delta_dir}/data_clinical_{comp.lower()}.txt",
-                big_head=big_head,
+        if update_only_data:
+            print_parsed_file(
+                header=update_header,
+                body=update_only_lines,
+                out_filename=f"{add_dir}/data_clinical_{comp.lower()}.txt"
             )
-        # Create add file outputs if update_only_ids is populated
-        if len(update_only_ids) > 1:
-            output_file_by_id(
-                select_id=update_only_ids,
-                update_list=file_as_list,
-                header=file_header,
-                id_field=comparisons[comp]["data_table_key"],
-                outfile_name=f"{add_dir}/data_clinical_{comp.lower()}.txt",
-                big_head=big_head,
-            )
-            # Also process cbio_file_name_id if at sample level
             if comp == "SAMPLE":
                 _, etl_header, etl_data = parse_file(
                     file_path=args.manifest, header_symbol=None, column_names=True
@@ -496,7 +549,7 @@ def run_py(args):
             update_only_ids=update_only_ids,
             current_attr_only=current_only_attr,
             update_attr_only=update_only_attr,
-            attr_cts=update_delta_attr_cts,
+            attr_cts=delta_attr_count,
             suffix=f"{comp}.txt",
         )
 
