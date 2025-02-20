@@ -16,6 +16,15 @@ from typing import TypedDict
 import requests
 
 
+class Config(TypedDict):
+    """
+    Class to type run configuration for the standard diff anaylsis (current_only, delta, update_only)
+    """
+    attr_implicit: list[str]
+    attr_skip: list[str]
+    data_table: str
+    data_table_key: str
+
 def parse_file(
     file_path: str, header_symbol: str | None = None, column_names: bool = False
 ) -> tuple[list[str] | None, list[str] | None, list[str]]:
@@ -48,6 +57,14 @@ def parse_file(
 
 
 def print_parsed_file(header: list[str] | None, body: list[str], out_filename: str) -> None:
+    """Print a header, if given, and body to an output file
+    Args:
+        header: List containing strings that represent the file header
+        body: List containing strings that represent the file body
+        out_filename: string name for output file
+    Return:
+        None: prints a file and returns nothing
+    """
     with open(out_filename, "wt") as out_file:
         if header:
             out_file.write("".join(header))
@@ -147,7 +164,7 @@ def split_data_file(
         # Aggregate attributes have multiple entries in a random order separated by a semicolon
         # Therefore, sort them so that when compared, no errors are triggered
         for aggr in aggr_list:
-            if aggr in header:
+            if aggr in column_names:
                 entry_dict[aggr] = ";".join(sorted(entry_dict[aggr].split(";")))
         key_value = entry_dict.pop(key)
         if key_value in current_data and is_delta(current_data[key_value], entry_dict, shared_attrs):
@@ -159,28 +176,45 @@ def split_data_file(
     return delta_data, delta_lines, new_data, new_lines
 
 
-def is_delta(current_data, update_data, shared_attrs) -> bool:
-    """Given two dicts, compare their shared attributes and report if any of their attributes differ
-
-    :param current_data:
-    :param update_data:
-    :param shared_attrs:
-    :return:
+def is_delta(
+        current: dict[str, str],
+        update: dict[str, str],
+        shared_attrs: set[str],
+) -> bool:
+    """Given two dicts, compare their shared keys and report if any of values differ
+    Args:
+        current: Dictionary of the current data; keys are attribute names, values are attribute values
+        update: Dictionary of the update data; keys are attribute names, values are attribute values
+        shared_attrs: Set of attributes shared names between current and update data
+    Return:
+        bool: True if one of the shared attribute key values differ in the two data inputs; otherwise False
     """
     for attr in shared_attrs:
         # current will not have a value for that attr in the struct if none
-        current_value: str = current_data.get(attr, "NA")
-        if current_value != update_data[attr]:
+        current: str = current.get(attr, "NA")
+        if current != update[attr]:
             return True
     return False
 
 def print_and_count_delta_attr(
         clin_type: str,
-        delta_data: dict[str,str],
-        current_data: dict[str, str],
+        delta_data: dict[str, dict[str,str]],
+        current_data: dict[str, dict[str,str]],
         shared_attr: set[str],
         out_filename: str
 ) -> dict[str, int]:
+    """Iterate through a dict that has changed attributes. Print which attributes have changed (from what, to what) and
+    return the total count of each changed attribute.
+    Args:
+        delta_data: dict containing data that has experienced a change; keys are ids, values are dicts of attribute names:values
+        current_data: dict containing the data from which the delta has changed; keys are ids, values are dicts of attribute names:values
+        shared_attr: set of attribute names shared between delta and current datasets
+        out_filename: string to use as output filename
+        clin_type: string of the clinical type to report in output file
+    Return:
+        delta_attr_cts: dict of counts for changed attributes; keys are attribute names, values are count of changes
+        prints to file
+    """
     delta_attr_cts: dict[str, int] = {}
     with open(out_filename, "w") as diff_out:
         print(f"{clin_type}\tattribute\tbefore\tafter", file=diff_out)
@@ -192,7 +226,7 @@ def print_and_count_delta_attr(
                         f"{clinical_id}\t{attr}\t{current_value}\t{delta_data[clinical_id][attr]}",
                         file=diff_out,
                     )
-                    if attr not in update_delta_attr_cts:
+                    if attr not in delta_attr_cts:
                         delta_attr_cts[attr] = 0
                     delta_attr_cts[attr] += 1
     return delta_attr_cts
@@ -402,12 +436,8 @@ def run_py(args):
     aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
     # get all datasheets
     datasheet_dir: str = args.datasheets.rstrip("/")
-    class Data(TypedDict):
-        attr_implicit: list[str]
-        attr_skip: list[str]
-        data_table: str
-        data_table_key: str
-    comparisons: dict[str, Data] = {
+
+    comparisons: dict[str, Config] = {
         "SAMPLE": {
             "attr_implicit": ["PATIENT_ID"],
             "attr_skip": ["FRACTION_GENOME_ALTERED", "MUTATION_COUNT"],
@@ -480,7 +510,7 @@ def run_py(args):
         delta_attr_count: dict[str, int] = {}
         if delta_data:
             delta_attr_count = print_and_count_delta_attr(
-                clin_type=clin_type,
+                clin_type=comp,
                 delta_data=delta_data,
                 current_data=current_data,
                 shared_attr=shared_attr,
@@ -516,7 +546,7 @@ def run_py(args):
             update_only_ids=update_only_ids,
             current_attr_only=current_only_attr,
             update_attr_only=update_only_attr,
-            attr_cts=delta_attr_cts,
+            attr_cts=delta_attr_count,
             suffix=f"{comp}.txt",
         )
 
