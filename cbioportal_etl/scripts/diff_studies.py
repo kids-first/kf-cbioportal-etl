@@ -135,9 +135,9 @@ def split_data_file(
         column_names: list[str],
         key: str,
         aggr_list: list,
-        current_data: dict[str,str],
+        current_data: dict[str,dict[str,str]],
         shared_attrs: set[str],
-) -> tuple[dict[str, dict[str, str]], list[str], dict[str, dict[str,str]], list[str] | None]:
+) -> tuple[dict[str, dict[str, str]], list[str], dict[str, dict[str,str]], list[str] | None, set[str]]:
     """Take a text file and convert to dict with certain row value as primary, all other row values as subkeys
 
     Args:
@@ -152,11 +152,13 @@ def split_data_file(
         delta_lines
         new_data
         new_lines
+        shared_ids
     """
     delta_data: dict[str, dict] = {}
     delta_lines: list[str] = []
     new_data: dict[str, dict] = {}
     new_lines: list[str] = []
+    shared_ids: set[str] = set()
     for entry in data_lines:
         data: list = entry.rstrip("\n").split("\t")
         # Create a dictionary by zipping together the line with the header; sub in "NA" for empty columns
@@ -167,13 +169,15 @@ def split_data_file(
             if aggr in column_names:
                 entry_dict[aggr] = ";".join(sorted(entry_dict[aggr].split(";")))
         key_value = entry_dict.pop(key)
-        if key_value in current_data and is_delta(current_data[key_value], entry_dict, shared_attrs):
-            delta_data[key_value] = entry_dict
-            delta_lines.append(entry)
+        if key_value in current_data:
+            shared_ids.add(key_value)
+            if is_delta(current_data[key_value], entry_dict, shared_attrs):
+                delta_data[key_value] = entry_dict
+                delta_lines.append(entry)
         else:
             new_data[key_value] = entry_dict
             new_lines.append(entry)
-    return delta_data, delta_lines, new_data, new_lines
+    return delta_data, delta_lines, new_data, new_lines, shared_ids
 
 
 def is_delta(
@@ -191,8 +195,8 @@ def is_delta(
     """
     for attr in shared_attrs:
         # current will not have a value for that attr in the struct if none
-        current: str = current.get(attr, "NA")
-        if current != update[attr]:
+        current_value: str = current.get(attr, "NA")
+        if current_value != update[attr]:
             return True
     return False
 
@@ -492,7 +496,7 @@ def run_py(args):
             left=current_attr_keys, right=update_attr_keys
         )
 
-        delta_data, delta_lines, update_only_data, update_only_lines = split_data_file(
+        delta_data, delta_lines, update_only_data, update_only_lines, shared_ids = split_data_file(
             data_lines=update_body,
             column_names=update_columns,
             key=comparisons[comp]["data_table_key"],
@@ -503,7 +507,6 @@ def run_py(args):
 
         # Get ids uniq to the current and update datasets
         update_only_ids: set[str] = set(update_only_data.keys())
-        shared_ids: set[str] = set(shared_data.keys())
         current_only_ids: set[str] = set(current_data.keys()) - shared_ids
 
         # report before and after for deltas
