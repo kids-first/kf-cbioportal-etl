@@ -119,7 +119,7 @@ def split_data_file(
         aggr_list: list,
         current_data: dict[str,str],
         shared_attrs: set[str],
-) -> tuple[dict[str, dict], set, str, list[str], list[str] | None]:
+) -> tuple[dict[str, dict], list[str], dict[str, dict], list[str] | None]:
     """Take a text file and convert to dict with certain row value as primary, all other row values as subkeys
 
     Args:
@@ -158,7 +158,7 @@ def split_data_file(
     return delta_data, delta_lines, new_data, new_lines
 
 
-def is_delta(current_data, update_data, shared_attrs) -> boolean:
+def is_delta(current_data, update_data, shared_attrs) -> bool:
     """Given two dicts, compare their shared attributes and report if any of their attributes differ
 
     :param current_data:
@@ -170,8 +170,8 @@ def is_delta(current_data, update_data, shared_attrs) -> boolean:
         # current will not have a value for that attr in the struct if none
         current_value: str = current_data.get(attr, "NA")
         if current_value != update_data[attr]:
-            return true
-    return false
+            return True
+    return False
 
 def print_and_count_delta_attr(
         clin_type: str,
