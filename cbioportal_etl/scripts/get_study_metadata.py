@@ -133,6 +133,7 @@ def get_manifests(db_cur, config_dict, include_all):
 def run_py(args):
     # Load database login info
     params = config(filename=args.db_ini, section=args.profile)
+    study = args.study
 
     datasheet_dir = 'datasheets'
     # Load json config file with database pull info
