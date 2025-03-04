@@ -10,10 +10,9 @@ import glob
 import os
 import sys
 import json
-import typing
+from typing import TypedDict
 import pandas as pd
 from urllib.parse import urlparse
-from typing import TypedDict
 
 import requests
 
@@ -30,7 +29,7 @@ class Config(TypedDict):
 def parse_file(
     file_path: str, header_symbol: str | None = None, column_names: bool = False
 ) -> tuple[list[str] | None, list[str] | None, list[str]]:
-    """Break up a file into header, column names, and body
+    """Break up a file into header, column names, and body.
 
     Args:
         file_path: string path to file to process
@@ -59,7 +58,8 @@ def parse_file(
 
 
 def print_parsed_file(header: list[str] | None, body: list[str], out_filename: str) -> None:
-    """Print a header, if given, and body to an output file
+    """Print a header, if given, and body to an output file.
+
     Args:
         header: List containing strings that represent the file header
         body: List containing strings that represent the file body
@@ -74,15 +74,17 @@ def print_parsed_file(header: list[str] | None, body: list[str], out_filename: s
 
 
 def get_set_venn(left: set[str], right: set[str]) -> tuple[set[str], set[str], set[str]]:
-    """Get items in left set not in right + items in right set not in left + items in both sets
+    """Get items in left set not in right + items in right set not in left + items in both sets.
 
     Args:
         left: set of strings
         right: set of strings
+
     Return:
         left_only: set of strings found in left but not right
         right_only: set of strings found in right but not left
         shared: set of strings shared by left and right
+
     """
     left_only = left - right
     right_only = right - left
@@ -99,7 +101,7 @@ def output_clinical_changes(
     attr_cts: dict,
     suffix: str,
 ) -> None:
-    """Print change summary to STDOUT and add/delete ids to file based on clin_type
+    """Print change summary to STDOUT and add/delete ids to file based on clin_type.
 
     Args:
         clin_type: str can be PATIENT or SAMPLE
@@ -109,6 +111,7 @@ def output_clinical_changes(
         update_attr_only: set of attributes (basically columns) found only in update flat file
         attr_cts: dict with counts of attribute changes for clin_type
         suffix: str for output file name suffix
+
     """
     print(f"{clin_type} CHANGE SUMMARY:")
     if len(current_only_ids) > 0:
@@ -140,7 +143,7 @@ def split_data_file(
         current_data: dict[str,dict[str,str]],
         shared_attrs: set[str],
 ) -> tuple[dict[str, dict[str, str]], list[str], dict[str, dict[str,str]], list[str] | None, set[str]]:
-    """Take a text file and convert to dict with certain row value as primary, all other row values as subkeys
+    """Take a text file and convert to dict with certain row value as primary, all other row values as subkeys.
 
     Args:
         data_lines: list of strings representing the lines of data
@@ -149,12 +152,14 @@ def split_data_file(
         aggr_list: list of column names in which data values are to be split and sorted to avoid a;b != b;a scenarios
         current_data: dict containing the current dataset
         shared_attrs: set containing the current attributes
+
     Returns:
         delta_data
         delta_lines
         new_data
         new_lines
         shared_ids
+
     """
     delta_data: dict[str, dict] = {}
     delta_lines: list[str] = []
@@ -187,13 +192,16 @@ def is_delta(
         update: dict[str, str],
         shared_attrs: set[str],
 ) -> bool:
-    """Given two dicts, compare their shared keys and report if any of values differ
+    """Given two dicts, compare their shared keys and report if any of values differ.
+
     Args:
         current: Dictionary of the current data; keys are attribute names, values are attribute values
         update: Dictionary of the update data; keys are attribute names, values are attribute values
         shared_attrs: Set of attributes shared names between current and update data
+
     Return:
         bool: True if one of the shared attribute key values differ in the two data inputs; otherwise False
+
     """
     for attr in shared_attrs:
         # current will not have a value for that attr in the struct if none
@@ -209,17 +217,21 @@ def print_and_count_delta_attr(
         shared_attr: set[str],
         out_filename: str
 ) -> dict[str, int]:
-    """Iterate through a dict that has changed attributes. Print which attributes have changed (from what, to what) and
-    return the total count of each changed attribute.
+    """Iterate through a dict that has changed attributes.
+
+    Print which attributes have changed (from what, to what) and return the total count of each changed attribute.
+
     Args:
         delta_data: dict containing data that has experienced a change; keys are ids, values are dicts of attribute names:values
         current_data: dict containing the data from which the delta has changed; keys are ids, values are dicts of attribute names:values
         shared_attr: set of attribute names shared between delta and current datasets
         out_filename: string to use as output filename
         clin_type: string of the clinical type to report in output file
+
     Return:
         delta_attr_cts: dict of counts for changed attributes; keys are attribute names, values are count of changes
         prints to file
+
     """
     delta_attr_cts: dict[str, int] = {}
     with open(out_filename, "w") as diff_out:
@@ -240,7 +252,7 @@ def print_and_count_delta_attr(
 def data_clinical_from_study(
     url: str, auth_headers: dict, study_id: str, data_type: str, aggr_list: list
 ) -> dict:
-    """Get all the column-value pairs for each data_type(SAMPLE or PATIENT) for a specific study
+    """Get all the column-value pairs for each data_type(SAMPLE or PATIENT) for a specific study.
 
     Args:
         url: current cbioportal instance url
@@ -248,8 +260,10 @@ def data_clinical_from_study(
         study_id: str of study name to pull
         data_type: str PATIENT or SAMPLE
         aggr_list: list of attribute names in which data values are are to be split and sorted to avoid a;b != b;a scenarios
+
     Returns:
         data_dict: dict with current cbioportal instance data converted as key value as primary key, associated column name as sub key, and row value as value
+
     """
     params: dict = {
         "studyId": study_id,
@@ -286,15 +300,18 @@ def data_clinical_from_study(
 
 
 def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: str) -> dict:
-    """Pull all clinical event data (treatment, imaging, etc) for a study currently on a cBio server if the study has such data available
+    """Pull all clinical event data (treatment, imaging, etc) for a study currently on a cBio server if the study has such data available.
+
     This will be used to compare to proposed data to update on to the server
 
     Args:
         url: current cbioportal instance url
         auth_headers: dict with authorization token
         study_id: str of study name to pull
+
     Returns:
         current_timeline_data: dict of current cbioportal instance timeline data with event type as key
+
     """
     common_fields: list = [
         "patientId",
@@ -331,7 +348,7 @@ def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: 
                 temp_event.append(entry[common])
             else:
                 temp_event.append("")
-        # event-specific attributes have funky organization,like 'attributes': 
+        # event-specific attributes have funky organization,like 'attributes':
         # [{'key': 'CLINICAL_EVENT_TYPE', 'value': 'Initial CNS Tumor'}],
         # easier to flatten it into a normal dict:
         flatten_attrs: dict = {x["key"]: x["value"] for x in entry["attributes"]}
@@ -355,11 +372,13 @@ def output_file_by_id(
 ) -> None:
     """Given a list containing tab-separated entries, select those entries where a field matches a key from a set and print those selections to a file.
 
+    Args:
     select_id: set of IDs to filter down update_list for output
     update_list: list of entries from update flat file
     header: list containing column name strings
     outfile_name: str output file name
     big_head: str lead header lines, if applicable
+
     """
     id_index: int = header.index(id_field)
     update_list = [item for item in update_list if item.split("\t")[id_index] in select_id]
@@ -375,7 +394,7 @@ def compare_timeline_data(
     header_info: dict,
     file_ext: dict,
 ) -> None:
-    """Compare each event type between current and update candidate to see if any differences exists
+    """Compare each event type between current and update candidate to see if any differences exists.
 
     Args:
         current_timeline: dict of current cbioportal instance timeline data with event type as key
@@ -383,6 +402,7 @@ def compare_timeline_data(
         out_dir: sre of output dir location
         header_info: dict of headers by event type for output
         file_ext: dict of file extensions to use by event type for output
+
     """
     event_type = current_timeline.keys()
     event_ext_dict = {v: k for k, v in file_ext.items()}

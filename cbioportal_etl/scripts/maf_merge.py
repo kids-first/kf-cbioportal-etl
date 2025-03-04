@@ -1,38 +1,75 @@
 #!/usr/bin/env python3
-import sys
-import os
+"""Merge MAF Files.
+
+Merge and filter MAF files to create an output with a singular header and
+variants not nor,ally suitable for cBio removed
+
+"""
 import argparse
-import json
-from get_file_metadata_helper import get_file_metadata
 import concurrent.futures
+import json
+import os
+import sys
+from typing import NamedTuple
+
+from get_file_metadata_helper import get_file_metadata
 
 
-def filter_entry(entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc):
-    """
-    Only output entries not in exclusion list while dropping ENTREZ ID, but keeping TERT promoter hits
+class EntryIndices(NamedTuple):
+    """Named tuple to simplify passing on indicies of headers."""
+
+    tid_idx: int
+    nid_idx: int
+    v_idx: int
+    h_idx: int
+
+
+def filter_entry(
+    entry: str,
+    tum_id: str,
+    norm_id: str,
+    entry_indices: EntryIndices,
+    maf_exc: dict[str, int],
+) -> list[str] | None:
+    """Only output entries not in exclusion list while dropping ENTREZ ID, but keeping TERT promoter hits.
+
+    Args:
+    entry: line from input MAF file
+    tum_id: ID to change Tumor_Sample_Barcode to
+    norm_id: ID to change Matched_Norm_Sample_Barcode to
+    entry_indices: Named tuple with teh following:
+        Index position for Tumor_Sample_Barcode ID in entry as list,
+        Index position for Matched_Norm_Sample_Barcode ID in entry as list,
+        Index position of Variant_Classification in entry as list,
+        Index position of Hugo_Symbol in entry as list
     """
     data = entry.rstrip("\n").split("\t")
     # Want to allow TERT promoter as exception to exclusion rules
-    if data[v_idx] not in maf_exc or (
-        data[h_idx] == "TERT" and data[v_idx] == "5'Flank"
-    ):
-        data[tid_idx] = tum_id
-        data[nid_idx] = norm_id
+    if data[entry_indices.v_idx] not in maf_exc or (data[entry_indices.h_idx] == "TERT" and data[entry_indices.v_idx] == "5'Flank"):
+        data[entry_indices.tid_idx] = tum_id
+        data[entry_indices.nid_idx] = norm_id
         return data
-    else:
-        return None
+    return None
 
 
-def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id):
-    """
-    Iterate over maf file, skipping header lines since the files are being merged.
+def process_maf(maf_fn: str, new_maf, maf_exc: dict[str, int], tum_id: str, norm_id: str) -> None:
+    """Iterate over maf file, skipping header lines since the files are being merged.
+
     With possibility of mixed source, search headers
+
+    Args:
+    maf_fn: Input MAF filename
+    new_maf: Output maf file handle
+    maf_exc: Dict with Variant_Classification exclusionary terms
+    tum_id: ID to change Tumor_Sample_Barcode to
+    norm_id: ID to change Matched_Norm_Sample_Barcode to
+
     """
     cur_maf = open(maf_fn)
     next(cur_maf)
     head = next(cur_maf)
 
-    cur_header = head.rstrip('\n').split('\t')
+    cur_header = head.rstrip("\n").split("\t")
     h_dict = {}
     for item in print_header:
         if item in cur_header:
@@ -40,15 +77,17 @@ def process_maf(maf_fn, new_maf, maf_exc, tum_id, norm_id):
         else:
             h_dict[item] = None
 
-    tid_idx = cur_header.index("Tumor_Sample_Barcode")
-    nid_idx = cur_header.index("Matched_Norm_Sample_Barcode")
-    v_idx = cur_header.index("Variant_Classification")
-    h_idx = cur_header.index("Hugo_Symbol")
+    entry_indices = EntryIndices(
+        cur_header.index("Tumor_Sample_Barcode"),
+        cur_header.index("Matched_Norm_Sample_Barcode"),
+        cur_header.index("Variant_Classification"),
+        cur_header.index("Hugo_Symbol"),
+        )
 
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
         results = {
             executor.submit(
-                filter_entry, entry, tum_id, norm_id, tid_idx, nid_idx, v_idx, h_idx, maf_exc
+                filter_entry, entry, tum_id, norm_id, entry_indices, maf_exc,
             )
             for entry in cur_maf
         }
@@ -79,20 +118,26 @@ def process_tbl(cbio_dx, file_meta_dict, print_head):
         for cbio_tum_id in file_meta_dict[cbio_dx]:
             cbio_norm_id = file_meta_dict[cbio_dx][cbio_tum_id]["cbio_norm_id"]
             fname = file_meta_dict[cbio_dx][cbio_tum_id]["fname"]
-            print("Found relevant maf to process for {} {} {} {} {}".format(
-                cbio_tum_id, cbio_norm_id, file_meta_dict[cbio_dx][cbio_tum_id]["kf_tum_id"], file_meta_dict[cbio_dx][cbio_tum_id]["kf_norm_id"], fname),
-                file=sys.stderr)
+            print(
+                "Found relevant maf to process for {} {} {} {} {}".format(
+                    cbio_tum_id,
+                    cbio_norm_id,
+                    file_meta_dict[cbio_dx][cbio_tum_id]["kf_tum_id"],
+                    file_meta_dict[cbio_dx][cbio_tum_id]["kf_norm_id"],
+                    fname,
+                ),
+                file=sys.stderr,
+            )
             process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id)
             x += 1
-        sys.stderr.write(
-            "Completed processing " + str(x) + " entries in " + cbio_dx + "\n"
-        )
+        sys.stderr.write("Completed processing " + str(x) + " entries in " + cbio_dx + "\n")
         new_maf.close()
     except Exception as e:
         print(e)
         sys.exit()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Merge and filter mafs using cavatica task info and datasheets."
     )
@@ -107,14 +152,18 @@ if __name__ == '__main__':
         "-i", "--header", action="store", dest="header", help="File with maf header only"
     )
     parser.add_argument(
-        "-m", "--maf-dirs", action="store", dest="maf_dirs", help="comma-separated list of maf file directories"
+        "-m",
+        "--maf-dirs",
+        action="store",
+        dest="maf_dirs",
+        help="comma-separated list of maf file directories",
     )
     parser.add_argument(
         "-j",
         "--config",
         action="store",
         dest="config_file",
-        help="json config file with data types and " "data locations",
+        help="json config file with data types and data locations",
     )
     parser.add_argument(
         "-f",
@@ -128,13 +177,13 @@ if __name__ == '__main__':
         choices=["both", "kf", "dgd"],
     )
 
-
     args = parser.parse_args()
     with open(args.config_file) as f:
         config_data = json.load(f)
     # Create symlinks to mafs in one place for ease of processing
     maf_dir = "MAFS/"
     maf_dirs_in = args.maf_dirs
+
     print("Symlinking maf files from {} to {}".format(maf_dirs_in, maf_dir), file=sys.stderr)
     os.makedirs("MAFS", exist_ok=True)
     sym_errs = 0
@@ -185,9 +234,6 @@ if __name__ == '__main__':
         sys.stderr.write("output dir already exists\n")
 
     for cbio_dx in file_meta_dict:
-        process_tbl(
-            cbio_dx, file_meta_dict, print_head
-        )
+        process_tbl(cbio_dx, file_meta_dict, print_head)
 
     sys.stderr.write("Done, check logs\n")
-    
