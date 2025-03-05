@@ -1,0 +1,2 @@
+[console_scripts]
+cbio-etl = cbioportal_etl.cli:main
