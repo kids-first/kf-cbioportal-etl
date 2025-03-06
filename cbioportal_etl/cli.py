@@ -1,5 +1,6 @@
 import argparse
 import sys
+import os
 from cbioportal_etl.main import run_etl
 
 def main():
@@ -50,7 +51,14 @@ def main():
     if args.command == "import":
         run_etl(args, steps=["1", "2", "4", "5", "6"])
     elif args.command == "update":
-        run_etl(args, steps=["1", "2", "3", "4", "5", "6"])
+        run_etl(args, steps=["1", "2", "3"]) 
+        # If there are new patients to be added, run the rest of the ETL
+        study_add_data_dir = f"{args.study}_add_data"
+        cbio_manifest_file = f"{study_add_data_dir}/cbio_file_name_id.txt"
+        if os.path.exists(study_add_data_dir) and os.path.isfile(cbio_manifest_file):
+            print(f"\nDetected {study_add_data_dir} directory. Using {cbio_manifest_file} for the rest of the ETL process.\n")
+            args.manifest = cbio_manifest_file
+            run_etl(args, steps=["4", "5", "6"])
     else:
         parser.print_help()
         sys.exit(1)
