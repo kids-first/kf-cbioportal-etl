@@ -1,4 +1,10 @@
-def get_file_metadata(table, ftype):
+def get_file_metadata(table: str, ftype:str) -> dict[str, dict[str, dict[str, str]]]:
+    """Convert table into dict for downsteam ETL use.
+
+    Subsets table by ftypr (File_Type) column, then returns dict.
+    Cbio_project is primary key,  Cbio_Tumor_Name is secondary key.
+    Tertiary keys are other attributes with string as values.
+    """
     tbl_fh = open(table)
     head = next(tbl_fh)
     header = head.rstrip("\n").split("\t")
