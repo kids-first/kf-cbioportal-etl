@@ -56,6 +56,7 @@ cbio-etl import \
 The steps in `cbio-etl import` are outlined as follows:
 1. Generate config JSON
 1. Get study metadata
+1. Compare current DWH data vs cBioPortal build (only runs with `cbio-etl update`)
 1. Get files from manifest
 1. Check downloaded files
 1. Build genomic file package
