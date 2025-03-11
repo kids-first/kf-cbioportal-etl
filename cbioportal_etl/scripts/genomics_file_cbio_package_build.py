@@ -43,15 +43,9 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status, scrip
     Collate and process pbta/kf style mafs. Call append if also adding dgd data
     """
     sys.stderr.write("Processing maf files\n")
-    # if dgd_status == "dgd":
-    #     maf_dir = maf_loc_dict["dgd"]
-    # else:
-    #     maf_dir = maf_loc_dict["kf"]
-    #     if isinstance(maf_dir, list):
-    #         maf_dir = ",".join(maf_dir)
     maf_header = maf_loc_dict["header"]
     for maf_type, maf_dir in maf_loc_dict.items():
-        if maf_type == "header": 
+        if maf_type in ["header", "dgd"]: 
             continue
         if not maf_dir:
             sys.stderr.write(f"Skipping {maf_type} as it is not defined in the config\n")
