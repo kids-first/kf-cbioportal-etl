@@ -2,7 +2,7 @@
 In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
 Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee).
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
-## ETL Outline
+## Overview
 ```
 usage: cbio-etl [-h] {import,update} ...
 
