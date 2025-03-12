@@ -2,7 +2,23 @@
 In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
 Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee).
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
-## ETL Steps 
+## ETL Outline
+```
+usage: cbio-etl [-h] {import,update} ...
+
+CBio ETL Command Line Tool
+
+positional arguments:
+  {import,update}
+    import         Run import workflow (Steps 1, 2, 4, 5, 6)
+    update         Run update workflow (Steps 1, 2, 3, 4, 5, 6)
+
+options:
+  -h, --help       show this help message and exit
+```
+- Use `cbio-etl import` if importing a new/whole study.
+- Use `cbio-etl update` if making changes to existing study (incremental updates).
+
 The steps in `cbio-etl import` are outlined as follows:
 1. Generate config JSON
 1. Get study metadata
@@ -36,22 +52,6 @@ Run on `Mgmt-Console-Dev-chopd3bprod@684194535433` EC2 instance
 git clone https://github.com/kids-first/kf-cbioportal-etl.git
 pip install /path/to/kf-cbioportal-etl/
 ```
-If the install was successful, you should be able to run `cbio-etl --help`, which will give you the following menu: 
-```
-usage: cbio-etl [-h] {import,update} ...
-
-CBio ETL Command Line Tool
-
-positional arguments:
-  {import,update}
-    import         Run import workflow (Steps 1, 2, 4, 5, 6)
-    update         Run update workflow (Steps 1, 2, 3, 4, 5, 6)
-
-options:
-  -h, --help       show this help message and exit
-```
-Use `cbio-etl import` if importing a new/whole study.
-Use `cbio-etl update` if making changes to existing study (incremental updates).
 
 ### Usage
 ```sh
@@ -82,7 +82,6 @@ docker run --rm -it \
     --sbg-profile default \
     --dgd-status kf"
 ```
-
 
 ## Run manually without tool installation
 Below assumes you have already created the necessary tables from dbt
