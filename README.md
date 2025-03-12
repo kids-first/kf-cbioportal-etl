@@ -2,7 +2,24 @@
 In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
 Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee).
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
-## Software Prerequisites
+## ETL Steps 
+The steps in `cbio-etl import` are outlined as follows:
+1. Generate config JSON
+1. Get study metadata
+1. Get files from manifest
+1. Check downloaded files
+1. Build genomic file package
+![Pipeline Flowchart](images/etl_flowchart.png)
+
+## Required credentials files
+- Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
+- Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
+
+## Required for running `cbio-etl update`
+- Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
+
+## Local Installation
+### Software Prerequisites
 + `python3` v3.10+
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
 + `Try::Tiny` Perl module
@@ -13,8 +30,7 @@ See [below](#collaborative-and-publication-workflows) for special cases like pub
 [cBio load package v5.4.10](https://github.com/cBioPortal/cbioportal/releases/tag/v5.4.10) is used in this tool.
 Refer to [INSTALL.md](INSTALL.md) and [setup.py](setup.py) for more details.
 
-
-## Install tool
+### Installation Steps
 Run on `Mgmt-Console-Dev-chopd3bprod@684194535433` EC2 instance
 ```sh
 git clone https://github.com/kids-first/kf-cbioportal-etl.git
@@ -37,29 +53,35 @@ options:
 Use `cbio-etl import` if importing a new/whole study.
 Use `cbio-etl update` if making changes to existing study (incremental updates).
 
-## Run tool
+### Usage
 ```sh
 cbio-etl import \
     --db-ini /path/to/db.ini \
     --study pbta_pnoc \
-    --sbg-profile turbobaba \
+    --sbg-profile default \
     --dgd-status kf 
   ```
 
-### Required credentials files
-- Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
-- Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
-### Required for running `cbio-etl update`
-- Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
+## Docker Installation
+### Installation Steps
+```sh
+docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:1.0.0
+```
 
-### Steps 
-The steps in `cbio-etl import` are outlined as follows:
-1. Generate config JSON
-1. Get study metadata
-1. Compare current DWH data vs cBioPortal build (only runs with `cbio-etl update`)
-1. Get files from manifest
-1. Check downloaded files
-1. Build genomic file package
+### Usage
+```
+docker run --rm -it \
+    -v /path/to/db.ini:/credentials/db.ini \
+    -v /path/to/cbioportal_data_access_token.txt:/credentials/cbioportal_data_access_token.txt \
+    -v /path/to/.sevenbridges/credentials:/root/.sevenbridges/credentials \
+    -v /path/to/output_dir:/output \
+    cbio-etl /bin/bash -c "cd /output && cbio-etl update \
+    --db-ini /credentials/db.ini \
+    --token /credentials/cbioportal_data_access_token.txt \
+    --study pbta_pnoc \
+    --sbg-profile default \
+    --dgd-status kf"
+```
 
 
 ## Run manually without tool installation
