@@ -31,7 +31,7 @@ The steps in `cbio-etl import` are outlined as follows:
 - Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
 - Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
 
-## Required for running `cbio-etl update`
+### Required for running `cbio-etl update`
 - Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
 
 ## Local Installation
