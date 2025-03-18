@@ -59,12 +59,21 @@ def process_meta_data(meta_data, output_dir, canc_study_id):
             sys.stderr.write(str(e) + " failed processing meta data file\n")
 
 
-def process_clinical_data(meta_data, output_dir, canc_study_id):
+def process_clinical_data(meta_data, output_dir, canc_study_id, add_data_mode=False):
+    datasheets_dir = meta_data["dir"]
+    existing_files = []
+    if add_data_mode:
+        existing_files = set(os.listdir(datasheets_dir))
+
     for dtype in meta_data["dtypes"]:
-        # pointer for easier readability and dict key tracing
         try:
             cur_data = meta_data["dtypes"][dtype]
             cbio_name = cur_data["cbio_name"]
+
+            if add_data_mode and cbio_name not in existing_files:
+                sys.stderr.write(f"Skipping {cbio_name} as it does not exist in {datasheets_dir}\n")
+                continue
+
             parts = cbio_name.split("_")
             meta_name = "meta_" + "_".join(parts[1:])
             meta_data_file = open(output_dir + meta_name, "w")
@@ -74,7 +83,7 @@ def process_clinical_data(meta_data, output_dir, canc_study_id):
                 meta_data_file.write(mkey + ": " + attr_dict[mkey] + "\n")
             meta_data_file.write("data_filename: " + cbio_name + "\n")
             meta_data_file.close()
-            # create data_ links to data
+
             cmd = (
                 "ln -s "
                 + cwd
@@ -90,6 +99,7 @@ def process_clinical_data(meta_data, output_dir, canc_study_id):
             sys.stderr.write(str(e) + " failed processing meta data file\n")
             pdb.set_trace()
             hold = 1
+
 
 
 def write_case_list(case_key, attr_dict, sample_list, case_dir):
@@ -228,6 +238,12 @@ parser.add_argument(
     dest="legacy",
     help="If set, will run legacy fusion output",
 )
+parser.add_argument(
+    "-ad", "--add-data", 
+    action="store_true", 
+    dest="add_data", 
+    help="Flag to skip validation when running for add_data directory"
+)
 
 args = parser.parse_args()
 
@@ -270,8 +286,9 @@ try:
             else:
                 sys.stderr.write("Skipping meta files for " + key + "\n")
         sys.stderr.write("Creating clinical meta sheets and links\n")
-        process_clinical_data(config_data["data_sheets"], cur_dir, canc_study_id)
-        create_case_lists(data_keys, cur_dir)
+        process_clinical_data(config_data["data_sheets"], cur_dir, canc_study_id, args.add_data)
+        if not args.add_data:
+            create_case_lists(data_keys, cur_dir)
     else:
         sys.stderr.write("No datasheets for " + study_id + ", skipping!\n")
 except Exception as e:
