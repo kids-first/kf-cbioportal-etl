@@ -29,7 +29,7 @@ def main():
     common_args.add_argument("-d", "--debug", required=False, action="store_true", help="Enable debug mode")
     common_args.add_argument("-o", "--overwrite", required=False, action="store_true", help="Overwrite files if they already exist")
     # Step 5 - check_downloads.py
-    common_args.add_argument("-ms", "--manifest-subset", default="manifest_subset.tsv", required=False, help="Check that files were downloaded (automatically set)")
+    common_args.add_argument("-ms", "--manifest-subset", default="manifest_subset.tsv", required=False, help="Check that files were downloaded (automatically set when applicable)")
     # Step 6 - genomics_file_cbio_package_build.py
     common_args.add_argument("-dgd", "--dgd-status", default="kf", choices=["both", "kf", "dgd"], help="Load options")
     common_args.add_argument("-l", "--legacy", required=False, action="store_true", help="Enable legacy mode")
