@@ -38,7 +38,7 @@ def main():
     # Arguments exclusive to update (step 3 - diff_studies.py)
     update_args = argparse.ArgumentParser(add_help=False)
     update_args.add_argument("-u", "--url", default="https://pedcbioportal.kidsfirstdrc.org/api/v2/api-docs", help="URL to search against")
-    update_args.add_argument("-ds", "--datasheets", default="datasheets", required=False, help="Directory containing cBio-formatted metadata (automattically set when applicable)")
+    update_args.add_argument("-ds", "--datasheets", default="datasheets", required=False, help="Directory containing cBio-formatted metadata (automatically set when applicable)")
     update_args.add_argument("-t", "--token", required=True, help="Token file obtained from Web API")
 
     # Import command (full study import)

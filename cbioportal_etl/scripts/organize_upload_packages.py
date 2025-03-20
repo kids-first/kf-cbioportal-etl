@@ -85,7 +85,7 @@ def process_clinical_data(meta_data, output_dir, canc_study_id, add_data_mode=Fa
             meta_data_file.close()
 
             cmd = (
-                "ln -s "
+                "ln "
                 + cwd
                 + meta_data["dir"]
                 + "/"
