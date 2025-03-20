@@ -270,8 +270,11 @@ try:
             os.mkdir(cur_dir)
         except:
             sys.stderr.write(cur_dir + " already exists.\n")
-        sys.stderr.write("Creating meta study file for " + study_id + "\n")
-        canc_study_id = process_meta_study(config_data["study"], cur_dir)
+        if not args.add_data:
+            sys.stderr.write("Creating meta study file for " + study_id + "\n")
+            canc_study_id = process_meta_study(config_data["study"], cur_dir)
+        else: 
+            canc_study_id = study_id
         data_keys = {
             "merged_mafs": 0,
             "merged_cnvs": 0,
