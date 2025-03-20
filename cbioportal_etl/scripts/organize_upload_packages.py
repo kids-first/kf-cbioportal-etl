@@ -43,7 +43,7 @@ def process_meta_data(meta_data, output_dir, canc_study_id):
             meta_data_file.close()
             # create data_ links to data
             cmd = (
-                "ln -s "
+                "ln "
                 + cwd
                 + meta_data["dir"]
                 + "/"
