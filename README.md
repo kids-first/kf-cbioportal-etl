@@ -65,7 +65,7 @@ cbio-etl import \
 ## Docker Installation
 ### Installation Steps
 ```sh
-docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:1.0.0
+docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:2.2.0
 ```
 
 ### Usage
