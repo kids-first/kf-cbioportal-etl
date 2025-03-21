@@ -9,6 +9,7 @@ import csv
 import glob
 import os
 import sys
+import json
 import typing
 from urllib.parse import urlparse
 from typing import TypedDict
@@ -409,6 +410,39 @@ def compare_timeline_data(
             )
 
 
+def generate_meta_files(config_file: str, data_dir: str) -> None:
+    """
+    Generates meta files for data files that exist in `delta_data`, writing them into `delta_data` dir.
+
+    Args:
+        config_file (str): Path to the JSON configuration file.
+        data_dir (str): Path to the directory containing existing data files.
+    """
+    with open(config_file) as f:
+        config_data = json.load(f)
+
+    study_id = config_data["study"]["cancer_study_identifier"]
+
+    existing_files = set(os.listdir(data_dir))
+    data_keys = ["data_sheets", "merged_mafs", "merged_cnvs", "merged_rsem", "merged_fusion"]
+
+    for key in data_keys:
+        if key in config_data:
+            for dtype, details in config_data[key]["dtypes"].items():
+                data_file = details["cbio_name"]
+                if data_file in existing_files:
+                    meta_name = f"meta_{data_file.removeprefix('data_')}"
+                    meta_path = os.path.join(data_dir, meta_name)
+
+                    with open(meta_path, "w") as meta_file:
+                        meta_file.write(f"cancer_study_identifier: {study_id}\n")
+                        for key, value in details["meta_file_attr"].items():
+                            meta_file.write(f"{key}: {value}\n")
+                        meta_file.write(f"data_filename: {data_file}\n")
+
+                    sys.stderr.write(f"Created meta file: {meta_name}\n")
+
+
 def run_py(args):
     # Create incremental study updates dirs
     delta_dir: str = f"{args.study}_delta_data"
@@ -587,6 +621,14 @@ def run_py(args):
             file_ext=timeline_event_dict,
         )
 
+    if os.listdir(delta_dir): 
+        print(f"Delta data detected in {delta_dir}. Generating meta files...", file=sys.stderr)
+        generate_meta_files(args.study_config, delta_dir)
+        print("Meta files generated successfully!", file=sys.stderr)
+    else:
+        print("No delta data files found. Skipping meta file generation.", file=sys.stderr)
+
+
     print("Done!", file=sys.stderr)
 
 
@@ -629,7 +671,12 @@ def main():
         "-m",
         "--manifest",
         default="cbio_file_name_id.txt",
-        help="Manifest file (default: cbio_file_name_id.txt from Step 1 output)",
+        help="Manifest file (default: cbio_file_name_id.txt from Step 2 output)",
+    )
+    parser.add_argument(
+        "-sc",
+        "--study_config",
+        help="cbio study config file",
     )
     args = parser.parse_args()
     run_py(args)

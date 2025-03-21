@@ -2,8 +2,41 @@
 In general, we are creating upload packages converting our data and metadata to satisfy the requirements outlined [here](https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats).
 Further general loading notes can be found in this [Notion page](https://www.notion.so/d3b/Cbioportal-Study-Load-SOP-58812479fabe4d2fa9f72242e331b5ee).
 See [below](#collaborative-and-publication-workflows) for special cases like publications or collaborative efforts
-## Software Prerequisites
-+ `python3` v3.5.3+
+## Overview
+```
+usage: cbio-etl [-h] {import,update} ...
+
+CBio ETL Command Line Tool
+
+positional arguments:
+  {import,update}
+    import         Run import workflow (Steps 1, 2, 4, 5, 6)
+    update         Run update workflow (Steps 1, 2, 3, 4, 5, 6)
+
+options:
+  -h, --help       show this help message and exit
+```
+- Use `cbio-etl import` if importing a new/whole study.
+- Use `cbio-etl update` if making changes to existing study (incremental updates).
+
+The steps in `cbio-etl import` are outlined as follows:
+1. Generate config JSON
+1. Get study metadata
+1. Get files from manifest
+1. Check downloaded files
+1. Build genomic file package
+![Pipeline Flowchart](images/etl_flowchart.png)
+
+## Required credentials files
+- Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
+- Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
+
+### Required for running `cbio-etl update`
+- Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
+
+## Local Installation
+### Software Prerequisites
++ `python3` v3.10+
 + `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
 + `Try::Tiny` Perl module
 + `saml2aws` (https://github.com/Versent/saml2aws) [directions to use](https://www.notion.so/d3b/Setup-SAML-Login-1056131f1200806ba182f7b7c1793a40?pvs=4)
@@ -13,105 +46,42 @@ See [below](#collaborative-and-publication-workflows) for special cases like pub
 [cBio load package v5.4.10](https://github.com/cBioPortal/cbioportal/releases/tag/v5.4.10) is used in this tool.
 Refer to [INSTALL.md](INSTALL.md) and [setup.py](setup.py) for more details.
 
-
-## Install tool
+### Installation Steps
 Run on `Mgmt-Console-Dev-chopd3bprod@684194535433` EC2 instance
 ```sh
 git clone https://github.com/kids-first/kf-cbioportal-etl.git
 pip install /path/to/kf-cbioportal-etl/
 ```
-If the install was successful, you should be able to run `cbioportal_etl --help`, which will give you the following menu: 
-```
-usage: cbioportal_etl [-h] [--steps {1,2,3,4,5,all} [{1,2,3,4,5,all} ...]] -db DB_INI [-p PROFILE] [-mc META_CONFIG] [-r REF_DIR] [-a] [-u URL] -s STUDY [-t TOKEN] [-ds DATASHEET_SAMPLE] [-dp DATASHEET_PATIENT] [-m MANIFEST] [-f FILE_TYPES] [-at AWS_TBL]
-                      [-sp SBG_PROFILE] [-c CBIO] [-ao] [-rm] [-d] [-o] [-ms MANIFEST_SUBSET] [-dc DATA_CONFIG] [-dgd {both,kf,dgd}] [-l]
 
-Run cBioPortal ETL pipeline
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --steps {1,2,3,4,5,all} [{1,2,3,4,5,all} ...]
-                        Steps to execute (e.g., 1 2 3 or all)
-  -db DB_INI, --db-ini DB_INI
-                        Database config file
-  -p PROFILE, --profile PROFILE
-                        Profile name (default: postgresql)
-  -mc META_CONFIG, --meta-config META_CONFIG
-                        Metadata configuration file. Default: value inputted for --study + '_case_meta_config.json'
-  -r REF_DIR, --ref-dir REF_DIR
-                        Reference directory. Defaults to tool's ref dir if not provided.
-  -a, --all             Include all relevant files, not just status=active files, NOT RECOMMENDED
-  -u URL, --url URL     URL to search against
-  -s STUDY, --study STUDY
-                        Cancer study ID
-  -t TOKEN, --token TOKEN
-                        Token file obtained from Web API. Required if running Step 2
-  -ds DATASHEET_SAMPLE, --datasheet-sample DATASHEET_SAMPLE
-                        File containing cBio-formatted sample metadata (default: datasheets/data_clinical_sample.txt from Step 1 output)
-  -dp DATASHEET_PATIENT, --datasheet-patient DATASHEET_PATIENT
-                        File containing cBio-formatted patient metadata (default: datasheets/data_clinical_patient.txt from Step 1 output)
-  -m MANIFEST, --manifest MANIFEST
-                        Manifest file (default: cbio_file_name_id.txt from Step 1 output)
-  -f FILE_TYPES, --file-types FILE_TYPES
-                        Comma-separated file types to download
-  -at AWS_TBL, --aws-tbl AWS_TBL
-                        AWS table with bucket name and keys
-  -sp SBG_PROFILE, --sbg-profile SBG_PROFILE
-                        SBG profile name
-  -c CBIO, --cbio CBIO  cBio manifest to limit downloads
-  -ao, --active-only    Only include active files
-  -rm, --rm-na          Remove entries where file_id and s3_path are NA
-  -d, --debug           Enable debug mode
-  -o, --overwrite       Overwrite files if they already exist
-  -ms MANIFEST_SUBSET, --manifest-subset MANIFEST_SUBSET
-                        Check that files were downloaded. Default: manifest_subset.tsv from Step 3
-  -dc DATA_CONFIG, --data-config DATA_CONFIG
-                        Data processing configuration file. Default: value inputted for --study + '_data_processing_config.json'
-  -dgd {both,kf,dgd}, --dgd-status {both,kf,dgd}
-                        Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd). Default: kf
-  -l, --legacy          Enable legacy mode
-```
-
-## Run tool
+### Usage
 ```sh
-cbioportal_etl \
-    --steps all \
+cbio-etl import \
     --db-ini /path/to/db.ini \
-    --token /path/to/cbioportal_data_access_token.txt \
-    --study oligo_nation \
-    --sbg-profile default
+    --study pbta_pnoc \
+    --sbg-profile default \
+    --dgd-status kf 
   ```
 
-### Required credentials files
-- Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
-- Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
-- Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
+## Docker Installation
+### Installation Steps
+```sh
+docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:2.2.0
+```
 
-### Steps Argument
-The `--steps` argument specifies which steps of the pipeline to run. It is outlined as follows:
-1. Generate config JSON
-1. Get study metadata
-1. Compare current DWH data vs cBioPortal build
-1. Get files from manifest
-1. Check downloaded files
-1. Build genomic file package
-
-You can specify the steps in one of the following ways:
-- **Run a single step**:
-  ```bash
-  --steps 1
-  ```
-  This will only execute Step 1 (Get study metadata).
-- **Run multiple steps**:
-  ```bash
-  --steps 2 3 4
-  ```
-  This will execute Steps 2, 3, and 4 in sequence.
-
-- **Run the whole ETL**:
-  ```bash
-  --steps all
-  ```
-  This will execute Steps 1 through 5.
+### Usage
+```
+docker run --rm -it \
+    -v /path/to/db.ini:/credentials/db.ini \
+    -v /path/to/cbioportal_data_access_token.txt:/credentials/cbioportal_data_access_token.txt \
+    -v /path/to/.sevenbridges/credentials:/root/.sevenbridges/credentials \
+    -v /path/to/output_dir:/output \
+    cbio-etl /bin/bash -c "cd /output && cbio-etl update \
+    --db-ini /credentials/db.ini \
+    --token /credentials/cbioportal_data_access_token.txt \
+    --study pbta_pnoc \
+    --sbg-profile default \
+    --dgd-status kf"
+```
 
 ## Run manually without tool installation
 Below assumes you have already created the necessary tables from dbt

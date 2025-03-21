@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 import os
 
 setup(
-    name="cbioportal_etl",
-    version="1.0.0",
+    name="cbio-etl",
+    version="2.2.0",
     author="Jessica Wong & Miguel Brown",
     description="A tool/ETL for converting data from CAVATICA and Data Warehouse to PedcBioportal format",
     packages=find_packages(),
@@ -23,15 +23,15 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "cbioportal_etl=cbioportal_etl.main:main",
+            "cbio-etl=cbioportal_etl.cli:main",
         ]
     },
     package_data={
-    "cbioportal_etl": [
-        "REFS/*",
-        "scripts/*",
-        "STUDY_CONFIGS/*",
+        "cbioportal_etl": [
+            "REFS/*",
+            "scripts/*",
+            "STUDY_CONFIGS/*",
         ],
     },
-    python_requires=">=3.6",
+    python_requires=">=3.10",
 )

@@ -43,15 +43,9 @@ def process_maf(maf_loc_dict, cbio_id_table, data_config_file, dgd_status, scrip
     Collate and process pbta/kf style mafs. Call append if also adding dgd data
     """
     sys.stderr.write("Processing maf files\n")
-    # if dgd_status == "dgd":
-    #     maf_dir = maf_loc_dict["dgd"]
-    # else:
-    #     maf_dir = maf_loc_dict["kf"]
-    #     if isinstance(maf_dir, list):
-    #         maf_dir = ",".join(maf_dir)
     maf_header = maf_loc_dict["header"]
     for maf_type, maf_dir in maf_loc_dict.items():
-        if maf_type == "header": 
+        if maf_type in ["header", "dgd"]: 
             continue
         if not maf_dir:
             sys.stderr.write(f"Skipping {maf_type} as it is not defined in the config\n")
@@ -279,26 +273,30 @@ def run_py(args):
 
     # Run final package builder script
     sys.stderr.write("Creating load packages\n")
-    pck_cmd = f"python3 {os.path.join(script_dir, 'organize_upload_packages.py')} -o processed -c {args.study_config} 2> load_package_create.log"
+    pck_cmd = f"python3 {os.path.join(script_dir, 'organize_upload_packages.py')} -o processed -c {args.study_config}"
+    if args.add_data:
+        pck_cmd += " -ad"
+    pck_cmd += " 2> load_package_create.log"
     exit_status = subprocess.call(pck_cmd, shell=True)
     check_status(exit_status, "load package", run_status)
 
     # Run cbioportal data validator
-    sys.stderr.write("Validating load packages\n")
-    sys.stderr.flush()
-    validate = (
-        config_data["cbioportal_validator"]
-        + " -s processed/"
-        + cbio_study_id
-        + " -n -v 2> validator.errs > validator.out"
-    )
-    exit_status = subprocess.call(validate, shell=True)
-    if exit_status:
-        sys.stderr.write(
-            "Validator quit with status "
-            + str(exit_status)
-            + ". Check validator.errs and validator.out for more info\n"
+    if not args.add_data:
+        sys.stderr.write("Validating load packages\n")
+        sys.stderr.flush()
+        validate = (
+            config_data["cbioportal_validator"]
+            + " -s processed/"
+            + cbio_study_id
+            + " -n -v 2> validator.errs > validator.out"
         )
+        exit_status = subprocess.call(validate, shell=True)
+        if exit_status:
+            sys.stderr.write(
+                "Validator quit with status "
+                + str(exit_status)
+                + ". Check validator.errs and validator.out for more info\n"
+            )
 
 def main():
     parser = argparse.ArgumentParser(description="Download files (if needed), collate genomic files, organize load package.")
@@ -307,6 +305,7 @@ def main():
     parser.add_argument("-sc", "--study-config", action="store", dest="study_config", help="cbio study config file")
     parser.add_argument("-dgd", "--dgd-status", action="store", dest="dgd_status", help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)", default="both", const="both", nargs="?", choices=["both", "kf", "dgd"])
     parser.add_argument("-l", "--legacy",  default=False, action="store_true", dest="legacy", help="If set, will run legacy fusion output")
+    parser.add_argument("-ad", "--add-data", action="store_true", dest="add_data", help="Flag to skip validation when running for add_data directory")
 
     args = parser.parse_args()
     run_py(args)
