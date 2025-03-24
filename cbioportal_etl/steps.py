@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 import subprocess
-from cbioportal_etl.scripts.generate_config import generate_json as generate_config
+from cbioportal_etl.scripts.generate_config import run_py as generate_config
 from cbioportal_etl.scripts.get_study_metadata import run_py as get_study_metadata
 from cbioportal_etl.scripts.diff_studies import run_py as diff_studies
 from cbioportal_etl.scripts.get_files_from_manifest import run_py as get_files_from_manifest
