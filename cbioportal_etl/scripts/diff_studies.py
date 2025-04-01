@@ -11,6 +11,7 @@ import os
 import sys
 import json
 import typing
+import pandas as pd
 from urllib.parse import urlparse
 from typing import TypedDict
 
@@ -399,29 +400,23 @@ def compare_timeline_data(
             print(
                 f"{len(diff_ids)} changes in {event} found for this study. Extracting patient data"
             )
-            suffix: str = event_ext_dict[event]
             uniq_patients: set[str] = {item.split("\t")[0] for item in diff_ids}
             all_diff_ids.update(uniq_patients)
 
-    collected_rows: list[str] = []
-    combined_header: list[str] = []
-    for event, entries in update_timeline.items():
+    dfs = []
+    for event, lines in update_timeline.items():
         header = header_info.get(event)
         if not header:
             continue
-        suffix: str = event_ext_dict[event]
-        selected_rows = [line for line in entries if line.split("\t")[0] in all_diff_ids]
-        if selected_rows:
-            collected_rows.extend(selected_rows)
-            if len(header) > len(combined_header):
-                combined_header = header
 
-    # Merge all collected rows into one combined timeline file
-    if collected_rows:
+        df = pd.DataFrame([line.strip().split("\t") for line in lines], columns=header)
+        df = df[df["PATIENT_ID"].isin(all_diff_ids)]
+        dfs.append(df)
+
+    if dfs:
+        combined_df = pd.concat(dfs, ignore_index=True).fillna("")
         combined_file = f"{out_dir}/data_clinical_timeline_combined.txt"
-        with open(combined_file, "w") as f:
-            f.write("\t".join(combined_header) + "\n")
-            f.writelines(collected_rows)
+        combined_df.to_csv(combined_file, sep="\t", index=False)
 
 
 def generate_meta_files(config_file: str, data_dir: str) -> None:
