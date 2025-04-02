@@ -44,7 +44,7 @@ def filter_entry(
         Index position of Variant_Classification in entry as list,
         Index position of Hugo_Symbol in entry as list
     """
-    data = entry.rstrip("\n").split("\t")
+    data: list = entry.rstrip("\n").split("\t")
     # Want to allow TERT promoter as exception to exclusion rules
     if data[entry_indices.v_idx] not in maf_exc or (
         data[entry_indices.h_idx] == "TERT" and data[entry_indices.v_idx] == "5'Flank"
@@ -72,10 +72,10 @@ def process_maf(
     """
     with open(maf_fn) as cur_maf:
         next(cur_maf)
-        head = next(cur_maf)
+        head: str = next(cur_maf)
 
-        cur_header = head.rstrip("\n").split("\t")
-        h_dict = {}
+        cur_header: list = head.rstrip("\n").split("\t")
+        h_dict: dict[str, int | None] = {}
         for item in print_header:
             if item in cur_header:
                 h_dict[item] = cur_header.index(item)
@@ -90,7 +90,7 @@ def process_maf(
         )
 
         with concurrent.futures.ThreadPoolExecutor(16) as executor:
-            results = {
+            results: set[Future[list[str] | None]] = {
                 executor.submit(
                     filter_entry,
                     entry,
@@ -102,9 +102,9 @@ def process_maf(
                 for entry in cur_maf
             }
             for result in concurrent.futures.as_completed(results):
-                filtered = result.result()
+                filtered: list[str] | None = result.result()
                 if filtered is not None:
-                    to_print = []
+                    to_print: list[str] = []
                     for item in print_header:
                         if h_dict[item] is not None:
                             to_print.append(filtered[h_dict[item]])
@@ -197,18 +197,18 @@ if __name__ == "__main__":
     with open(args.config_file) as f:
         config_data = json.load(f)
     # Create symlinks to mafs in one place for ease of processing
-    maf_dir = "MAFS/"
-    maf_dirs_in = args.maf_dirs
+    maf_dir: str = "MAFS/"
+    maf_dirs_in: str = args.maf_dirs
 
     print(f"Symlinking maf files from {maf_dirs_in} to {maf_dir}", file=sys.stderr)
     os.makedirs("MAFS", exist_ok=True)
-    sym_errs = 0
+    sym_errs: int = 0
     for dirname in maf_dirs_in.split(","):
-        abs_path = os.path.abspath(dirname)
+        abs_path: str = os.path.abspath(dirname)
         try:
             for fname in os.listdir(dirname):
-                src = os.path.join(abs_path, fname)
-                dest = os.path.join(maf_dir, fname)
+                src: str = os.path.join(abs_path, fname)
+                dest: str = os.path.join(maf_dir, fname)
                 os.symlink(src, dest)
         except Exception as e:
             print(e, file=sys.stderr)
@@ -220,20 +220,18 @@ if __name__ == "__main__":
         sys.exit()
     # If DGD maf only, else if both, dgd maf wil be handled separately, or not at all if no dgd and kf only
 
-    file_meta_dict = get_file_metadata(args.table, "DGD_MAF")
+    file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "DGD_MAF")
     if args.dgd_status != "dgd":
-        file_meta_dict = get_file_metadata(args.table, "maf")
-    head_fh = open(args.header)
+        file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "maf")
+    with open(args.header) as head_fh:
+        print_head: str = next(head_fh)
+        cur_head: str = next(head_fh)
+        print_header: list[str] = cur_head.rstrip("\n").split("\t")
+        eid_idx: int = print_header.index("Entrez_Gene_Id")
+        print_header.pop(eid_idx)
 
-    print_head = next(head_fh)
-    cur_head = next(head_fh)
-    print_header = cur_head.rstrip("\n").split("\t")
-    eid_idx = print_header.index("Entrez_Gene_Id")
-    print_header.pop(eid_idx)
-
-    head_fh.close()
     print_head += "\t".join(print_header) + "\n"
-    maf_exc = {
+    maf_exc: dict[str, int] = {
         "Silent": 0,
         "Intron": 0,
         "IGR": 0,
@@ -243,7 +241,7 @@ if __name__ == "__main__":
         "5'Flank": 0,
         "RNA": 0,
     }
-    out_dir = "merged_mafs/"
+    out_dir: str = "merged_mafs/"
     os.makedirs(out_dir, exist_ok=True)
     # iterating through projects that are the first key in dict
     for cbio_dx in file_meta_dict:
