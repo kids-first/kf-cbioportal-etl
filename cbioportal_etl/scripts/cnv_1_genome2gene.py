@@ -90,10 +90,7 @@ flist = [
     if os.path.isfile(os.path.join(args.cnv_dir, f))
 ]
 out_dir = "converted_cnvs/"
-try:
-    os.mkdir(out_dir)
-except:
-    print("output dir already exists", file=sys.stderr)
+os.makedirs(out_dir, exist_ok=True)
 
 ct_dict = {"total_cnvs": 0, "p_value_filter": 0, "NA": 0}
 with concurrent.futures.ThreadPoolExecutor(config_data["cpus"]) as executor:

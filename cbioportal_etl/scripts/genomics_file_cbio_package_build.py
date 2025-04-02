@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""
-This is a genomics file + clinical data file to cBio package conversion workflow script.
+"""Genomics file + clinical data file to cBio package conversion workflow script.
+
 It is designed to work with standard KF somatic workflow outputs as well as DGD outputs.
 Clinical files should have been produced ahead of time, while supporting sample ID file manifest, case_meta config json file, and data json config.
 If there are fusion files, they also need a table outlining sequencing center location.
 See README for prequisite details.
 """
-import os
-import sys
 import argparse
 import json
+import os
 import subprocess
+import sys
 import time
 from functools import partial
-import pdb
+
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
+
 def log_cmd(cmd):
-    """
-    A silly litte helper function to output commands run to stderr
-    """
-    sys.stderr.write(cmd + "\n")
+    """Print output commands run to stderr."""
+    print(cmd, file=sys.stderr)
     sys.stderr.flush()
+
 
 def check_status(status, data_type, run_status):
     if status:
@@ -32,7 +32,7 @@ def check_status(status, data_type, run_status):
         for key in run_status:
             if run_status[key] is None:
                 run_status[key].kill()
-        exit(1)
+        sys.exit(1)
     else:
         sys.stderr.write('Processing ' + data_type + " successful!\n")
         sys.stderr.flush()
@@ -162,36 +162,30 @@ def process_dgd_fusion(cbio_id_table, fusion_dir, dgd_status, script_dir, cbio_s
     return status
 
 def run_py(args):
-    # This part is commented out for now as there is no good solution yet for files stored in different account - need to be able to run chopaws to get key
-    # if(args.manifest != None):
-    #     sys.stderr.write('Download manifest given. Downloading files\n')
-    #     dl_file_cmd = config_data['script_dir'] + 'get_files_from_manifest.py -m ' + args.manifest + ' -f ' + join(config_data['dl_file_type_list'] + ' -p saml')
-    #     subprocess.Popen(dl_file_cmd, shell=True)
-
-    TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    TOOL_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
     with open(args.study_config) as f:
-        config_data = json.load(f)
+        config_data: dict = json.load(f)
     config_data = resolve_config_paths(config_data, TOOL_DIR)
 
-    cbio_study_id = config_data["study"]["cancer_study_identifier"]
+    cbio_study_id: str = config_data["study"]["cancer_study_identifier"]
     # iterate through config file - file should only have keys related to data to be loaded
-    script_dir = os.path.join(TOOL_DIR, config_data["script_dir"])
-    run_status = {}
+    script_dir: str = os.path.join(TOOL_DIR, config_data["script_dir"])
+    run_status: dict = {}
     # Store a list of run priorities to ensure historically slower jobs kick off first using partial:
     # https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
-    run_priority = ["rsem", "mafs", "fusion", "cnvs"]
-    run_queue = {}
+    run_priority: list[str] = ["rsem", "mafs", "fusion", "cnvs"]
+    run_queue: dict = {}
     for key in config_data:
         if key.startswith("merged_"):
-            data_type = "_".join(key.split("_")[1:])
+            data_type: str = "_".join(key.split("_")[1:])
             if data_type == "mafs":
                 run_queue["mafs"] = partial(process_maf,
                     config_data["file_loc_defs"]["mafs"],
                     args.manifest,
                     args.study_config,
                     args.dgd_status,
-                    script_dir, 
+                    script_dir,
                     run_status
                 )
             elif data_type == "rsem":
@@ -228,7 +222,6 @@ def run_py(args):
     done = False
 
     # cheat flag to add append dgd maf once KF/PBTA maf is done when set to both
-    dgd_maf_append = 0
     dgd_fusion_append = 0
     while not done:
         time.sleep(x)
@@ -238,12 +231,7 @@ def run_py(args):
         done = True
         sys.stderr.write(str(n) + " seconds have passed\n")
         sys.stderr.flush()
-        # if dgd_maf_append:
-        #     run_queue["dgd_maf_append"] = partial(process_append_dgd_maf, config_data["file_loc_defs"]["mafs"], args.manifest, cbio_study_id, script_dir)
-        #     run_queue["dgd_maf_append"]()
-        #     sys.stderr.write("dgd status was both, appending dgd maf\n")
-        #     # don't want to restart this job, let regular logic take over
-            # dgd_maf_append = 0
+
         if dgd_fusion_append:
             run_queue["dgd_fusion_append"] = partial(process_dgd_fusion, args.manifest, config_data["file_loc_defs"]["dgd_fusion"], args.dgd_status, script_dir, cbio_study_id)
             run_queue["dgd_fusion_append"]()
@@ -300,7 +288,6 @@ def run_py(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Download files (if needed), collate genomic files, organize load package.")
-    # parser.add_argument("-t", "--table", action="store", dest="table", help="Table with cbio project, kf bs ids, cbio IDs, and file names")
     parser.add_argument("-m", "--manifest", action="store", dest="manifest", help="Download file manifest with cbio project, kf bs ids, cbio IDs, and file names")
     parser.add_argument("-sc", "--study-config", action="store", dest="study_config", help="cbio study config file")
     parser.add_argument("-dgd", "--dgd-status", action="store", dest="dgd_status", help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)", default="both", const="both", nargs="?", choices=["both", "kf", "dgd"])

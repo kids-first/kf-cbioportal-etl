@@ -105,7 +105,7 @@ file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.ta
 
 manifest = None
 if args.info_dir is not None:
-    manifest: Dataframe = pd.read_csv(args.table, sep="\t")
+    manifest: pd.DataFrame = pd.read_csv(args.table, sep="\t")
     manifest.set_index(["T_CL_BS_ID"], inplace=True)
     manifest = manifest.loc[manifest["File_Type"] == "info"]
 
@@ -120,7 +120,7 @@ for fname in fname_list:
     )
     cbio_dx: str = parts.group(1)
     try:
-        data: Dataframe = pd.read_csv(fname, sep="\t")
+        data: pd.DataFrame = pd.read_csv(fname, sep="\t")
     except Exception as e:
         print(e, file=sys.stderr)
     data.set_index("Hugo_Symbol")

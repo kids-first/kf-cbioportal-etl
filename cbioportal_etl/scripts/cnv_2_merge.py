@@ -69,7 +69,7 @@ def process_table(
 
     Args:
         cbio_dx: Disease/project name to process
-        file_meta_dict: Dict from file metadata
+        file_meta_dict: Dict that has been subset by file type from ETL file
     Returns:
         tuple of int representing success or failure, cBio Sample ID
     """
@@ -158,7 +158,7 @@ if cnv_dir[-1] != "/":
     cnv_dir += "/"
 manifest = None
 if info_dir is not None:
-    manifest: Dataframe = pd.read_csv(args.table, sep="\t")
+    manifest: pd.DataFrame = pd.read_csv(args.table, sep="\t")
     manifest.set_index(["T_CL_BS_ID"], inplace=True)
     manifest = manifest.loc[manifest["File_Type"] == "info"]
 
@@ -166,10 +166,7 @@ else:
     sys.stderr.write("No info file given, will assume ploidy 2\n")
 w_gene_suffix: str = ".CNVs.Genes.copy_number"
 out_dir: str = "merged_cnvs/"
-try:
-    os.mkdir(out_dir)
-except:
-    sys.stderr.write("output dir already exists\n")
+os.makedirs(out_dir, exist_ok=True)
 file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "cnv")
 with concurrent.futures.ProcessPoolExecutor(config_data["cpus"]) as executor:
     results = {
