@@ -15,7 +15,7 @@ def process_cnv(cpath: str) -> None:
     Calls bedtools to assign a gene name, and filters out results with < 0.05 P values
     Args:
     cpath: Path of ControlFreeC CNV file
-    config_data: dict inherited frm global scope with tool anf referene file locations
+    config_data: dict inherited frm global scope with tool anf reference file locations
     """
     PVALUE = 0.05
     try:
@@ -24,7 +24,7 @@ def process_cnv(cpath: str) -> None:
             cnv_cp_only = config_data["cp_only_script"]
             bed_file = config_data["bed_genes"]
             hugo_tsv = config_data["hugo_tsv"]
-            print("Processing {cpath}", file=sys.stderr)
+            print(f"Processing {cpath}", file=sys.stderr)
             root = os.path.basename(cpath)
             temp_filtered_fname = root + ".CNVs_0.05_filtered.bed"
             with open(out_dir + temp_filtered_fname, "w") as temp_filtered, open(cpath) as in_cnv:

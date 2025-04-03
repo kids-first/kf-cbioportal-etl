@@ -51,16 +51,7 @@ def collapse_and_format(fusion_data: pd.DataFrame) -> pd.DataFrame:
         # Go with the ceiling of the mean
         df_group["JunctionReadCount"] = df_group["JunctionReadCount"].apply(np.ceil)
         df_group["SpanningFragCount"] = df_group["SpanningFragCount"].apply(np.ceil)
-        collapsed_list.append(
-            df_group[
-                *key_cols,
-                "JunctionReadCount",
-                "SpanningFragCount",
-                "annots",
-                "Fusion_Type",
-                "Caller",
-            ].head(1)
-        )
+        collapsed_list.append(df_group[key_cols + [ "JunctionReadCount","SpanningFragCount","annots", "Fusion_Type", "Caller"]].head(1))
     del fusion_data
     fusion_data_collapsed = pd.concat(collapsed_list)
     del collapsed_list
@@ -309,7 +300,10 @@ def main():
         "Fusion_anno": "External_Annotation",
         "Caller": "Comments",
     }
-    present_rename: dict[str, str] = {old: new for old, new in rename_dict if old in present_cols}
+    present_rename = {}
+    for old, new in rename_dict.items():
+        if old in present_cols:
+            present_rename[old] = new
     cbio_master.rename(columns=present_rename, inplace=True)
     # Fill in some defaults
     cbio_master["Class"] = "FUSION"

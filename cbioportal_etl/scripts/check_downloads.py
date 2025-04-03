@@ -9,17 +9,18 @@ import argparse
 import concurrent.futures
 import sys
 from pathlib import Path
-
+import pdb
 
 def check_exists(entry: str, t_idx: int, n_idx: int) -> str | bool:
     """Check manifest entry to see if file exists.
 
     Args:
-    entry: Line from manifest file
-    t_idx: file_type position in entry as list
-    n_idx: file_name position in entry as list
+        entry: Line from manifest file
+        t_idx: file_type position in entry as list
+        n_idx: file_name position in entry as list
+
     Returns:
-    fpath: If file not found, return file path, else return boolean False
+        fpath: If file not found, return file path, else return boolean False
 
     """
     info = entry.rstrip("\n").split("\t")
@@ -29,12 +30,12 @@ def check_exists(entry: str, t_idx: int, n_idx: int) -> str | bool:
     return False
 
 
-def run_py(manifest_subset: str):
-    with open("missing_files.txt", "w") as missed, open(manifest_subset) as m:
+def run_py(args):
+    with open("missing_files.txt", "w") as missed, open(args.manifest) as m:
         head = next(m)
         header = head.rstrip("\n").split("\t")
         t_idx = header.index("file_type")
-        n_idx = header.index("file_name")
+        n_idx = header.index("File_Name")
         missed_ct = 0
         with concurrent.futures.ThreadPoolExecutor(16) as executor:
             results = {
@@ -62,7 +63,7 @@ def main():
     )
 
     args = parser.parse_args()
-    run_py(args.manifest)
+    run_py(args)
 
 
 if __name__ == "__main__":

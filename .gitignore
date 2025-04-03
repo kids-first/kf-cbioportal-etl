@@ -32,6 +32,7 @@ bld/
 [Ll]ogs/
 build/
 cbio_etl.egg-info/
+cbioportal_etl.egg-info/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/

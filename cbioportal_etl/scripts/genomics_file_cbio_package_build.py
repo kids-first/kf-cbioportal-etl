@@ -25,11 +25,7 @@ def log_cmd(cmd):
 
 def check_status(status, data_type, run_status):
     if status:
-        sys.stderr.write(
-            "Something when wrong while processing the "
-            + data_type
-            + " shutting down other running procs\n"
-        )
+        print(f"Something when wrong while processing the {data_type} shutting down other running procs", file=sys.stderr)
         for key in run_status:
             if run_status[key] is None:
                 run_status[key].kill()
@@ -347,9 +343,9 @@ def run_py(args):
 
         for data_type, process in run_status.items():
             process.poll()
-            print("Checking {data_type} status", file=sys.stderr)
+            print(f"Checking {data_type} status", file=sys.stderr)
             if process.returncode is not None:
-                check_status(process, data_type, run_status)
+                check_status(process.returncode, data_type, run_status)
                 rm_keys.append(data_type)
                 if data_type == "fusion" and args.dgd_status == "both":
                     dgd_fusion_append = 1
