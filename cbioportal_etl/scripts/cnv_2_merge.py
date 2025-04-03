@@ -36,7 +36,7 @@ def process_cnv(cnv_fn: str, cur_cnv_dict: dict, samp_id: str) -> dict[str, dict
                 f"ERROR: Sample ID {samp_id} already processed.  Back to the drawing board!",
                 file=sys.stderr,
             )
-            exit(1)
+            sys.exit(1)
         else:
             cur_cnv_dict[gene][samp_id] = value
     return cur_cnv_dict

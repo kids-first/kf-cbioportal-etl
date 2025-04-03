@@ -97,7 +97,7 @@ if __name__ == "__main__":
     os.makedirs(out_dir, exist_ok=True)
 
     with concurrent.futures.ProcessPoolExecutor(config_data["cpus"]) as executor:
-        results: dict[Future[None], str] = {
+        results: dict[concurrent.futures.Future[None], str] = {
             executor.submit(process_tbl, cbio_dx, file_meta_dict): cbio_dx
             for cbio_dx in file_meta_dict
         }

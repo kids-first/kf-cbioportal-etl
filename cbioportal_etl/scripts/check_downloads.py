@@ -9,7 +9,7 @@ import argparse
 import concurrent.futures
 import sys
 from pathlib import Path
-import pdb
+
 
 def check_exists(entry: str, t_idx: int, n_idx: int) -> str | bool:
     """Check manifest entry to see if file exists.

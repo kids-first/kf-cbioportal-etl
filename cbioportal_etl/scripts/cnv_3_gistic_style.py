@@ -61,7 +61,7 @@ def adjust_cn(bs_id: str) -> int:
         samp_id: str = bs_cbio_dict[bs_id]
         ploidy: int = 2
 
-        if manifest is not None:
+        if not manifest.empty:
             with open(args.info_dir + "/" + manifest.loc[bs_id]["File_Name"]) as info:
                 for datum in info:
                     datum = datum.rstrip("\n")
@@ -82,8 +82,8 @@ def adjust_cn(bs_id: str) -> int:
         data[samp_id] = np.where(data[samp_id] > high_gain, 2, data[samp_id])
         return 0
 
-    except Exception as E:
-        print(f"{E}", file=sys.stderr)
+    except Exception as e:
+        print(f"{e}", file=sys.stderr)
         print(f"Error processing sample entry for {bs_id}\n", file=sys.stderr)
         return 1
 
@@ -103,7 +103,7 @@ flist: bytes = subprocess.check_output(
 fname_list: list[str] = flist.decode().split("\n")
 file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "cnv")
 
-manifest = None
+manifest = pd.DataFrame()
 if args.info_dir is not None:
     manifest: pd.DataFrame = pd.read_csv(args.table, sep="\t")
     manifest.set_index(["T_CL_BS_ID"], inplace=True)
@@ -115,7 +115,7 @@ else:
 if fname_list[-1] == "":
     fname_list.pop()
 for fname in fname_list:
-    parts: Match[str] | None = re.search(
+    parts: re.Match[str] | None = re.search(
         "^" + args.merged_cnv_dir + "/(.*).predicted_cnv.txt", fname
     )
     cbio_dx: str = parts.group(1)
