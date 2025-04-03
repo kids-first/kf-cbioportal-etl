@@ -11,6 +11,7 @@ import os
 import sys
 import json
 import typing
+import pandas as pd
 from urllib.parse import urlparse
 from typing import TypedDict
 
@@ -385,6 +386,8 @@ def compare_timeline_data(
     """
     event_type = current_timeline.keys()
     event_ext_dict = {v: k for k, v in file_ext.items()}
+    all_diff_ids: set[str] = set()
+
     for event in event_type:
         current_ids: set = set(current_timeline[event])
         # set to empty to match behavior of current_timeline dict generation
@@ -395,19 +398,25 @@ def compare_timeline_data(
         diff_ids: set = update_ids - current_ids
         if len(diff_ids) > 1:
             print(
-                f"{len(diff_ids)} changes in {event} found for this study. Outputting delta files"
+                f"{len(diff_ids)} changes in {event} found for this study. Extracting patient data"
             )
-            suffix: str = event_ext_dict[event]
-            outfilename: str = f"{out_dir}/data_clinical_timeline_{suffix}"
             uniq_patients: set[str] = {item.split("\t")[0] for item in diff_ids}
-            output_file_by_id(
-                select_id=uniq_patients,
-                update_list=update_timeline[event],
-                header=header_info[event],
-                id_field="PATIENT_ID",
-                outfile_name=outfilename,
-                big_head=None,
-            )
+            all_diff_ids.update(uniq_patients)
+
+    dfs = []
+    for event, lines in update_timeline.items():
+        header = header_info.get(event)
+        if not header:
+            continue
+
+        df = pd.DataFrame([line.strip().split("\t") for line in lines], columns=header)
+        df = df[df["PATIENT_ID"].isin(all_diff_ids)]
+        dfs.append(df)
+
+    if dfs:
+        combined_df = pd.concat(dfs, ignore_index=True).fillna("")
+        combined_file = f"{out_dir}/data_clinical_timeline_combined.txt"
+        combined_df.to_csv(combined_file, sep="\t", index=False)
 
 
 def generate_meta_files(config_file: str, data_dir: str) -> None:
@@ -441,6 +450,16 @@ def generate_meta_files(config_file: str, data_dir: str) -> None:
                         meta_file.write(f"data_filename: {data_file}\n")
 
                     sys.stderr.write(f"Created meta file: {meta_name}\n")
+    
+    combined_timeline_file = "data_clinical_timeline_combined.txt"
+    if combined_timeline_file in existing_files:
+        meta_name = "meta_clinical_timeline_combined.txt"
+        with open(os.path.join(data_dir, meta_name), "w") as meta_file:
+            meta_file.write(f"cancer_study_identifier: {study_id}\n")
+            meta_file.write("genetic_alteration_type: CLINICAL\n")
+            meta_file.write("datatype: TIMELINE\n")
+            meta_file.write(f"data_filename: {combined_timeline_file}\n")
+        sys.stderr.write(f"Created meta file: {meta_name}\n")
 
 
 def run_py(args):
