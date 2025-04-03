@@ -62,7 +62,7 @@ def process_maf(
 
     maf_header = maf_loc_dict["header"]
     for maf_type, maf_dir in maf_loc_dict.items():
-        if maf_type in ["header", "dgd"]: 
+        if maf_type in ["header", "dgd"]:
             continue
         if not maf_dir:
             print(f"Skipping {maf_type} as it is not defined in the config", file=sys.stderr)
@@ -371,21 +371,16 @@ def run_py(args):
 
     # Run cbioportal data validator
     if not args.add_data:
-        sys.stderr.write("Validating load packages\n")
+        print("Validating load packages", file=sys.stderr)
         sys.stderr.flush()
-        validate = (
-            config_data["cbioportal_validator"]
-            + " -s processed/"
-            + cbio_study_id
-            + " -n -v 2> validator.errs > validator.out"
-        )
+        validate = f"{config_data['cbioportal_validator']}  -s processed/{cbio_study_id} -n -v 2> validator.errs > validator.out"
         exit_status = subprocess.call(validate, shell=True)
         if exit_status:
-            sys.stderr.write(
-                "Validator quit with status "
-                + str(exit_status)
-                + ". Check validator.errs and validator.out for more info\n"
+            print(
+                f"Validator quit with status {exit_status}. Check validator.errs and validator.out for more info",
+                file=sys.stderr,
             )
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -420,7 +415,13 @@ def main():
         dest="legacy",
         help="If set, will run legacy fusion output",
     )
-    parser.add_argument("-ad", "--add-data", action="store_true", dest="add_data", help="Flag to skip validation when running for add_data directory")
+    parser.add_argument(
+        "-ad",
+        "--add-data",
+        action="store_true",
+        dest="add_data",
+        help="Flag to skip validation when running for add_data directory",
+    )
 
     args = parser.parse_args()
     run_py(args)
