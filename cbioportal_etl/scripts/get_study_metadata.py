@@ -1,44 +1,44 @@
-"""
-This script downloads all relevant data_clinical and genomics file etl support files from the D3b Data Warehouse.
+#!/usr/bin/env python3
+"""Downloads all relevant data_clinical and genomics file etl support files from the D3b Data Warehouse.
+
 YOU MUST CREATE YOUR OWN .ini FILE WITH LOGIN PARAMS BEFORE RUNNING
 """
-import psycopg2
-from psycopg2 import sql
-import os
-from configparser import ConfigParser
 import argparse
 import json
+from multiprocessing import connection
+import os
 import sys
+from configparser import ConfigParser
+
+import psycopg2
+from psycopg2 import sql
 
 
-def config(filename='database.ini', section='postgresql'):
+def config(filename: str = "database.ini", section: str = "postgresql") -> dict[str, str]:
     # stolen from https://www.postgresqltutorial.com/postgresql-python/connect/
     # create a parser
-    parser = ConfigParser()
+    parser: ConfigParser = ConfigParser()
     # read config file
     parser.read(filename)
-
     # get section, default to postgresql
-    db = {}
+    db: dict[str, str] = {}
     if parser.has_section(section):
         params = parser.items(section)
         for param in params:
             db[param[0]] = param[1]
     else:
-        raise Exception('Section {0} not found in the {1} file'.format(section, filename))
-
+        err_msg: str = f"Section {section} not found in the {filename} file"
+        raise Exception(err_msg)
     return db
 
 
 def generic_pull(db_cur, tbl_name):
-    """
-    Simple helper function for SELECT * database calls
-    """
-    if '.' not in tbl_name:
-        tbl_sql = sql.SQL('SELECT * FROM {};').format(sql.Identifier(tbl_name))
+    """Format SELECT * database calls."""
+    if "." not in tbl_name:
+        tbl_sql = sql.SQL("SELECT * FROM {};").format(sql.Identifier(tbl_name))
     else:
         (schema, table) = tbl_name.split('.')
-        tbl_sql = sql.SQL('SELECT * FROM {}.{};').format(sql.Identifier(schema), sql.Identifier(table))
+        tbl_sql = sql.SQL("SELECT * FROM {}.{};").format(sql.Identifier(schema), sql.Identifier(table))
 
     db_cur.execute(tbl_sql)
     rows = db_cur.fetchall()
@@ -59,16 +59,16 @@ def generic_print(out_file, rows, colnames):
     return 0
 
 
-def get_data_clinical(db_cur, config_dict, prefix, ref_dir, datasheet_dir, config_data):
-    """
-    Depending on the prefix of patient or sample, will pull from related tables,
-    only use related header info present in table, and print the combined results.
+def get_data_clinical(db_cur: psycopg2.extensions.cursor, config_dict: dict, prefix: str, ref_dir: str, datasheet_dir: str) -> int:
+    """Depending on the prefix of patient or sample, will pull from related tables.
+
+    Only use related header info present in table, and print the combined results.
     This is because cBioportal flat file had 5 header rows and it can vary between projects which are used
     """
     if prefix not in ['sample', 'patient']:
-        print("Please pass sample or patient for prefix.")
-        exit(1)
-    tbl_name = config_dict['database_pulls'][prefix + '_file']['table']
+        print("Please pass sample or patient for prefix.", sys.stderr)
+        sys.exit(1)
+    tbl_name: str = config_dict['database_pulls'][f"{prefix}_file"]['table']
 
     # get table contents
     (rows, colnames) = generic_pull(db_cur, tbl_name)
@@ -78,7 +78,7 @@ def get_data_clinical(db_cur, config_dict, prefix, ref_dir, datasheet_dir, confi
     # get and read head file
     head_lines = head_file.readlines()
     # create output file and combine results for final product
-    out_file = open(datasheet_dir + "/" + config_data['database_pulls'][prefix + '_file']['out_file'], 'w')
+    out_file = open(datasheet_dir + "/" + config_dict['database_pulls'][prefix + '_file']['out_file'], 'w')
     # get indices of matching head lines, then print corresponding cBio header values
     col_i = []
     # the last row, and the header of the data clinical table should have overlapping values
@@ -132,28 +132,24 @@ def get_manifests(db_cur, config_dict, include_all):
 
 def run_py(args):
     # Load database login info
-    params = config(filename=args.db_ini, section=args.profile)
-    study = args.study
-
-    datasheet_dir = 'datasheets'
+    params: dict[str, str] = config(filename=args.db_ini, section=args.profile)
+    study: str = args.study
+    datasheet_dir: str = "datasheets"
     # Load json config file with database pull info
-    with open(args.study_config) as f:
-        config_data = json.load(f)
+    with open(study) as f:
+        config_data: dict = json.load(f)
     try:
-        conn = psycopg2.connect(**params)
-        cur = conn.cursor()
-            
+        conn: psycopg2.extensions.connection = psycopg2.connect(**params)
+        cur: psycopg2.extensions.cursor = conn.cursor()
+
         # dict to track keys with specific database calls
-        special_keys = {"sample_head": 0, "sample_file": 0, "patient_head": 0, "patient_file": 0, "manifests": 0}
+        special_keys: dict[str, int] = {"sample_head": 0, "sample_file": 0, "patient_head": 0, "patient_file": 0, "manifests": 0}
         ref_dir = args.ref_dir
         if ref_dir[-1] != '/':
             ref_dir += '/'
-        try:
-            os.mkdir(datasheet_dir)
-        except Exception as e:
-            print(str(e) + ' IGNORE!')
-        get_data_clinical(cur, config_data, 'sample', ref_dir, datasheet_dir, config_data)
-        get_data_clinical(cur, config_data, 'patient', ref_dir, datasheet_dir, config_data)
+        os.makedirs(datasheet_dir, exist_ok=True)
+        get_data_clinical(cur, config_data, 'sample', ref_dir, datasheet_dir)
+        get_data_clinical(cur, config_data, 'patient', ref_dir, datasheet_dir)
         get_manifests(cur, config_data, args.all)
 
         # For all other tables to be printed simply, not in special_keys
@@ -179,7 +175,7 @@ def main():
     parser = argparse.ArgumentParser(description="Pull clinical data and genomics file etl support from D3b data warehouse.")
     parser.add_argument("-db", "--db-ini", action="store", dest="db_ini", help="Database config file - formatting like aws or sbg creds")
     parser.add_argument("-p", "--profile", action="store", dest="profile", help="ini profile name", default="postgresql")
-    parser.add_argument("-sc", "--study-config", action="store", dest="study_config", help="json config file with study information; see cbioportal_etl/STUDY_CONFIGS/json_files for examples")
+    parser.add_argument("-sc", "--study-config", action="store", dest="study", help="json config file with study information; see cbioportal_etl/STUDY_CONFIGS/json_files for examples")
     parser.add_argument("-r", "--ref-dir", action="store", dest="ref_dir", help="dir name containing template data_clinical* header files")
     parser.add_argument("-a", "--all", action="store_true", dest="all", help="flag to include all relevant files, not just status=active files, NOT RECOMMENDED")
 
