@@ -23,23 +23,24 @@ def check_exists(entry: str, t_idx: int, n_idx: int) -> str | bool:
         fpath: If file not found, return file path, else return boolean False
 
     """
-    info = entry.rstrip("\n").split("\t")
-    fpath = f"{info[t_idx]}/{info[n_idx]}"
+    info: list[str] = entry.rstrip("\n").split("\t")
+    fpath: str = f"{info[t_idx]}/{info[n_idx]}"
     if not Path(fpath).is_file():
         return fpath
     return False
 
 
-def run_py(args):
+def run_py(args: argparse.Namespace) -> int:
     with open("missing_files.txt", "w") as missed, open(args.manifest) as m:
-        head = next(m)
-        header = head.rstrip("\n").split("\t")
-        t_idx = header.index("file_type")
-        n_idx = header.index("File_Name")
-        missed_ct = 0
+        head: str = next(m)
+        header: list[str] = head.rstrip("\n").split("\t")
+        t_idx: int = header.index("file_type")
+        n_idx: int = header.index("file_name")
+        missed_ct: int = 0
         with concurrent.futures.ThreadPoolExecutor(16) as executor:
             results = {
-                executor.submit(check_exists, file_info, t_idx, n_idx): file_info for file_info in m
+                executor.submit(check_exists, file_info, t_idx, n_idx): file_info
+                for file_info in m
             }
             for result in concurrent.futures.as_completed(results):
                 if result.result():
@@ -48,8 +49,10 @@ def run_py(args):
 
     if missed_ct:
         print(f"Missed {missed_ct} files", file=sys.stderr)
+        sys.exit(1)
     else:
         print("Got em all! Good job Ash!", file=sys.stderr)
+        return 0
 
 
 def main():
