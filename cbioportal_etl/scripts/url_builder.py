@@ -84,7 +84,7 @@ def prompt_attribute_selection(all_attributes):
         return prompt_attribute_selection(all_attributes)
 
 
-def get_attribute_values(cur, study, sample_attributes, selected_attributes, selected_subcohorts):
+def get_attribute_values(db_cur, study, sample_attributes, selected_attributes, selected_subcohorts):
     """
     Queries {study}_data_clinical_sample and {study}_data_clinical_patient tables
     Lists available attribute values from patient and sample tables
@@ -97,7 +97,7 @@ def get_attribute_values(cur, study, sample_attributes, selected_attributes, sel
     for attribute in selected_attributes:
         table = "sample" if attribute in sample_attributes else "patient"
         if table == "sample":
-            cur.execute(
+            db_cur.execute(
                 sql.SQL(f"""
                     SELECT DISTINCT "{attribute}" FROM prod_cbio.{sample_table}
                     WHERE "SUB_COHORT" IN %s AND "{attribute}" IS NOT NULL
@@ -105,7 +105,7 @@ def get_attribute_values(cur, study, sample_attributes, selected_attributes, sel
                 """), (tuple(selected_subcohorts),)
             )
         else:
-            cur.execute(
+            db_cur.execute(
                 sql.SQL(f"""
                     SELECT DISTINCT p."{attribute}" FROM prod_cbio.{patient_table} p
                     JOIN prod_cbio.{sample_table} s ON p."PATIENT_ID" = s."PATIENT_ID"
@@ -113,7 +113,7 @@ def get_attribute_values(cur, study, sample_attributes, selected_attributes, sel
                     ORDER BY p."{attribute}";
                 """), (tuple(selected_subcohorts),)
             )
-        values = [row[0] for row in cur.fetchall()]
+        values = [row[0] for row in db_cur.fetchall()]
         if values:
             attribute_options[attribute] = values
 
@@ -233,6 +233,54 @@ def build_json(study, sub_cohorts, clinical_filters, gene_filters):
     return filter_json
 
 
+def validate_clinical_filters(db_cur, study, tsv, sample_attributes):
+    """
+    Validates that all clinical attribute values exist in the database.
+    Filters the clinical table using SUB_COHORT first (if present), then verifies that all values exist.
+    """
+    df = pd.read_csv(tsv, sep="\t", dtype=str).fillna("")
+    sample_table = f"{study}_data_clinical_sample"
+
+    clinical_df = df[df["filter_type"] == "clinical_attribute"]
+
+    subcohort_values = []
+    subcohort_row = clinical_df[clinical_df["attribute_id"] == "SUB_COHORT"]
+    if not subcohort_row.empty:
+        subcohort_values = [v.strip() for v in subcohort_row.iloc[0]["value"].split(",") if v.strip()]
+
+    invalid_values = []
+    for _, row in clinical_df.iterrows():
+        attr = row["attribute_id"].strip()
+        if attr == "SUB_COHORT" or attr not in sample_attributes:
+            continue
+
+        value = row["value"].strip()
+        if not value:
+            continue
+
+        # Special case for semicolon-separated values to support values with internal commas
+        values = [v.strip() for v in value.split(";") if v.strip()] if attr in ["CANCER_TYPE_DETAILED", "CANCER_TYPE"] else [v.strip() for v in value.split(",") if v.strip()]
+
+        query = sql.SQL("""
+            SELECT DISTINCT {} FROM prod_cbio.{}
+            WHERE {} IS NOT NULL {}
+        """).format(
+            sql.Identifier(attr),
+            sql.Identifier(sample_table),
+            sql.Identifier(attr),
+            sql.SQL("AND \"SUB_COHORT\" IN %s") if subcohort_values else sql.SQL("")
+        )
+        db_cur.execute(query, (tuple(subcohort_values),) if subcohort_values else ())
+
+        existing_values = {row[0] for row in db_cur.fetchall()}
+        invalid = [v for v in values if v not in existing_values]
+
+        if invalid:
+            invalid_values.append((attr, invalid))
+    
+    return invalid_values
+
+
 def convert_tsv_to_filter_json(tsv, study):
     df = pd.read_csv(tsv, sep="\t").fillna("")
 
@@ -253,7 +301,7 @@ def convert_tsv_to_filter_json(tsv, study):
         value = row["value"].strip()
 
         if filter_type == "clinical_attribute" and value:
-            values = [v.strip() for v in value.split(",") if v.strip()]
+            values = [v.strip() for v in value.split(";") if v.strip()] if attr_id in ["CANCER_TYPE_DETAILED", "CANCER_TYPE"] else [v.strip() for v in value.split(",") if v.strip()]
             clinical_filters.append({
                 "attributeId": attr_id,
                 "values": [{"value": v} for v in values]
@@ -350,29 +398,37 @@ def build_url(filter_json, study):
 def run_py(args):
     params = config(filename=args.db_ini, section=args.profile)
     study = args.study
+    patient_attributes = ["SEX"]
+    sample_attributes = [
+        "SPECIMEN_ID", "EXPERIMENT_STRATEGY", "CANCER_TYPE", "CANCER_TYPE_DETAILED",
+        "ONCOTREE_CODE", "TUMOR_TISSUE_TYPE", "BROAD_HISTOLOGY", "CBTN_TUMOR_TYPE",
+        "TUMOR_TYPE", "SAMPLE_TYPE", "CANCER_GROUP", "RNA_LIBRARY_SELECTION"
+        ]
     try:
         conn = psycopg2.connect(**params)
         cur = conn.cursor()
         # Input pre-defined filters in TSV format
         if args.tsv: 
-            print("TSV to URL")
-            filter_json = convert_tsv_to_filter_json(args.tsv, study)
-            url = build_url(filter_json, study)
-            with open("generated_url.txt", "w") as f:
-                f.write(url + "\n")
-            with open("generated_filter.json", "w") as f:
-                json.dump(filter_json, f, indent=2)
-            print("\nSaved URL to 'generated_url.txt' and JSON to 'generated_filter.json'")
+            print("\nValidating TSV Values")
+            invalid_values_list = validate_clinical_filters(cur, study, args.tsv, sample_attributes)
+            if invalid_values_list:
+                print("\nInvalid values:")
+                for attr, value in invalid_values_list:
+                    print(f"- {attr}: {value}")
+                print("\nCannot generate URL")
+            else:
+                print("\nConverting TSV to URL")
+                filter_json = convert_tsv_to_filter_json(args.tsv, study)
+                url = build_url(filter_json, study)
+                with open("generated_url.txt", "w") as f:
+                    f.write(url + "\n")
+                with open("generated_filter.json", "w") as f:
+                    json.dump(filter_json, f, indent=2)
+                print("\nSaved URL to 'generated_url.txt' and JSON to 'generated_filter.json'")
         else:
             # Go through interactive prompt to select filters
             sub_cohorts = get_subcohort_selection(cur, study)
             # Choose attributes to filter and values to filter for
-            patient_attributes = ["SEX"]
-            sample_attributes = [
-                "SPECIMEN_ID", "EXPERIMENT_STRATEGY", "CANCER_TYPE", "CANCER_TYPE_DETAILED",
-                "ONCOTREE_CODE", "TUMOR_TISSUE_TYPE", "BROAD_HISTOLOGY", "CBTN_TUMOR_TYPE",
-                "TUMOR_TYPE", "SAMPLE_TYPE", "CANCER_GROUP", "RNA_LIBRARY_SELECTION"
-                ]
             all_attributes = patient_attributes + sample_attributes
             selected_attributes = prompt_attribute_selection(all_attributes)
             attribute_options = get_attribute_values(cur, study, sample_attributes, selected_attributes, sub_cohorts)
