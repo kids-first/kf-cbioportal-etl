@@ -178,7 +178,7 @@ def run_py(args: argparse.Namespace) -> int:
     # change col names to lower case for input compatibility
     manifest_concat.columns = manifest_concat.columns.str.lower()
     # file_types is actually a requirement, so grab from table if not provided
-    if hasattr(args, "file_types"):
+    if hasattr(args, "file_types") and args.file_types is not None:
         file_types_list = args.file_types.split(",")
     else:
         print("No file types provided, using table values", file=sys.stderr)

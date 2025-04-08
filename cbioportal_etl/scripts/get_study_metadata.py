@@ -9,15 +9,13 @@ import json
 import os
 import sys
 from configparser import ConfigParser
-from typing import IO
+from typing import IO, Any
 
 import psycopg2
 from psycopg2 import sql
 
 
-def config(
-    filename: str = "database.ini", section: str = "postgresql"
-) -> dict[str, str]:
+def config(filename: str = "database.ini", section: str = "postgresql") -> dict[str, str]:
     # stolen from https://www.postgresqltutorial.com/postgresql-python/connect/
     # create a parser
     parser: ConfigParser = ConfigParser()
@@ -35,7 +33,9 @@ def config(
     return db
 
 
-def generic_pull(db_cur, tbl_name):
+def generic_pull(
+    db_cur: psycopg2.extensions.cursor, tbl_name: str
+) -> tuple[list[tuple[Any]], list[str]]:
     """Format SELECT * database calls."""
     if "." not in tbl_name:
         tbl_sql = sql.SQL("SELECT * FROM {};").format(sql.Identifier(tbl_name))
@@ -46,20 +46,18 @@ def generic_pull(db_cur, tbl_name):
         )
 
     db_cur.execute(tbl_sql)
-    rows = db_cur.fetchall()
-    colnames = [desc[0] for desc in db_cur.description]
+    rows: list[tuple[Any]] = db_cur.fetchall()
+    colnames: list[str] = [desc[0] for desc in db_cur.description]
     return (rows, colnames)
 
 
-def generic_print(out_file, rows, colnames):
-    """
-    Simple helper function to print results to existing file handle as tsv
-    """
-    out_file.write("\t".join(colnames) + "\n")
+def generic_print(out_file: IO, rows: list[tuple[Any]], colnames: list[str]) -> int:
+    """Print results to existing file handle as tsv."""
+    print("\t".join(colnames), file=out_file)
     for row in rows:
         # convert None to empty str
-        new_row = ["" if i is None else str(i) for i in row]
-        out_file.write("\t".join(new_row) + "\n")
+        new_row: list[str] = ["" if i is None else str(i) for i in row]
+        print("\t".join(new_row), file=out_file)
     out_file.close()
     return 0
 
@@ -85,25 +83,20 @@ def get_data_clinical(
     (rows, colnames) = generic_pull(db_cur, tbl_name)
 
     # use table header from colnames, and use to select file header
-    head_file = open(ref_dir + config_dict["database_pulls"][prefix + "_head"]["table"])
+    head_file: IO = open(ref_dir + config_dict["database_pulls"][prefix + "_head"]["table"])
     # get and read head file
-    head_lines = head_file.readlines()
+    head_lines: list[str] = head_file.readlines()
     # create output file and combine results for final product
     out_file = open(
-        datasheet_dir
-        + "/"
-        + config_dict["database_pulls"][prefix + "_file"]["out_file"],
-        "w",
+        f"{datasheet_dir}/{config_dict['database_pulls'][f'{prefix}_file']['out_file']}", "w"
     )
     # get indices of matching head lines, then print corresponding cBio header values
-    col_i = []
     # the last row, and the header of the data clinical table should have overlapping values
-    head_search = head_lines[-1].rstrip("\n").split("\t")
-    for col in colnames:
-        col_i.append(head_search.index(col))
+    head_search: list[str] = head_lines[-1].rstrip("\n").split("\t")
+    col_i: list[int] = [head_search.index(col) for col in colnames]
     for i in range(0, len(head_lines) - 1, 1):
         head = [head_lines[i].rstrip("\n").split("\t")[j] for j in col_i]
-        out_file.write("\t".join(head) + "\n")
+        print("\t".join(head), file=out_file)
     generic_print(out_file, rows, colnames)
     return 0
 
@@ -127,9 +120,7 @@ def run_py(args):
             "patient_head": 0,
             "patient_file": 0,
         }
-        ref_dir: str = args.ref_dir
-        if ref_dir[-1] != "/":
-            ref_dir += "/"
+        ref_dir: str = f"{args.ref_dir}/" if args.ref_dir[-1] != "/" else args.ref_dir
         os.makedirs(datasheet_dir, exist_ok=True)
         get_data_clinical(cur, config_data, "sample", ref_dir, datasheet_dir)
         get_data_clinical(cur, config_data, "patient", ref_dir, datasheet_dir)
@@ -151,7 +142,7 @@ def run_py(args):
         # close the communication with the PostgreSQL
         cur.close()
     except (Exception, psycopg2.DatabaseError) as error:
-        print(error)
+        print(error, file=sys.stderr)
         conn.close()
     conn.close()
 

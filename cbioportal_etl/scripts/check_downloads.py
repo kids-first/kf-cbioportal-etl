@@ -31,7 +31,7 @@ def check_exists(entry: str, t_idx: int, n_idx: int) -> str | bool:
 
 
 def run_py(args: argparse.Namespace) -> int:
-    with open("missing_files.txt", "w") as missed, open(args.manifest) as m:
+    with open("missing_files.txt", "w") as missed, open(args.manifest_subset) as m:
         head: str = next(m)
         header: list[str] = head.rstrip("\n").split("\t")
         t_idx: int = header.index("file_type")
@@ -61,7 +61,6 @@ def main():
         "-ms",
         "--manifest-subset",
         action="store",
-        dest="manifest",
         help="tsv list of desired genomic files",
     )
 
