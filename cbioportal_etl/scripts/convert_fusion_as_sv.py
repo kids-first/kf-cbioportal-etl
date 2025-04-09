@@ -249,7 +249,7 @@ def main():
         "--mode",
         action="store",
         dest="mode",
-        help="describe source, openX or kfprod, or dgd",
+        help="describe source, openX or kfprod or dgd",
         required=True,
     )
     parser.add_argument(

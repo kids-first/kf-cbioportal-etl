@@ -1,22 +1,33 @@
 #!/usr/bin/env python3
+"""Organize data in final upload format.
+
+This includes creating soft links to all data files as well as meta files to describe data file
+and case lists to describe number of samples of each data type
 """
-This is an organization script to organize data in final upload format.
-This includes creating soft links to all data files as well as meta files to describe data files and case lists to describe number of samples of each data type
-"""
-import sys
+
 import argparse
-import os
 import json
+import os
 import subprocess
+import sys
+
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
 def process_meta_study(meta_data, output_dir):
     study = meta_data["cancer_study_identifier"]
     # fields where key matches and value is just value of dict entry
-    matched_fields = ["type_of_cancer", "short_name", "reference_genome", "description", "groups", "citation", "pmid"]
-    with open (output_dir + "meta_study.txt", "w") as meta_study:
-        print("{}: {}".format("cancer_study_identifier",study), file=meta_study)
+    matched_fields = [
+        "type_of_cancer",
+        "short_name",
+        "reference_genome",
+        "description",
+        "groups",
+        "citation",
+        "pmid",
+    ]
+    with open(output_dir + "meta_study.txt", "w") as meta_study:
+        print("{}: {}".format("cancer_study_identifier", study), file=meta_study)
         print("{}: {}".format("name", meta_data["display_name"]), file=meta_study)
         for key in matched_fields:
             if key in meta_data:
@@ -24,14 +35,15 @@ def process_meta_study(meta_data, output_dir):
     return study
 
 
-def process_meta_data(meta_data, output_dir, canc_study_id):
+def process_meta_data(meta_data: dict, output_dir: str, canc_study_id: str) -> None:
+    """Create meta_ format files for cBio import."""
     for dtype in meta_data["dtypes"]:
         try:
             # pointer for easier readability and dict key traciing
-            cur_data = meta_data["dtypes"][dtype]
-            cbio_name = cur_data["cbio_name"]
-            parts = cbio_name.split("_")
-            attr_dict = cur_data["meta_file_attr"]
+            cur_data: dict = meta_data["dtypes"][dtype]
+            cbio_name: str = cur_data["cbio_name"]
+            parts: list[str] = cbio_name.split("_")
+            attr_dict: dict = cur_data["meta_file_attr"]
             meta_name = "meta_" + "_".join(parts[1:])
             if attr_dict["datatype"] == "FUSION":
                 meta_name = "meta_" + attr_dict["datatype"] + ".txt"
@@ -84,22 +96,11 @@ def process_clinical_data(meta_data, output_dir, canc_study_id, add_data_mode=Fa
             meta_data_file.write("data_filename: " + cbio_name + "\n")
             meta_data_file.close()
 
-            cmd = (
-                "ln "
-                + cwd
-                + meta_data["dir"]
-                + "/"
-                + cbio_name
-                + " "
-                + output_dir
-                + cbio_name
-            )
+            cmd = "ln " + cwd + meta_data["dir"] + "/" + cbio_name + " " + output_dir + cbio_name
             subprocess.call(cmd, shell=True)
         except Exception as e:
             sys.stderr.write(str(e) + " failed processing meta data file\n")
-            pdb.set_trace()
-            hold = 1
-
+            sys.exit(1)
 
 
 def write_case_list(case_key, attr_dict, sample_list, case_dir):
@@ -139,9 +140,7 @@ def create_case_lists(data_dict, output_dir):
 
     if data_dict["merged_mafs"]:
         # Get samples from merged maf file
-        muts_fname = (
-            output_dir + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
-        )
+        muts_fname = output_dir + config_data["merged_mafs"]["dtypes"]["mutation"]["cbio_name"]
         muts_file = open(muts_fname)
         head = next(muts_file)
         head = next(muts_file)
@@ -157,9 +156,7 @@ def create_case_lists(data_dict, output_dir):
     all_cases = muts_list
     if data_dict["merged_cnvs"] == 1:
         # Get samples from merged cnv file
-        cna_fname = (
-            output_dir + config_data["merged_cnvs"]["dtypes"]["linear"]["cbio_name"]
-        )
+        cna_fname = output_dir + config_data["merged_cnvs"]["dtypes"]["linear"]["cbio_name"]
         cna_file = open(cna_fname)
         head = next(cna_file)
         # assumes header is Hugo_symbols\tsample_name1\tsamplename2 etc, if entrez ID, will need to change!
@@ -173,27 +170,22 @@ def create_case_lists(data_dict, output_dir):
 
     if data_dict["merged_rsem"] == 1:
         # Get samples from merged rsem file - is a simple gene by sample table
-        rna_fname = (
-            output_dir + config_data["merged_rsem"]["dtypes"]["counts"]["cbio_name"]
-        )
+        rna_fname = output_dir + config_data["merged_rsem"]["dtypes"]["counts"]["cbio_name"]
         rna_file = open(rna_fname)
         head = next(rna_file)
         rna_list = head.rstrip("\n").split("\t")[1:]
-        write_case_list("cases_RNA_Seq_v2_mRNA", config_data["cases_RNA_Seq_v2_mRNA"], rna_list, case_dir)
+        write_case_list(
+            "cases_RNA_Seq_v2_mRNA", config_data["cases_RNA_Seq_v2_mRNA"], rna_list, case_dir
+        )
         all_cases += rna_list
 
     if "merged_fusion" in data_keys and data_keys["merged_fusion"] == 1:
         # Get samples from merge fusion file
-        fusion_fname = (
-            output_dir + config_data["merged_fusion"]["dtypes"]["fusion"]["cbio_name"]
-        )
+        fusion_fname = output_dir + config_data["merged_fusion"]["dtypes"]["fusion"]["cbio_name"]
         fusion_file = open(fusion_fname)
         head = next(fusion_file)
         header = head.rstrip("\n").split("\t")
-        # Flag to get samples names depending if source is legacy or current
         sample_id_colname = "Sample_Id"
-        if args.legacy:
-            sample_id_colname = "Tumor_Sample_Barcode"
         s_idx = header.index(sample_id_colname)
         for line in fusion_file:
             data = line.rstrip("\n").split("\t")
@@ -231,51 +223,36 @@ parser.add_argument(
     help="json config file with meta information; see REFS/case_meta_config.json example",
 )
 parser.add_argument(
-    "-l",
-    "--legacy",
-    default=False,
+    "-ad",
+    "--add-data",
     action="store_true",
-    dest="legacy",
-    help="If set, will run legacy fusion output",
-)
-parser.add_argument(
-    "-ad", "--add-data", 
-    action="store_true", 
-    dest="add_data", 
-    help="Flag to skip validation when running for add_data directory"
+    dest="add_data",
+    help="Flag to skip validation when running for add_data directory",
 )
 
 args = parser.parse_args()
 
-cwd = os.getcwd() + "/"
-TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    
+cwd: str = os.getcwd() + "/"
+TOOL_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 with open(args.config_file) as f:
-    config_data = json.load(f)
-config_data = resolve_config_paths(config_data, TOOL_DIR)
+    config_data: dict = json.load(f)
+config_data: dict = resolve_config_paths(config_data, TOOL_DIR)
 
-out_dir = args.out_dir
-if out_dir[-1] != "/":
-    out_dir += "/"
-try:
-    os.mkdir(out_dir)
-except:
-    sys.stderr.write(out_dir + " already exists.\n")
+out_dir: str = args.out_dir if args.out_dir[-1] == "/" else args.out_dir + "/"
+os.makedirs(out_dir, exist_ok=True)
 
 try:
-    study_id = config_data["study"]["cancer_study_identifier"]
+    study_id: str = config_data["study"]["cancer_study_identifier"]
     if os.path.isdir(config_data["data_sheets"]["dir"]):
-        cur_dir = out_dir + config_data["study"]["cancer_study_identifier"] + "/"
-        try:
-            os.mkdir(cur_dir)
-        except:
-            sys.stderr.write(cur_dir + " already exists.\n")
+        cur_dir: str = f"{out_dir}{config_data['study']['cancer_study_identifier']}/"
+        os.makedirs(cur_dir, exist_ok=True)
         if not args.add_data:
-            sys.stderr.write("Creating meta study file for " + study_id + "\n")
+            print(f"Creating meta study file for {study_id}", file=sys.stderr)
             canc_study_id = process_meta_study(config_data["study"], cur_dir)
-        else: 
+        else:
             canc_study_id = study_id
-        data_keys = {
+        data_keys: dict[str, int] = {
             "merged_mafs": 0,
             "merged_cnvs": 0,
             "merged_rsem": 0,
@@ -285,14 +262,14 @@ try:
             if key in config_data and config_data[key]["dir"] != "":
                 data_keys[key] = 1
                 process_meta_data(config_data[key], cur_dir, canc_study_id)
-                sys.stderr.write("Creating meta data files and links for " + key + "\n")
+                print(f"Creating meta data files and links for {key}", file=sys.stderr)
             else:
-                sys.stderr.write("Skipping meta files for " + key + "\n")
-        sys.stderr.write("Creating clinical meta sheets and links\n")
+                print(f"Skipping meta files for {key}", file=sys.stderr)
+        print("Creating clinical meta sheets and link", file=sys.stderr)
         process_clinical_data(config_data["data_sheets"], cur_dir, canc_study_id, args.add_data)
         if not args.add_data:
             create_case_lists(data_keys, cur_dir)
     else:
-        sys.stderr.write("No datasheets for " + study_id + ", skipping!\n")
+        print(f"No datasheets for {study_id}, skipping!", file=sys.stderr)
 except Exception as e:
-    sys.stderr.write(str(e) + "\nerror processing files for " + study_id + "!\n")
+    print(f"{e}\nerror processing files for {study_id}!", file=sys.stderr)

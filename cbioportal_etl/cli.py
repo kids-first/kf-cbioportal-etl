@@ -99,9 +99,6 @@ def main():
         "-dgd", "--dgd-status", default="kf", choices=["both", "kf", "dgd"], help="Load options"
     )
     common_args.add_argument(
-        "-l", "--legacy", required=False, action="store_true", help="Enable legacy mode"
-    )
-    common_args.add_argument(
         "-ad",
         "--add-data",
         action="store_true",
