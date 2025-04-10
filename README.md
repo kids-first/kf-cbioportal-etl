@@ -297,7 +297,6 @@ optional arguments:
                         json config file with data types and data locations
   -f [{both,kf,dgd}], --dgd-status [{both,kf,dgd}]
                         Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)
-  -l, --legacy          If set, will run legacy fusion output
 ```
 + `-t` would be the [Genomics metadata file](#genomics-metadata-file)
 + `-c` would be the [Metadata processing config file](#metadata-processing-config-file)

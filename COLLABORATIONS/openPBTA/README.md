@@ -146,6 +146,5 @@ optional arguments:
                         output directory name
   -c CONFIG_FILE, --config CONFIG_FILE
                         json config file with meta information; see REFS/case_meta_config.json example
-  -l, --legacy          If set, will run legacy fusion output
   ```
   Example: `python3 /home/ubuntu/tools/kf-cbioportal-etl/scripts/organize_upload_packages.py -o processed -c /home/ubuntu/tools/kf-cbioportal-etl/COLLABORATIONS/openPBTA/openpbta_case_meta_config.json`

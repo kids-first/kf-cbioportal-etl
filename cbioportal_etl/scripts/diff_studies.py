@@ -440,12 +440,12 @@ def compare_timeline_data(
 
 
 def generate_meta_files(config_file: str, data_dir: str) -> None:
-    """
-    Generates meta files for data files that exist in `delta_data`, writing them into `delta_data` dir.
+    """Generate meta files for data files that exist in `delta_data`, writing them into `delta_data` dir.
 
     Args:
         config_file (str): Path to the JSON configuration file.
         data_dir (str): Path to the directory containing existing data files.
+
     """
     with open(config_file) as f:
         config_data = json.load(f)

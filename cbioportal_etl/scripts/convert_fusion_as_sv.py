@@ -163,9 +163,14 @@ def init_cbio_master(
         "Caller",
     ]
     if mode in {"openX", "dgd"}:
-        openx_data: pd.DataFrame = pd.read_csv(
-            fusion_results, sep="\t", keep_default_na=False, na_values=[""]
-        )
+        try:
+            openx_data: pd.DataFrame = pd.read_csv(
+                fusion_results, sep="\t", keep_default_na=False, na_values=[""]
+            )
+        except Exception as e:
+            print(e, file=sys.stderr)
+            print(f"Could not open file {fusion_results}, make sure this file exists!")
+            sys.exit(2)
         # Merge so that sample names can be cBio names - thanks Natasha!
         merged: pd.DataFrame = pd.merge(
             openx_data,
@@ -244,7 +249,7 @@ def main():
         "--mode",
         action="store",
         dest="mode",
-        help="describe source, openX or kfprod, or dgd",
+        help="describe source, openX or kfprod or dgd",
         required=True,
     )
     parser.add_argument(

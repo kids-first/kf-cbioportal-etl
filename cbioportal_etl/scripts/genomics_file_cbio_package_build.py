@@ -191,7 +191,7 @@ def process_kf_fusion(
     Args:
         fusion_dir: Path to fusion data
         cbio_id_table: Path of ETL table with IDs and file locations
-        mode: Will likely deprecate for legacy mode
+        mode: describe source - openX or kfprod or dgd
         script_dir: path of dir containing ETL processing scripts
         run_status: Dict to track subprocess call statuses
 
@@ -200,16 +200,6 @@ def process_kf_fusion(
     fusion_cmd = f"python3 {os.path.join(script_dir, 'convert_fusion_as_sv.py')} -t {cbio_id_table} -f {fusion_dir} -m {mode} 2> convert_fusion_as_sv.log"
     log_cmd(fusion_cmd)
     run_status["fusion"] = subprocess.Popen(fusion_cmd, shell=True)
-
-
-def process_kf_fusion_legacy(fusion_dir, cbio_id_table, sq_file, script_dir, run_status):
-    """
-    Collate and process annoFuse output using deprecated format
-    """
-    sys.stderr.write("Processing KF fusion calls\n")
-    fusion_cmd = f"python3 {os.path.join(script_dir, 'rna_convert_fusion.py')} -t {cbio_id_table} -f {fusion_dir} -m annofuse -s {sq_file} 2> rna_convert_fusion.log"
-    log_cmd(fusion_cmd)
-    run_status["fusion_legacy"] = subprocess.Popen(fusion_cmd, shell=True)
 
 
 def process_dgd_fusion(
@@ -279,24 +269,15 @@ def run_py(args):
             elif data_type == "fusion":
                 # Status both works for...both, only when one is specifically picked should one not be run
                 if args.dgd_status != "dgd":
-                    if not args.legacy:
-                        run_queue["fusion"] = partial(
-                            process_kf_fusion,
-                            config_data["file_loc_defs"]["fusion"],
-                            args.manifest,
-                            "kfprod",
-                            script_dir,
-                            run_status,
-                        )
-                    else:
-                        run_queue["fusion"] = partial(
-                            process_kf_fusion_legacy,
-                            config_data["file_loc_defs"]["fusion"],
-                            args.manifest,
-                            config_data["file_loc_defs"]["fusion_sq_file"],
-                            script_dir,
-                            run_status,
-                        )
+                    run_queue["fusion"] = partial(
+                        process_kf_fusion,
+                        config_data["file_loc_defs"]["fusion"],
+                        args.manifest,
+                        "kfprod",
+                        script_dir,
+                        run_status,
+                    )
+
             elif data_type == "cnvs":
                 run_queue["cnvs"] = partial(
                     process_cnv,
@@ -402,14 +383,6 @@ def main():
         const="both",
         nargs="?",
         choices=["both", "kf", "dgd"],
-    )
-    parser.add_argument(
-        "-l",
-        "--legacy",
-        default=False,
-        action="store_true",
-        dest="legacy",
-        help="If set, will run legacy fusion output",
     )
     parser.add_argument(
         "-ad",
