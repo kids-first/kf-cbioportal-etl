@@ -30,7 +30,7 @@ def check_exists(entry: str, t_idx: int, n_idx: int) -> str | bool:
     return False
 
 
-def run_py(args: argparse.Namespace) -> int:
+def run_py(args: argparse.Namespace) -> None:
     with open("missing_files.txt", "w") as missed, open(args.manifest_subset) as m:
         head: str = next(m)
         header: list[str] = head.rstrip("\n").split("\t")
@@ -52,7 +52,7 @@ def run_py(args: argparse.Namespace) -> int:
         sys.exit(1)
     else:
         print("Got em all! Good job Ash!", file=sys.stderr)
-        return 0
+        sys.exit(0)
 
 
 def main():

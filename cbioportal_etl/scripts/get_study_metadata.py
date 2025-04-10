@@ -58,7 +58,6 @@ def generic_print(out_file: IO, rows: list[tuple[Any]], colnames: list[str]) -> 
         # convert None to empty str
         new_row: list[str] = ["" if i is None else str(i) for i in row]
         print("\t".join(new_row), file=out_file)
-    out_file.close()
     return 0
 
 
@@ -98,6 +97,7 @@ def get_data_clinical(
         head = [head_lines[i].rstrip("\n").split("\t")[j] for j in col_i]
         print("\t".join(head), file=out_file)
     generic_print(out_file, rows, colnames)
+    out_file.close()
     return 0
 
 
@@ -138,6 +138,7 @@ def run_py(args):
                     out_fn = datasheet_dir + "/" + out_fn
                 out_file: IO = open(out_fn, "w")
                 generic_print(out_file, rows, colnames)
+                out_file.close()
 
         # close the communication with the PostgreSQL
         cur.close()
