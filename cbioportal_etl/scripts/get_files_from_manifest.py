@@ -40,7 +40,7 @@ def download_aws(
             file=sys.stderr,
         )
         for loc in sub_file_list:
-            out: str = file_type + "/" + loc.split("/")[-1]
+            out: str = f"{file_type}/{loc.split('/')[-1]}"
             if overwrite or not os.path.isfile(out):
                 parse_url = urllib3.util.parse_url(loc)
                 try:
@@ -155,7 +155,7 @@ def mt_type_download(
             download_sbg(file_type, selected, aws_tbl, api, overwrite, err_types)
     else:
         print(
-            "WARN: No files of type {file_type} in which file_id and s3_path is not NA. Skipping!",
+            "WARNING: No files of type {file_type} in which file_id and s3_path is not NA. Skipping!",
             file=sys.stderr,
         )
     sys.stderr.flush()
