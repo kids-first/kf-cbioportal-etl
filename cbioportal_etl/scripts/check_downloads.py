@@ -52,7 +52,6 @@ def run_py(args: argparse.Namespace) -> None:
         sys.exit(1)
     else:
         print("Got em all! Good job Ash!", file=sys.stderr)
-        sys.exit(0)
 
 
 def main():
