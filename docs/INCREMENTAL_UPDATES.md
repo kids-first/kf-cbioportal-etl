@@ -1,11 +1,17 @@
-# Compare current cbioportal instance versus updated flat files
-This documentation addresses a [QC script](../scripts/diff_studies.py) for clinical metadata. It streamlines the process of identifying and summarizing changes slated to be made.
+# Incremental Updates - Details
+The incremental update steps follow the same general structure as the whole study import — steps like generating the config file and gathering starting inputs are still required. However, unlike the full import, this workflow identifies and processes only the files that have changed between the D3b Warehouse and the PedcBioPortal. This targeted approach helps conserve resources by reducing download time and compute overhead.
+Refer to [full study imports](docs/WHOLE_STUDY_IMPORT.md) documentation for details on:
++ [Reference inputs](docs/WHOLE_STUDY_IMPORT.md#refs)
++ [Generating a config file](docs/WHOLE_STUDY_IMPORT.md#config-file)
++ [Getting starting file inputs](docs/WHOLE_STUDY_IMPORT.md#starting-file-inputs)
 
+## Compare current cBioPortal instance versus updated flat files
+This documentation addresses a [QC script](cbioportal-etl/scripts/diff_studies.py) for clinical metadata. It streamlines the process of identifying and summarizing changes slated to be made.
 ```sh
 python3 scripts/diff_studies.py --help
 usage: diff_studies.py [-h] [-u URL] [-s STUDY] [-t TOKEN] [-ds DATASHEETS] [-m MANIFEST]
 
-Compare update clinical and timeline data to current cbioportal instance. Outputs changes summaries, id lists, and delta files. Recommend running cbioportal_etl/scripts/get_study_metadata.py to get file inputs
+Compare update clinical and timeline data to current cBioPortal instance. Outputs changes summaries, id lists, and delta files. Recommend running cbioportal_etl/scripts/get_study_metadata.py to get file inputs
 
 options:
   -h, --help            show this help message and exit
@@ -144,3 +150,10 @@ OS_STATUS has 4 change(s)
 7 changes in Clinical Status found for this study. Outputting delta files
 36 changes in SPECIMEN found for this study. Outputting delta files
 ```
+
+## Processing outputs
++ If an `add_data/` directory exists, the script will proceed with the rest of the [whole study import workflow](docs/WHOLE_STUDY_IMPORT.md), but will only download and process new sample or patient data found in that directory.
++ If a `delta_data/` directory exists, new corresponding `meta_*.txt` files will be generated for all associated data types, ensuring the metadata reflects the latest updates.
++ If a `delete_id_list_SAMPLE.txt` file exists, no further processing is performed on that file — it is used solely to remove samples from the portal.
+
+All additions, updates, and deletions will then be pushed to PedcBioPortal using [cBioPortal Docker Compose](https://github.com/cBioPortal/cbioportal-docker-compose).
