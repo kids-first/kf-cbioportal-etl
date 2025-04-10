@@ -27,8 +27,8 @@ The steps in `cbio-etl import` are outlined as follows:
 ![Pipeline Flowchart](images/etl_flowchart.png)
 
 ## Required credentials files
-- Copy the `credentials_templates/template.db.ini` template to `/path/to/db.ini` and replace placeholders with your credentials.
-- Copy the `credentials_templates/template.sevenbridges.ini` template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
+- Copy the [`db.ini`](template_credentials/template.db.ini) template to `/path/to/db.ini` and replace placeholders with your credentials.
+- Copy the [`sevenbridges.ini`](template_credentials/template.sevenbridges.ini) template to `~/.sevenbridges/credentials` and replace placeholders with your credentials.
 
 ### Required for running `cbio-etl update`
 - Download a reusable access token for PedcBioPortal `cbioportal_data_access_token.txt` from [here](https://pedcbioportal.kidsfirstdrc.org/webAPI#using-data-access-tokens).
@@ -36,14 +36,14 @@ The steps in `cbio-etl import` are outlined as follows:
 ## Local Installation
 ### Software Prerequisites
 + `python3` v3.10+
-+ `bedtools` (https://bedtools.readthedocs.io/en/latest/content/installation.html)
++ [`bedtools`](https://bedtools.readthedocs.io/en/latest/content/installation.html)
 + `Try::Tiny` Perl module
-+ `saml2aws` (https://github.com/Versent/saml2aws) [directions to use](https://www.notion.so/d3b/Setup-SAML-Login-1056131f1200806ba182f7b7c1793a40?pvs=4)
-+ Access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo for server loading:
++ [`saml2aws`](https://github.com/Versent/saml2aws) - [directions to use](https://www.notion.so/d3b/Setup-SAML-Login-1056131f1200806ba182f7b7c1793a40?pvs=4)
++ Access to [AWS Infra PedCBioPortal Import](https://github.com/d3b-center/aws-infra-pedcbioportal-import) repo for server loading
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
 
 [cBio load package v5.4.10](https://github.com/cBioPortal/cbioportal/releases/tag/v5.4.10) is used in this tool.
-Refer to [INSTALL.md](INSTALL.md) and [setup.py](setup.py) for more details.
+Refer to [INSTALL.md](docs/INSTALL.md) and [setup.py](setup.py) for more details.
 
 ### Installation Steps
 Run on `Mgmt-Console-Dev-chopd3bprod@684194535433` EC2 instance

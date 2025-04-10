@@ -1,5 +1,5 @@
 # Whole Study Import - Details
-The full study import pipeline is designed to load a complete dataset into PedcBioPortal. It involves generating configuration files, gathering all required metadata and genomic input files, validating the package, and preparing it for upload. This workflow downloads and processes every relevant file from the D3b Warehouse, ensuring a comprehensive and consistent study load. While more resource-intensive than [incremental updates](docs/INCREMENTAL_UPDATES.md), it guarantees that all study components are fully rebuilt and aligned with the latest data.
+The full study import pipeline is designed to load a complete dataset into PedcBioPortal. It involves generating configuration files, gathering all required metadata and genomic input files, validating the package, and preparing it for upload. This workflow downloads and processes every relevant file from the D3b Warehouse, ensuring a comprehensive and consistent study load. While more resource-intensive than [incremental updates](INCREMENTAL_UPDATES.md), it guarantees that all study components are fully rebuilt and aligned with the latest data.
 
 ## REFS
 In case you want to use different reference inputs:
@@ -17,7 +17,7 @@ cat *genomic* | cut -f 15 | cut -f 1-3 -d "/" | sort | uniq > aws_bucket_key_pai
 Just remove the `s3_path` and `None` entries
 
 ## Config file
-This is a json formatted file generated from [cbioportal_etl/scripts/generate_config.py](#scriptsgenerate_configpy) that has tool paths, reference paths, run time params, file descriptions and case lists required by the cBioPortal.
+This is a json formatted file generated from [generate_config.py](../cbioportal_etl/scripts/generate_config.py) that has tool paths, reference paths, run time params, file descriptions and case lists required by the cBioPortal.
 An example is given in `cbioportal_etl/STUDY_CONFIGS/pbta_all_case_meta_config.json` and `cbioportal_etl/STUDY_CONFIGS/json_files/pbta_all_data_processing_config.json`.
 
 ### cbioportal_etl/scripts/generate_config.py
@@ -49,7 +49,7 @@ Likely personalized edits would occur in the following fields:
   + `description`: This field is set up as an array so that a generic form of "text describing" "disease" "more text describing" can be used. Put another way, element one is whatever you want to say about the disease/study until you are ready to mention the disease/study, element two anything you may optionally wish to add
   + `groups`: These are access groups defined is cBioPortal.  Default is `PUBLIC`, but another can be named is restrictions are needed.  Need to work with Devops for custom groups
   + `cancer_study_identifier`: This is the short name that you create for the study.  It will be the name of the study load folder and will be used by cBioPortal to find all relevant information for that study.
-  + `type_of_cancer`: This is the oncotree code used to categorize the study to a disease type that best summarizes all samples in the study. These are the default codes: http://oncotree.mskcc.org/#/home. Internally, we have added `phgg` and `plgg`. If your study doesn't fit, propose a new one to be added
+  + `type_of_cancer`: This is the oncotree code used to categorize the study to a disease type that best summarizes all samples in the study. [These](http://oncotree.mskcc.org/#/home) are the default codes. Internally, we have added `phgg` and `plgg`. If your study doesn't fit, propose a new one to be added
   + `display_name`: This is what will show as a long form title on the site home page
   + `short_name`: This is the short version. By default, should be the same as `cancer_study_identifier`
   + `file_loc_defs`: This is where the tool paths/reference paths are located.
@@ -191,7 +191,7 @@ processed
 ```
 Note! Most other studies won't have a timeline set of files.
 ## Upload the final packages
-Upload all of the directories named as study short names to `s3://kf-strides-232196027141-cbioportal-studies/studies/`. You may need to set and/or copy your aws saml key before uploading. See "access to https://github.com/d3b-center/aws-infra-pedcbioportal-import repo" bullet point in [Software Prerequisites](#software-prerequisites) to load the study.
+Upload all of the directories named as study short names to `s3://kf-strides-232196027141-cbioportal-studies/studies/`. You may need to set and/or copy your aws saml key before uploading. See "Access to [AWS Infra PedCBioPortal Import](https://github.com/d3b-center/aws-infra-pedcbioportal-import) repo" bullet point in [Software Prerequisites](../README.md#software-prerequisites) to load the study.
 ## Load into QA/PROD
 An AWS step function exists to load studies on to the QA and PROD servers.
   + Create a branch in the `d3b-center/aws-infra-pedcbioportal-import` git repo (**MUST START WITH `feature/`**) and edit the `import_studies.txt` file with the study name you which to load. Can be an MSKCC datahub link or a local study name
