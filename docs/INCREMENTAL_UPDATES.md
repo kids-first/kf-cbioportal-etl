@@ -156,4 +156,4 @@ OS_STATUS has 4 change(s)
 + If a `delta_data/` directory exists, new corresponding `meta_*.txt` files will be generated for all associated data types, ensuring the metadata reflects the latest updates.
 + If a `delete_id_list_SAMPLE.txt` and/or `delete_id_list_PATIENT.txt` file exists, no further processing is performed on that file - it is used solely to remove samples from the portal.
 
-All additions, updates, and deletions will then be pushed to PedcBioPortal using [cBioPortal Docker Compose](https://github.com/cBioPortal/cbioportal-docker-compose).
+All additions, updates, and deletions can then be pushed to PedcBioPortal. However, direct access to the portal is currently restricted - deployments must go through the DevOps team. For now, you may run a local instance following [cBioPortal Docker Compose](https://github.com/cBioPortal/cbioportal-docker-compose).
