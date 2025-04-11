@@ -6,7 +6,7 @@ Refer to [full study imports](WHOLE_STUDY_IMPORT.md) documentation for details o
 + [Getting starting file inputs](WHOLE_STUDY_IMPORT.md#starting-file-inputs)
 
 ## Compare current cBioPortal instance versus updated flat files
-This documentation addresses a [QC script](../cbioportal_etl/scripts/diff_studies.py) for clinical metadata. It streamlines the process of identifying and summarizing changes slated to be made.
+This documentation describes the [QC script](../cbioportal_etl/scripts/diff_studies.py) for clinical metadata. It streamlines the process of identifying and summarizing changes slated to be made.
 ```sh
 python3 scripts/diff_studies.py --help
 usage: diff_studies.py [-h] [-u URL] [-s STUDY] [-t TOKEN] [-ds DATASHEETS] [-m MANIFEST]
