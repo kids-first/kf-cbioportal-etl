@@ -140,7 +140,6 @@ def get_file_loc_defs(db_cur, study, tbl_name):
         "ctrlfreec_info": ("cnvs.info", "ctrlfreec_info"),
         "ctrlfreec_pval": ("cnvs.pval", "ctrlfreec_pval"),
         "ctrlfreec_bam_seg": ("cnvs.seg", "ctrlfreec_bam_seg"),
-        "DGD_FUSION": ("dgd_fusion", "fusion-dgd.tsv.gz"),  
         "annofuse_filtered_fusions_tsv": ("fusion", "annofuse_filtered_fusions_tsv"),
         "RSEM_gene": ("rsem", "RSEM_gene")
     }
