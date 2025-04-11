@@ -34,12 +34,10 @@ def fetch_validator_scripts(tool_dir: str) -> None:
             raise
 
 
-def fetch_dgd_fusion():
-    """
-    Download fusion-dgd.tsv.gz if it doesn't already exist in cwd
-    """
-    filename = "fusion-dgd.tsv.gz"
-    url = "https://d3b-openaccess-us-east-1-prd-pbta.s3.us-east-1.amazonaws.com/open-targets/v15/fusion-dgd.tsv.gz"
+def fetch_dgd_fusion() -> None:
+    """Download fusion-dgd.tsv.gz if it doesn't already exist in cwd"""
+    filename: str = "fusion-dgd.tsv.gz"
+    url: str = "https://d3b-openaccess-us-east-1-prd-pbta.s3.us-east-1.amazonaws.com/open-targets/v15/fusion-dgd.tsv.gz"
     if not os.path.exists(filename):
         sys.stderr.write(f"{filename} not found. Downloading from AWS...\n")
         try:
