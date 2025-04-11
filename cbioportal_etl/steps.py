@@ -34,24 +34,6 @@ def fetch_validator_scripts(tool_dir: str) -> None:
             raise
 
 
-def fetch_dgd_fusion() -> None:
-    """Download fusion-dgd.tsv.gz if it doesn't already exist in cwd"""
-    filename: str = "fusion-dgd.tsv.gz"
-    url: str = "https://d3b-openaccess-us-east-1-prd-pbta.s3.us-east-1.amazonaws.com/open-targets/v15/fusion-dgd.tsv.gz"
-    if not os.path.exists(filename):
-        sys.stderr.write(f"{filename} not found. Downloading from AWS...\n")
-        try:
-            subprocess.run(
-                f"curl -sSL -o {filename} {url}",
-                shell=True,
-                check=True
-            )
-            sys.stderr.write(f"Downloaded {filename} successfully.\n")
-        except subprocess.CalledProcessError as e:
-            sys.stderr.write(f"Failed to download {filename}: {e}\n")
-            raise
-
-
 def run_etl(args, steps):
     tool_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -60,8 +42,6 @@ def run_etl(args, steps):
         tool_dir, "STUDY_CONFIGS/all_studies_config_values.tsv"
     )
     args.ref_dir = args.ref_dir or os.path.join(tool_dir, "REFS")
-    if args.dgd_status != "kf":
-        fetch_dgd_fusion()
 
     steps_map = {
         "1": lambda: generate_config(args),

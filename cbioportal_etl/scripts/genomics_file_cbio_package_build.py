@@ -237,6 +237,26 @@ def run_py(args):
         config_data: dict = json.load(f)
     config_data = resolve_config_paths(config_data, TOOL_DIR)
 
+    if args.dgd_status != "kf":
+        try:
+            fusion_file = config_data["file_loc_defs"]["dgd_fusion"]
+            fusion_url = config_data["file_loc_defs"]["dgd_fusion_url"]
+        except KeyError as e:
+            raise KeyError(f"Missing required config key: {e}. Please ensure 'dgd_fusion' and 'dgd_fusion_url' are defined in file_loc_defs.")
+
+        if not os.path.exists(fusion_file):
+            sys.stderr.write(f"{fusion_file} not found. Downloading from {fusion_url}...\n")
+            try:
+                subprocess.run(
+                    f"curl -sSL -o {fusion_file} {fusion_url}",
+                    shell=True,
+                    check=True
+                )
+                sys.stderr.write(f"Downloaded {fusion_file} successfully.\n")
+            except subprocess.CalledProcessError as e:
+                sys.stderr.write(f"Failed to download {fusion_file}: {e}\n")
+                raise
+
     cbio_study_id: str = config_data["study"]["cancer_study_identifier"]
     # iterate through config file - file should only have keys related to data to be loaded
     script_dir: str = os.path.join(TOOL_DIR, config_data["script_dir"])

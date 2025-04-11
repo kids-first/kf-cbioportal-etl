@@ -103,10 +103,9 @@ options:
                         Table with bucket name and keys to subset on
   -sp SBG_PROFILE, --sbg-profile SBG_PROFILE
                         sbg profile name. Leave blank if using AWS instead
-  -c CBIO, --cbio CBIO  Add cbio manifest to limit downloads
+  -c CBIO, --cbio CBIO  Add cbio manifest to limit downloads. Dn NOT use if using cbio_file_name_id file as the manifest
   -ao, --active-only    Set to grab only active files. Recommended.
-  -rm, --rm-na          Remove entries where file_id and s3_path are NA. Useful for studies (like pbta_all) with external files not to be downloaded when using cbio_file_name input file
-                        as manifest
+  -rm, --rm-na          Remove entries where file_id and s3_path are NA.
   -d, --debug           Just output manifest subset to see what would be grabbed
   -o, --overwrite       If set, overwrite if file exists
 ```
@@ -140,7 +139,6 @@ options:
                         cbio study config file
   -dgd [{both,kf,dgd}], --dgd-status [{both,kf,dgd}]
                         Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)
-  -l, --legacy          If set, will run legacy fusion output
   -ad, --add-data       Flag to skip validation when running for add_data directory
 ```
 
@@ -159,20 +157,20 @@ processed
 │   ├── cases_cnaseq.txt
 │   ├── cases_sequenced.txt
 │   └── cases_sv.txt
-├── data_CNA.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_cnvs/pbta_all.discrete_cnvs.txt
-├── data_clinical_patient.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_patient.txt
-├── data_clinical_sample.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_sample.txt
-├── data_clinical_timeline_clinical_event.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_clinical_event.txt
-├── data_clinical_timeline_imaging.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_imaging.txt
-├── data_clinical_timeline_specimen.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_specimen.txt
-├── data_clinical_timeline_surgery.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_surgery.txt
-├── data_clinical_timeline_treatment.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/datasheets/data_clinical_timeline_treatment.txt
-├── data_cna.seg.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_cnvs/pbta_all.merged_seg.txt
-├── data_linear_CNA.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_cnvs/pbta_all.predicted_cnv.txt
-├── data_mutations_extended.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_mafs/pbta_all.maf
-├── data_rna_seq_v2_mrna.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_rsem/pbta_all.rsem_merged.txt
-├── data_rna_seq_v2_mrna_median_Zscores.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_rsem/pbta_all.rsem_merged_zscore.txt
-├── data_sv.txt -> /home/ubuntu/volume/PORTAL_LOADS/pbta_all/merged_fusion/pbta_all.fusions.txt
+├── data_CNA.txt
+├── data_clinical_patient.txt
+├── data_clinical_sample.txt
+├── data_clinical_timeline_clinical_event.txt
+├── data_clinical_timeline_imaging.txt
+├── data_clinical_timeline_specimen.txt
+├── data_clinical_timeline_surgery.txt
+├── data_clinical_timeline_treatment.txt
+├── data_cna.seg.txt
+├── data_linear_CNA.txt
+├── data_mutations_extended.txt
+├── data_rna_seq_v2_mrna.txt
+├── data_rna_seq_v2_mrna_median_Zscores.txt
+├── data_sv.txt
 ├── meta_CNA.txt
 ├── meta_clinical_patient.txt
 ├── meta_clinical_sample.txt
@@ -190,8 +188,23 @@ processed
 └── meta_sv.txt
 ```
 Note! Most other studies won't have a timeline set of files.
+
 ## Upload the final packages
-Upload all of the directories named as study short names to `s3://kf-strides-232196027141-cbioportal-studies/studies/`. You may need to set and/or copy your aws saml key before uploading. See "Access to [AWS Infra PedCBioPortal Import](https://github.com/d3b-center/aws-infra-pedcbioportal-import) repo" bullet point in [Software Prerequisites](../README.md#software-prerequisites) to load the study.
+Upload all of the directories named as study short names to `s3://kf-strides-232196027141-cbioportal-studies/studies/`. Authentication is done via **`aws sts assume-role`**. You can assume the appropriate role with the following command:
+```sh
+export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" \
+$(aws sts assume-role \
+  --role-arn arn:aws:iam::232196027141:role/bix-dev-data-role \
+  --role-session-name MySessionName \
+  --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
+  --output text))
+```
+Once authenticated, upload your processed folder(s) using:
+```sh
+aws s3 cp processed/ s3://kf-strides-232196027141-cbioportal-studies/studies/ --recursive
+```
+For more context on required permissions and roles, see the [AWS Infra PedCBioPortal Import](https://github.com/d3b-center/aws-infra-pedcbioportal-import) repo reference in the [Software Prerequisites](../README.md#software-prerequisites) section.
+
 ## Load into QA/PROD
 An AWS step function exists to load studies on to the QA and PROD servers.
   + Create a branch in the `d3b-center/aws-infra-pedcbioportal-import` git repo (**MUST START WITH `feature/`**) and edit the `import_studies.txt` file with the study name you which to load. Can be an MSKCC datahub link or a local study name
