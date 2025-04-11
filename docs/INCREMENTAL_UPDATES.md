@@ -154,6 +154,6 @@ OS_STATUS has 4 change(s)
 ## Processing outputs
 + If an `add_data/` directory exists, the script will proceed with the rest of the [whole study import workflow](WHOLE_STUDY_IMPORT.md), but will only download and process new sample or patient data found in that directory.
 + If a `delta_data/` directory exists, new corresponding `meta_*.txt` files will be generated for all associated data types, ensuring the metadata reflects the latest updates.
-+ If a `delete_id_list_SAMPLE.txt` file exists, no further processing is performed on that file — it is used solely to remove samples from the portal.
++ If a `delete_id_list_SAMPLE.txt` and/or `delete_id_list_PATIENT.txt` file exists, no further processing is performed on that file - it is used solely to remove samples from the portal.
 
 All additions, updates, and deletions will then be pushed to PedcBioPortal using [cBioPortal Docker Compose](https://github.com/cBioPortal/cbioportal-docker-compose).
