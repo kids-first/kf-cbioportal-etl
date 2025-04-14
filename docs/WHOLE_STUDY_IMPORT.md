@@ -103,7 +103,7 @@ options:
                         Table with bucket name and keys to subset on
   -sp SBG_PROFILE, --sbg-profile SBG_PROFILE
                         sbg profile name. Leave blank if using AWS instead
-  -c CBIO, --cbio CBIO  Add cbio manifest to limit downloads. Dn NOT use if using cbio_file_name_id file as the manifest
+  -c CBIO, --cbio CBIO  Add cbio manifest to limit downloads. Do NOT use if using cbio_file_name_id file as the manifest
   -ao, --active-only    Set to grab only active files. Recommended.
   -rm, --rm-na          Remove entries where file_id and s3_path are NA.
   -d, --debug           Just output manifest subset to see what would be grabbed
@@ -212,6 +212,6 @@ An AWS step function exists to load studies on to the QA and PROD servers.
   + To load into prod, make a PR. On merge, load to prod will kick off
   + aws `stateMachinePedcbioImportservice` Step function service is used to view and manage running jobs
   + To repeat a load, click on the ▶️ icon in the git repo to select the job you want to re-run
-  + *Note*, if your branch importStudies.txt is the same as main, you may have tot rigger it yourself. To do so, go to [actions](https://github.com/d3b-center/aws-infra-pedcbioportal-import/actions), on the left panel choose which action you want, then from the drop down in the right panel, pick which branch you want that action to run on 
+  + *Note*, if your branch importStudies.txt is the same as main, you may have to trigger it yourself. To do so, go to [actions](https://github.com/d3b-center/aws-infra-pedcbioportal-import/actions), on the left panel choose which action you want, then from the drop down in the right panel, pick which branch you want that action to run on 
 
 ### Congratulations, you did it!

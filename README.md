@@ -15,8 +15,8 @@ positional arguments:
 options:
   -h, --help       show this help message and exit
 ```
-- Use `cbio-etl import` if importing a new/whole study. [Read full SOP here](docs/WHOLE_STUDY_IMPORT.md)
-- Use `cbio-etl update` if making changes to existing study (incremental updates). [Read full SOP here](docs/INCREMENTAL_UPDATES.md)
+- Use `cbio-etl import` if importing a new/whole study. [Read workflow details here](docs/WHOLE_STUDY_IMPORT.md)
+- Use `cbio-etl update` if making changes to existing study (incremental updates). [Read workflow details here](docs/INCREMENTAL_UPDATES.md)
 
 The steps in `cbio-etl import` are outlined as follows:
 1. Generate config JSON
