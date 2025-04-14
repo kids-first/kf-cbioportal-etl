@@ -331,7 +331,7 @@ def main():
         "--cbio",
         action="store",
         dest="cbio",
-        help="Add cbio manifest to limit downloads. Dn NOT use if using cbio_file_name_id file as the manifest",
+        help="Add cbio manifest to limit downloads. Do NOT use if using cbio_file_name_id file as the manifest",
     )
     parser.add_argument(
         "-ao",

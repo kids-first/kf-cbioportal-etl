@@ -26,6 +26,8 @@ static	ens_gene_list			REFS/gencode27_gene_list.txt
 static	entrez_tsv			REFS/EntrezGeneId_HugoGeneSymbol_2021-06-01.txt
 static	file_loc_defs		_comment	edit the values based on existing/anticipated source file locations, relative to working directory of the script being run
 static	file_loc_defs		mafs.header	REFS/maf_KF_CONSENSUS_r105.txt
+static	file_loc_defs		dgd_fusion	fusion-dgd.tsv.gz
+static	file_loc_defs		dgd_fusion_url	https://d3b-openaccess-us-east-1-prd-pbta.s3.us-east-1.amazonaws.com/open-targets/v15/fusion-dgd.tsv.gz
 static	hugo_tsv			REFS/HUGO_2021-06-01_EntrezID.tsv
 static	script_dir			scripts/
 static	study		_comment	see https://docs.cbioportal.org/5.1-data-loading/data-loading/file-formats#cancer-study for detailed specifics

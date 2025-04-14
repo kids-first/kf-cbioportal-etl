@@ -141,7 +141,8 @@ def write_case_list(
                 else:
                     to_write = f"{key}: {value}"
                 print(to_write, file=case_file)
-            print(f"case_list_ids: {'\t'.join(sample_list)}", file=case_file)
+            joined_samples = '\t'.join(sample_list)
+            print(f"case_list_ids: {joined_samples}", file=case_file)
     except Exception as e:
         print(f"{e}\nError writing case list for {case_key}", file=sys.stderr)
 
