@@ -1,20 +1,20 @@
 def get_file_metadata(table: str, ftype:str) -> dict[str, dict[str, dict[str, str]]]:
     """Convert table into dict for downsteam ETL use.
 
-    Subsets table by ftypr (File_Type) column, then returns dict.
-    Cbio_project is primary key,  Cbio_Tumor_Name is secondary key.
+    Subsets table by ftypr (etl_file_type) column, then returns dict.
+    cbio_project is primary key,  cbio_sample_name is secondary key.
     Tertiary keys are other attributes with string as values.
     """
     tbl_fh = open(table)
     head = next(tbl_fh)
     header = head.rstrip("\n").split("\t")
-    cp_idx = header.index("Cbio_project")
-    ft_idx = header.index("File_Type")
-    fn_idx = header.index("File_Name")
-    ct_idx = header.index("Cbio_Tumor_Name")
-    cn_idx = header.index("Cbio_Matched_Normal_Name")
-    kt_idx = header.index("T_CL_BS_ID")
-    kn_idx = header.index("Norm_BS_ID")
+    cp_idx = header.index("cbio_project")
+    ft_idx = header.index("etl_file_type")
+    fn_idx = header.index("file_name")
+    ct_idx = header.index("cbio_sample_name")
+    cn_idx = header.index("cbio_matched_normal_name")
+    kt_idx = header.index("affected_bs_id")
+    kn_idx = header.index("reference_bs_id")
     meta_dict = {}
     for line in tbl_fh:
         info = line.rstrip("\n").split("\t")

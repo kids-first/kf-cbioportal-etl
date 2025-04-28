@@ -91,7 +91,7 @@ def process_table(
             sys.stderr.flush()
             s_list.append(cbio_tum_id)
             if manifest is not None:
-                ploidy: str = get_ploidy(info_dir + "/" + manifest.loc[kf_bs_id]["File_Name"])
+                ploidy: str = get_ploidy(info_dir + "/" + manifest.loc[kf_bs_id]["file_name"])
                 ploidy_dict[cbio_tum_id] = ploidy
             else:
                 ploidy_dict[cbio_tum_id] = "2"
@@ -159,8 +159,8 @@ if cnv_dir[-1] != "/":
 manifest = None
 if info_dir is not None:
     manifest: pd.DataFrame = pd.read_csv(args.table, sep="\t")
-    manifest.set_index(["T_CL_BS_ID"], inplace=True)
-    manifest = manifest.loc[manifest["File_Type"] == "info"]
+    manifest.set_index(["affected_bs_id"], inplace=True)
+    manifest = manifest.loc[manifest["etl_file_type"] == "info"]
 
 else:
     sys.stderr.write("No info file given, will assume ploidy 2\n")

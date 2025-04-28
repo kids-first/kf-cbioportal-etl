@@ -1,5 +1,6 @@
-"""
-Queries DWH and outputs values to TSV. 
+#!/usr/bin/env python3
+"""Queries DWH and outputs values to TSV.
+
 Generate a JSON config from a TSV based on the provided study.
 
 Command:
@@ -8,16 +9,17 @@ python3 /kf-cbioportal-etl/cbioportal_etl/cbioportal_etl/scripts/generate_config
     --study study \
     --config-tsv /kf-cbioportal-etl/cbioportal_etl/STUDY_CONFIGS/all_studies_config_values.tsv
 """
+import argparse
+import ast
+import json
+from configparser import ConfigParser
+
+import pandas as pd
 import psycopg2
 from psycopg2 import sql
-from configparser import ConfigParser
-import argparse
-import pandas as pd
-import json
-import ast
 
 
-def config(filename='database.ini', section='postgresql'):
+def config(filename: str="database.ini", section: str="postgresql") -> dict:
     # stolen from https://www.postgresqltutorial.com/postgresql-python/connect/
     # create a parser
     parser = ConfigParser()
@@ -31,19 +33,18 @@ def config(filename='database.ini', section='postgresql'):
         for param in params:
             db[param[0]] = param[1]
     else:
-        raise Exception('Section {0} not found in the {1} file'.format(section, filename))
+        e = f"Section {section} not found in the {format} file"
+        raise Exception(e)
 
     return db
 
 
-def get_file_type(db_cur, study, tbl_name):
-    """
-    Queries 'File_Type' column for dl_file_type_list
-    """
+def get_file_type(db_cur: psycopg2.extensions.cursor, study: str, tbl_name: str):
+    """Query 'etl_file_type' column for dl_file_type_list."""
     tbl_sql = sql.SQL('SELECT DISTINCT "file_type" FROM prod_cbio.{};').format(sql.Identifier(tbl_name))
 
     db_cur.execute(tbl_sql)
-    file_types = [row[0] for row in db_cur.fetchall()] 
+    file_types = [row[0] for row in db_cur.fetchall()]
 
     entries = [] 
     if file_types:
@@ -54,15 +55,15 @@ def get_file_type(db_cur, study, tbl_name):
 
 def get_merged(db_cur, study, tbl_name, config_tsv_df):
     """
-    Queries 'File_Type' column, checks for ['cnv', 'rsem', 'fusion', 'maf]
+    Queries 'etl_file_type' column, checks for ['cnv', 'rsem', 'fusion', 'maf]
     If exists, create 'merged_' sections 
     """
     tbl_name = f"{study}_genomics_etl_file"
-    tbl_sql = sql.SQL('SELECT DISTINCT "File_Type" FROM prod_cbio.{};').format(sql.Identifier(tbl_name))
-    
+    tbl_sql = sql.SQL('SELECT DISTINCT "etl_file_type" FROM prod_cbio.{};').format(sql.Identifier(tbl_name))
+
     db_cur.execute(tbl_sql)
     file_types = [row[0].lower() for row in db_cur.fetchall()] 
-    
+
     merged_entries = []
     file_type_mapping = {
         "cnv": "merged_cnvs",
@@ -75,11 +76,11 @@ def get_merged(db_cur, study, tbl_name, config_tsv_df):
         if file_type in file_types:
             # Add the base 'merged_{type}' row
             merged_entries.append([study, merged_key, f"{study}_case_meta_config.json", "dir", merged_key])
-            
+
             # Extract rows from TSV where Key == "merged_{type}"
             extracted_rows = config_tsv_df[
                 ((config_tsv_df["Key"] == merged_key) & (config_tsv_df["Study"] == study)) |
-                ((config_tsv_df["Key"] == merged_key) & (config_tsv_df["Study"] == f"{file_type}_File_Type_only"))
+                ((config_tsv_df["Key"] == merged_key) & (config_tsv_df["Study"] == f"{file_type}_etl_file_type_only"))
             ].copy()
 
             merged_entries.extend(extracted_rows.values.tolist())
@@ -88,13 +89,13 @@ def get_merged(db_cur, study, tbl_name, config_tsv_df):
 
 
 def get_dna_rna_ext_list(db_cur, study, tbl_name):
-    tbl_sql = sql.SQL("""SELECT DISTINCT substring("File_Name" FROM position ('.' IN "File_Name") + 1) AS file_name_ext, "file_type" FROM prod_cbio.{};""").format(sql.Identifier(tbl_name))
-    
+    tbl_sql = sql.SQL("""SELECT DISTINCT substring("file_name" FROM position ('.' IN "file_name") + 1) AS file_name_ext, "file_type" FROM prod_cbio.{};""").format(sql.Identifier(tbl_name))
+
     db_cur.execute(tbl_sql)
     file_exts = [row[0] for row in db_cur.fetchall()]
 
     entries = []
-    
+
     file_type_mapping = {
         "rna_ext_list": {
             "expression": "rsem.genes.results.gz",
@@ -128,7 +129,7 @@ def get_file_loc_defs(db_cur, study, tbl_name):
     """
     Queries 'file_type' column for file_loc_defs
     """
-    tbl_sql = sql.SQL("""SELECT DISTINCT substring("File_Name" FROM position ('.' IN "File_Name") + 1) AS file_name_ext, "file_type" FROM prod_cbio.{};""").format(sql.Identifier(tbl_name))
+    tbl_sql = sql.SQL("""SELECT DISTINCT substring("file_name" FROM position ('.' IN "file_name") + 1) AS file_name_ext, "file_type" FROM prod_cbio.{};""").format(sql.Identifier(tbl_name))
 
     db_cur.execute(tbl_sql)
     rows = db_cur.fetchall()
@@ -200,7 +201,7 @@ def get_cases_info(db_cur, study, tbl_name):
     ]
 
     # Query for other cases
-    tbl_sql = sql.SQL("""SELECT DISTINCT substring("File_Name" FROM position ('.' IN "File_Name") + 1) AS file_name_ext, "file_type" FROM prod_cbio.{};""").format(sql.Identifier(tbl_name))
+    tbl_sql = sql.SQL("""SELECT DISTINCT substring("file_name" FROM position ('.' IN "file_name") + 1) AS file_name_ext, "file_type" FROM prod_cbio.{};""").format(sql.Identifier(tbl_name))
     db_cur.execute(tbl_sql)
     rows = db_cur.fetchall()
     file_name_exts = {row[0] for row in rows if row[0] is not None}
@@ -345,7 +346,7 @@ def parse_value(value, should_split=False, sub_key=None):
 
     if sub_key == "pmid":
         return value
-    
+
     if should_split:
         split_values = [v.strip() for v in value.split(",")]
         return split_values if len(split_values) > 1 else split_values[0]
@@ -387,26 +388,31 @@ def generate_json(study_df, study):
     print(f"JSON file generated: {output_file}")
 
 
-def generate_tsv(args):
-    # Load database login info
-    params = config(filename=args.db_ini, section=args.profile)
-    study = args.study
-    tbl_name = f"{study}_genomics_etl_file"
+def generate_tsv(args: argparse.Namespace) -> None:
+    """Generate study-specific TSV.
 
-    studies_without_data_configs = [
-        "case_cptac", 
-        "chdm_phs002301_2021", 
+    Uses a source TSV to created a study-specific TSV
+
+    """
+    # Load database login info
+    params: dict = config(filename=args.db_ini, section=args.profile)
+    study: str = args.study
+    tbl_name: str = f"{study}_genomics_etl_file"
+
+    studies_without_data_configs: list[str] = [
+        "case_cptac",
+        "chdm_phs002301_2021",
         "dgd_non_brain",
-        "tll_sd_aq9kvn5p_2019", 
+        "tll_sd_aq9kvn5p_2019",
         "x01_nbl_16_maris"
     ]
 
     try:
-        conn = psycopg2.connect(**params)
-        cur = conn.cursor()
+        conn: psycopg2.extensions.connection = psycopg2.connect(**params)
+        cur: psycopg2.extensions.cursor = conn.cursor()
 
-        config_tsv_df = pd.read_csv(args.config_tsv, sep="\t")
-        static_df = config_tsv_df[((config_tsv_df["Study"] == "static")) | ((config_tsv_df["Study"] == study) & ~config_tsv_df["Key"].str.startswith("merged_"))]
+        config_tsv_df: pd.DataFrame = pd.read_csv(args.config_tsv, sep="\t")
+        static_df: pd.DataFrame = config_tsv_df[((config_tsv_df["Study"] == "static")) | ((config_tsv_df["Study"] == study) & ~config_tsv_df["Key"].str.startswith("merged_"))]
 
         file_type_df = get_file_type(cur, study, tbl_name)
         merged_types_df = get_merged(cur, study, tbl_name, config_tsv_df)
@@ -417,12 +423,12 @@ def generate_tsv(args):
 
         final_df = pd.concat([static_df, file_type_df, merged_types_df, dna_ext_list_df, file_loc_defs_df, cases_df, database_pulls_df], ignore_index=True)
         if study in studies_without_data_configs:
-            extra_entries = [
+            extra_entries: list[list[str]] = [
                 ["data_processing_config", "cna_flag", "data_processing_config.json", "", "1"],
                 ["data_processing_config", "rna_flag", "data_processing_config.json", "", "1"]
             ]
-            extra_df = pd.DataFrame(extra_entries, columns=["Study", "Key", "File", "Sub-Key", "Value"])
-            final_df = pd.concat([final_df, extra_df], ignore_index=True)
+            extra_df: pd.DataFrame = pd.DataFrame(extra_entries, columns=["Study", "Key", "File", "Sub-Key", "Value"])
+            final_df: pd.DataFrame = pd.concat([final_df, extra_df], ignore_index=True)
         final_df = final_df.sort_values(by=["Study", "Key", "Sub-Key"], ascending=[False, True, True])
         final_df.to_csv(f"{study}_config_values.tsv", sep="\t", index=False)
         print(f"TSV file generated: {study}_config_values.tsv.")
@@ -437,9 +443,10 @@ def generate_tsv(args):
     conn.close()
 
 
-def run_py(args):
-    """
-    If a user provided an existing study TSV, skip TSV generation and just create JSON. Otherwise, generate the TSV from scratch
+def run_py(args: argparse.Namespace) -> None:
+    """If a user provided an existing study TSV, skip TSV generation and just create JSON.
+
+    Otherwise, generate the TSV from scratch
     """
     if args.study_tsv:
         print(f"Loading provided TSV: {args.study_tsv} and converting to JSON...")
@@ -447,7 +454,7 @@ def run_py(args):
         generate_json(study_tsv, args.study)
     else:
         generate_tsv(args)
-        
+
 
 def main():
     parser = argparse.ArgumentParser(description="Pull clinical data and genomics file etl support from D3b data warehouse.")

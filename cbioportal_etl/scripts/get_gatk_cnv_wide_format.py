@@ -170,8 +170,8 @@ def prepare_gat_cnv_from_seg_file(
     seg_data_df = map_genes_seg_to_ref(seg_data, ref_gene_bed_list)
     seg_data_df = seg_data_df.convert_dtypes()
 
-    cbio_ID_list = map_cbio_BS_IDs[map_cbio_BS_IDs["T_CL_BS_ID"] == sample_ID][
-        "Cbio_Tumor_Name"
+    cbio_ID_list = map_cbio_BS_IDs[map_cbio_BS_IDs["affected_bs_id"] == sample_ID][
+        "cbio_sample_name"
     ].values
     if len(cbio_ID_list) > 0:
         cbio_ID = cbio_ID_list[0]
@@ -267,7 +267,7 @@ def run_process_pool(cpu_workers):
     print("Setting pool threads with max CPUs:", cpu_workers)
 
     # prepare a list with sample ID and file name for multi process
-    run_loop_list = etl_data[[biospecimen_header, "File_Name"]].values.tolist()
+    run_loop_list = etl_data[[biospecimen_header, "file_name"]].values.tolist()
 
     with ProcessPoolExecutor(max_workers=cpu_workers) as executor:
         for entry in run_loop_list:
@@ -327,7 +327,7 @@ if __name__ == "__main__":
     etl = args.etl_file
     output_folder_path = os.getcwd() + "/" + args.output_folder  # output dir
 
-    biospecimen_header = "T_CL_BS_ID"
+    biospecimen_header = "affected_bs_id"
     file_type = args.file_type_key
     if not os.path.isfile(etl):
         raise TypeError("Cannot find given manifest file")
@@ -335,7 +335,7 @@ if __name__ == "__main__":
         print("Reading etl file:", etl)
         etl_data = pd.read_csv(etl, sep="\t", header=0)
 
-    etl_data = etl_data[etl_data["File_Type"] == file_type]
+    etl_data = etl_data[etl_data["etl_file_type"] == file_type]
     etl_data = etl_data[etl_data[biospecimen_header].duplicated() == False]
 
     ref_gene_bed_list = get_ref_bed_data(

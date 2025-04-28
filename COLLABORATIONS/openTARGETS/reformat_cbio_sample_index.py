@@ -24,7 +24,7 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-header = "\t".join(["Cbio_project","T_CL_BS_ID","File_Type","Cbio_Tumor_Name","File_Name","Cbio_Matched_Normal_Name","Norm_BS_ID"])
+header = "\t".join(["cbio_project","affected_bs_id","etl_file_type","cbio_sample_name","file_name","cbio_matched_normal_name","reference_bs_id"])
 print(header)
 table = open(args.table)
 skip = next(table)
@@ -32,4 +32,4 @@ for line in table:
     info = line.rstrip('\n').split('\t')
     if info[1] == "RNA":
         info[1] = "rsem"
-    print("\t".join([args.name, info[0], info[1], info[2], "File_Name", "Cbio_Matched_Normal_Name", "Norm_BS_ID"]))
+    print("\t".join([args.name, info[0], info[1], info[2], "file_name", "cbio_matched_normal_name", "reference_bs_id"]))

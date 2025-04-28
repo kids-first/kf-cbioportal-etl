@@ -173,8 +173,8 @@ def run_py(args: argparse.Namespace) -> int:
     # In the event that s3_path is empty, replace with str to trigger later sbg download
     manifest_concat: pd.DataFrame = pd.concat(manifest_df_list, ignore_index=True)
     # if using a cbio name file as manifest, drop conflicting column
-    if "File_Type" in manifest_concat.columns:
-        del manifest_concat["File_Type"]
+    if "etl_file_type" in manifest_concat.columns:
+        del manifest_concat["etl_file_type"]
     # change col names to lower case for input compatibility
     manifest_concat.columns = manifest_concat.columns.str.lower()
     # file_types is actually a requirement, so grab from table if not provided
@@ -204,7 +204,7 @@ def run_py(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         cbio_data = pd.read_csv(args.cbio, sep=None, na_values=["NA"])
-        specimen_list: ndarray = cbio_data.T_CL_BS_ID.unique()
+        specimen_list: ndarray = cbio_data.affected_bs_id.unique()
         selected = selected[selected["biospecimen_id"].isin(specimen_list)]
     # remove vcfs as we only want mafs
     pattern_del: str = ".vcf.gz"

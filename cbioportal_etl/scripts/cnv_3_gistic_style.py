@@ -62,7 +62,7 @@ def adjust_cn(bs_id: str) -> int:
         ploidy: int = 2
 
         if not manifest.empty:
-            with open(args.info_dir + "/" + manifest.loc[bs_id]["File_Name"]) as info:
+            with open(args.info_dir + "/" + manifest.loc[bs_id]["file_name"]) as info:
                 for datum in info:
                     datum = datum.rstrip("\n")
                     try:
@@ -106,8 +106,8 @@ file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.ta
 manifest = pd.DataFrame()
 if args.info_dir is not None:
     manifest: pd.DataFrame = pd.read_csv(args.table, sep="\t")
-    manifest.set_index(["T_CL_BS_ID"], inplace=True)
-    manifest = manifest.loc[manifest["File_Type"] == "info"]
+    manifest.set_index(["affected_bs_id"], inplace=True)
+    manifest = manifest.loc[manifest["etl_file_type"] == "info"]
 
 else:
     print("No info file given, will assume ploidy 2\n", file=sys.stderr)
