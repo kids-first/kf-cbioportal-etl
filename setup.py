@@ -1,5 +1,6 @@
-from setuptools import setup, find_packages
-import os
+"""Python install requirements for cbio-etl."""
+
+from setuptools import find_packages, setup
 
 setup(
     name="cbio-etl",
@@ -19,7 +20,8 @@ setup(
         "scipy",
         "bravado",
         "mysqlclient",
-        "importer"
+        "importer",
+        "pybedtools",
     ],
     entry_points={
         "console_scripts": [
