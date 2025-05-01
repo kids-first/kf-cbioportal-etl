@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Read in GATK and ControlFreeC CNV data and convert to cBio format."""
 
+from curses import raw
 import sys
 import pdb
 import csv
@@ -8,25 +9,54 @@ from pybedtools import BedTool
 
 
 
-def read_and_process_ctrlfreec_pval(pval_fname: str, ref_bed: BedTool) -> None:
-    PVALUE = 0.05
-    with open(pval_fname) as f:
-        test = f.readlines()
-        cnv_list = list(csv.reader(test, delimiter="\t"))
-        header = cnv_list[0]
-        wilcox_idx = header.index("WilcoxonRankSumTestPvalue")
-        ks_idx = header.index("KolmogorovSmirnovPvalue")
-        # create bed str representation of CNV data, filtering by pvalue
-        bed_str = "\n".join(["\t".join(bed[0:4]) for bed in cnv_list[1:] if float(bed[wilcox_idx]) <= PVALUE and float(bed[ks_idx]) <= PVALUE])
-        cnv_bed_obj = BedTool(bed_str, from_string=True)
+def get_gene_cnv_dict(cnv_bed_obj: BedTool, ref_bed: BedTool, ploidy: int = 2, high_gain: int = 4) -> tuple[dict[str, int], dict[str, int]]:
         # Create staging object that has cnv chrom, cnv start, cnv end, cn
         # ref chr, ref start, ref end, ref gene size overlap
-        annotated = cnv_bed_obj.intersect(ref_bed, b=True, wo=True)
+        annotated: BedTool = cnv_bed_obj.intersect(ref_bed, b=True, wo=True)
         # iterate though annotated bed obj as list of lists to store in dict with uniq gene: CN values
-        pdb.set_trace()
-        hold = 1
+        raw_cnv_dict = {}
+        cn_idx: int = 3
+        gene_idx: int = 7
+        size_idx: int = 8
+        # high gain is intended to be a relative threshold above ploidy,
+        # in which when CN is ABOVE that value, it's considered an amplification (GISTIC 2)
+        # for example if high_gain is 4, and ploidy is 2, high_gain for this sample becomes 6.
+        # If ploidy is 3, high_gain becomes 7.
+        high_gain += ploidy
+        for entry in annotated:
+            gene, cn, size = entry[gene_idx], int(entry[cn_idx]), int(entry[size_idx])
+            # For repeat entries, keep largest size with greatest non-neutral CN
+            if gene not in raw_cnv_dict or (size > raw_cnv_dict[gene][0] and cn != ploidy) or (size == raw_cnv_dict[gene][0] and abs(ploidy - cn) > abs(ploidy - raw_cnv_dict[gene][1])):
+                raw_cnv_dict[gene] = [size, cn]
+        # Drop sizes from raw and used to populate GISTIC-style dic
+        gistic_cnv_dict: dict[str, int] = {}
+        for gene in raw_cnv_dict:
+            raw_cnv_dict[gene] = cn = raw_cnv_dict[gene][1]
+            if cn > ploidy:
+                g_cn = 1 if cn <= high_gain else 2
+            elif cn < ploidy:
+                g_cn = -1 if cn > 0 else -2
+            else:
+                g_cn = 0
+            gistic_cnv_dict[gene] = g_cn
+        return raw_cnv_dict, gistic_cnv_dict
 
-    pass
+
+def read_and_process_ctrlfreec_pval(pval_fname: str, ref_bed: BedTool, ploidy: int = 2) -> None:
+    PVALUE: float = 0.05
+    with open(pval_fname) as f:
+        cnv_list: list[list[str]] = list(csv.reader(f, delimiter="\t"))
+        header: list[str] = cnv_list[0]
+        wilcox_idx: int = header.index("WilcoxonRankSumTestPvalue")
+        ks_idx: int = header.index("KolmogorovSmirnovPvalue")
+        # create bed str representation of CNV data, filtering by pvalue
+        cnv_filtered_as_bed: str = "\n".join(["\t".join(bed[0:4]) for bed in cnv_list[1:] if float(bed[wilcox_idx]) <= PVALUE and float(bed[ks_idx]) <= PVALUE])
+        cnv_bed_obj: BedTool = BedTool(cnv_filtered_as_bed, from_string=True)
+        raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(cnv_bed_obj, ref_bed, ploidy)
+        with open("test_raw_cnv.txt", "w") as raw_out, open("test_gistic_cnv.txt", "w") as gistic_out:
+            for gene in raw_cnv_dict:
+                print(f"{gene}\t{raw_cnv_dict[gene]}", file=raw_out)
+                print(f"{gene}\t{gistic_cnv_dict[gene]}", file=gistic_out)
 
 
 def read_and_process_gatk_cnv():
