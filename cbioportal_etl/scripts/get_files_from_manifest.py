@@ -169,7 +169,7 @@ def run_py(args: argparse.Namespace) -> int:
     manifest_df_list: list[pd.DataFrame] = []
     for manifest in manifest_list:
         print(f"Processing {manifest}", file=sys.stderr)
-        manifest_df_list.append(pd.read_csv(manifest, sep=None, na_values=["NA"]))
+        manifest_df_list.append(pd.read_csv(manifest, sep="\t", na_values=["NA"]))
     # In the event that s3_path is empty, replace with str to trigger later sbg download
     manifest_concat: pd.DataFrame = pd.concat(manifest_df_list, ignore_index=True)
     # if using a cbio name file as manifest, drop conflicting column
@@ -203,7 +203,7 @@ def run_py(args: argparse.Namespace) -> int:
             "cBio manifest provided, limiting downloads to matching IDs",
             file=sys.stderr,
         )
-        cbio_data = pd.read_csv(args.cbio, sep=None, na_values=["NA"])
+        cbio_data = pd.read_csv(args.cbio, sep="\t", na_values=["NA"])
         specimen_list: ndarray = cbio_data.affected_bs_id.unique()
         selected = selected[selected["biospecimen_id"].isin(specimen_list)]
     # remove vcfs as we only want mafs
@@ -224,14 +224,13 @@ def run_py(args: argparse.Namespace) -> int:
     err_types: dict[str, int] = {"aws download": 0, "sbg get": 0, "sbg download": 0}
     # download files by type
     check: int = 0
-    key_dict = None
+    key_dict: dict[str, dict[str, Any]] = {}
     api = None
     if args.aws_tbl is not None:
         check = 1
         # from https://stackoverflow.com/questions/66041582/connection-pool-is-full-warning-while-reading-s3-objects-via-multiple-threads
         client_config = botocore.config.Config(max_pool_connections=128)
         # setting up a key dict that, for each aws key, has an associated sesion and manifest to download with
-        key_dict: dict[str, dict[str, Any]] = {}
         bucket_errs = 0
         with open(args.aws_tbl) as kl:
             for line in kl:
@@ -309,7 +308,6 @@ def main():
         "-f",
         "--file-types",
         action="store",
-        dest="fts",
         help="csv list of workflow types to download",
     )
     parser.add_argument(

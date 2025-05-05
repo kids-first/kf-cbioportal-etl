@@ -25,47 +25,51 @@ def mp_process_cnv_data(
 ) -> tuple[dict[str, int], dict[str, int], int, list[str], str]:
     """Multi process CNV data by project."""
     ploidy: int = 2
-    if cnv_samp_attr["manifest_ftype"] == "ctrlfreec_pval":
-        print(f"Processing {cbio_sample} ControlFreeC pval file", file=sys.stderr)
+    try:
+        if cnv_samp_attr["manifest_ftype"] == "ctrlfreec_pval":
+            print(f"Processing {cbio_sample} ControlFreeC pval file", file=sys.stderr)
 
-        if info_samp_attr:
-            info_fname: str = f"{info_samp_attr['manifest_ftype']}/{info_samp_attr['fname']}"
-            ploidy: int = get_ctrlfreec_ploidy(info_fname)
-        else:
-            print(
-                f"WARNING: No info file for {cbio_sample}, using default ploidy of 2",
-                file=sys.stderr,
+            if info_samp_attr:
+                info_fname: str = f"{info_samp_attr['manifest_ftype']}/{info_samp_attr['fname']}"
+                ploidy: int = get_ctrlfreec_ploidy(info_fname)
+            else:
+                print(
+                    f"WARNING: No info file for {cbio_sample}, using default ploidy of 2",
+                    file=sys.stderr,
+                )
+            if seg_samp_attr:
+                seg_fname: str = f"{seg_samp_attr['manifest_ftype']}/{seg_samp_attr['fname']}"
+            else:
+                print(
+                    f"ERROR: No seg file for {cbio_sample}, cannot process CNV data",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+            out_seg_list = read_and_process_ctrlfreec_seg(
+                ctrlfreec_seg_fname=seg_fname, sample_id=cbio_sample
             )
-        if seg_samp_attr:
-            seg_fname: str = f"{seg_samp_attr['manifest_ftype']}/{seg_samp_attr['fname']}"
-        else:
-            print(
-                f"ERROR: No seg file for {cbio_sample}, cannot process CNV data",
-                file=sys.stderr,
+            pval_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
+            cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=pval_fname)
+            raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
+                cnv_bed_obj=cnv_bed_obj,
+                ref_bed=ref_bed,
+                ploidy=ploidy,
+                high_gain=config_data["cnv_high_gain"],
             )
-            sys.exit(1)
+        else:
+            print(f"Processing {cbio_sample} GATK CNV file", file=sys.stderr)
+            gatk_cnv_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
+            cnv_bed_obj, out_seg_list = read_and_process_gatk_cnv(
+                gatk_seg_fname=gatk_cnv_fname, sample_id=cbio_sample
+            )
+            raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
+                cnv_bed_obj=cnv_bed_obj, ref_bed=ref_bed, high_gain=config_data["cnv_high_gain"]
+            )
 
-        out_seg_list = read_and_process_ctrlfreec_seg(
-            ctrlfreec_seg_fname=seg_fname, sample_id=cbio_sample
-        )
-        pval_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
-        cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=pval_fname)
-        raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
-            cnv_bed_obj=cnv_bed_obj,
-            ref_bed=ref_bed,
-            ploidy=ploidy,
-            high_gain=config_data["cnv_high_gain"],
-        )
-    else:
-        print(f"Processing {cbio_sample} GATK CNV file", file=sys.stderr)
-        gatk_cnv_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
-        cnv_bed_obj, out_seg_list = read_and_process_gatk_cnv(
-            gatk_seg_fname=gatk_cnv_fname, sample_id=cbio_sample
-        )
-        raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
-            cnv_bed_obj=cnv_bed_obj, ref_bed=ref_bed, high_gain=config_data["cnv_high_gain"]
-        )
-
+    except Exception as e:
+        print(f"ERROR: {e} processing {cbio_sample}", file=sys.stderr)
+        sys.exit()
     return raw_cnv_dict, gistic_cnv_dict, ploidy, out_seg_list, cbio_sample
 
 
@@ -81,33 +85,35 @@ def output_wide_format_table(
         cnv_type: Type of CNV data ("raw" or "gistic")
 
     """
-    # Extract all unique genes from the dictionary
-    sample_names = list(cnv_dict.keys())
-    all_genes = set()
-    for sample in sample_names:
-        all_genes.update(cnv_dict[sample].keys())
-    all_genes = sorted(all_genes)
+    try:
+        # Extract all unique genes from the dictionary
+        sample_names = list(cnv_dict.keys())
+        all_genes = set()
+        for sample in sample_names:
+            all_genes.update(cnv_dict[sample].keys())
+        all_genes = sorted(all_genes)
 
-    # Open the output file for writing
-    with open(out_filename, "w") as out_file:
-        # Write the header row with sample names
-        print("Hugo_Symbol", *sample_names, file=out_file, sep="\t")
-        # Write the data rows for each gene
-        for gene in all_genes:
-            # Create a list to hold the CNV values for each sample
-            cnv_values = []
-            if cnv_type == "raw":
-                for sample in sample_names:
+        # Open the output file for writing
+        with open(out_filename, "w") as out_file:
+            # Write the header row with sample names
+            print("Hugo_Symbol", *sample_names, file=out_file, sep="\t")
+            # Write the data rows for each gene
+            for gene in all_genes:
+                # Create a list to hold the CNV values for each sample
+                if cnv_type == "raw":
                     # Get the CNV value for the gene in the current sample, or ploidy if not present
-                    cnv_value = cnv_dict[sample].get(gene, ploidy_dict[sample])
-                    cnv_values.append(cnv_value)
-            else:
-                for sample in sample_names:
+                    cnv_values = [
+                        str(cnv_dict[sample].get(gene, ploidy_dict[sample]))
+                        for sample in sample_names
+                    ]
+                else:
                     # Get the CNV value for the gene in the current sample, or 0 if not present
-                    cnv_value = cnv_dict[sample].get(gene, 0)
-                    cnv_values.append(cnv_value)
-            # Write the gene name and CNV values to the output file
-            print(*[gene, *cnv_values], file=out_file, sep="\t")
+                    cnv_values = [str(cnv_dict[sample].get(gene, 0)) for sample in sample_names]
+                # Write the gene name and CNV values to the output file
+                print(f"{gene}\t{'\t'.join(cnv_values)}", file=out_file)
+    except Exception as e:
+        print(f"ERROR: {e} writing {out_filename}", file=sys.stderr)
+        sys.exit(1)
 
 
 def get_gene_cnv_dict(
@@ -164,15 +170,12 @@ def get_gene_cnv_dict(
     return raw_cnv_dict, gistic_cnv_dict
 
 
-def read_and_process_ctrlfreec_seg(
-    ctrlfreec_seg_fname: str, sample_id: str
-) -> list[str]:
+def read_and_process_ctrlfreec_seg(ctrlfreec_seg_fname: str, sample_id: str) -> list[str]:
     """Process ControlFreeC seg file and write to output.
 
     Replaces sample ID with cBio sample ID and strips leading chr from chromosome name, then writes to output file.
     Args:
         ctrlfreec_seg_fname: Filename of ControlFreeC seg file
-        out_seg_io: Output cbio seg file handle
         sample_id: Sample ID to use
 
     """
@@ -196,8 +199,8 @@ def get_ctrlfreec_ploidy(cfree_info_fname: str) -> int:
     Returns: int of output ploidy
     """
     info: IO = open(cfree_info_fname)
-    for datum in info:
-        datum: str = datum.rstrip("\n")
+    for data in info:
+        datum: str = data.rstrip("\n")
         try:
             if datum.startswith("Output_Ploidy"):
                 (_key, value) = datum.split("\t")
@@ -236,9 +239,7 @@ def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
         return cnv_bed_obj
 
 
-def read_and_process_gatk_cnv(
-    gatk_seg_fname: str, sample_id: str
-) -> tuple[BedTool, list[str]]:
+def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedTool, list[str]]:
     """Process GATK CNV seg file and return BedTool object.
 
     Convert MEAN_LOG2_COPY_RATIO to CN and strip leading chr from chromosome name
@@ -326,12 +327,12 @@ def main():
                     cbio_sample,
                     cnv_meta[project][cbio_sample],
                     (
-                        info_meta[project][cbio_sample] # ControlFreeC specific
+                        info_meta[project][cbio_sample]  # ControlFreeC specific
                         if project in info_meta and cbio_sample in info_meta[project]
                         else None
                     ),
                     (
-                        seg_meta[project][cbio_sample] # ControlFreeC specific
+                        seg_meta[project][cbio_sample]  # ControlFreeC specific
                         if project in seg_meta and cbio_sample in seg_meta[project]
                         else None
                     ),
@@ -341,26 +342,30 @@ def main():
                 for cbio_sample in samp_list
             ]
             for task in as_completed(tasks):
-                ss_raw_cnv_dict, ss_gistic_cnv_dict, ploidy, out_seg_list, cbio_sample = task.result()
+                ss_raw_cnv_dict, ss_gistic_cnv_dict, ploidy, out_seg_list, cbio_sample = (
+                    task.result()
+                )
                 raw_cnv_dict[cbio_sample] = ss_raw_cnv_dict
                 gistic_cnv_dict[cbio_sample] = ss_gistic_cnv_dict
                 ploidy_dict[cbio_sample] = ploidy
                 print(*out_seg_list, sep="\n", file=out_seg_io)
         out_seg_io.close()
         # Print raw and GISTIC results to wide format
-        print(f"Writing {project} CNV data to wide format", file=sys.stderr)
+        print(f"Writing {project} raw CNV data to wide format", file=sys.stderr)
         output_wide_format_table(
             cnv_dict=raw_cnv_dict,
             out_filename=f"{out_dir}/{project}.predicted_cnv.txt",
             ploidy_dict=ploidy_dict,
             cnv_type="raw",
         )
+        print(f"Writing {project} GISTIC CNV data to wide format", file=sys.stderr)
         output_wide_format_table(
             cnv_dict=gistic_cnv_dict,
             out_filename=f"{out_dir}/{project}.discrete_cnvs_cnv.txt",
             ploidy_dict=ploidy_dict,
             cnv_type="gistic",
         )
+        print(f"Finished processing {project} CNV data", file=sys.stderr)
 
 
 if __name__ == "__main__":
