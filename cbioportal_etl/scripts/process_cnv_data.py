@@ -6,12 +6,67 @@ import csv
 import json
 import os
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import IO
 
 from get_file_metadata_helper import get_file_metadata
 from pybedtools import BedTool
 
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
+
+
+def mp_process_cnv_data(
+    cbio_sample: str,
+    cnv_samp_attr: dict,
+    info_samp_attr: dict | None,
+    seg_samp_attr: dict | None,
+    ref_bed: BedTool,
+    config_data: dict,
+) -> tuple[dict[str, int], dict[str, int], int, list[str], str]:
+    """Multi process CNV data by project."""
+    ploidy: int = 2
+    if cnv_samp_attr["manifest_ftype"] == "ctrlfreec_pval":
+        print(f"Processing {cbio_sample} ControlFreeC pval file", file=sys.stderr)
+
+        if info_samp_attr:
+            info_fname: str = f"{info_samp_attr['manifest_ftype']}/{info_samp_attr['fname']}"
+            ploidy: int = get_ctrlfreec_ploidy(info_fname)
+        else:
+            print(
+                f"WARNING: No info file for {cbio_sample}, using default ploidy of 2",
+                file=sys.stderr,
+            )
+        if seg_samp_attr:
+            seg_fname: str = f"{seg_samp_attr['manifest_ftype']}/{seg_samp_attr['fname']}"
+        else:
+            print(
+                f"ERROR: No seg file for {cbio_sample}, cannot process CNV data",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        out_seg_list = read_and_process_ctrlfreec_seg(
+            ctrlfreec_seg_fname=seg_fname, sample_id=cbio_sample
+        )
+        pval_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
+        cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=pval_fname)
+        raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
+            cnv_bed_obj=cnv_bed_obj,
+            ref_bed=ref_bed,
+            ploidy=ploidy,
+            high_gain=config_data["cnv_high_gain"],
+        )
+    else:
+        print(f"Processing {cbio_sample} GATK CNV file", file=sys.stderr)
+        gatk_cnv_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
+        cnv_bed_obj, out_seg_list = read_and_process_gatk_cnv(
+            gatk_seg_fname=gatk_cnv_fname, sample_id=cbio_sample
+        )
+        raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
+            cnv_bed_obj=cnv_bed_obj, ref_bed=ref_bed, high_gain=config_data["cnv_high_gain"]
+        )
+
+    return raw_cnv_dict, gistic_cnv_dict, ploidy, out_seg_list, cbio_sample
 
 
 def output_wide_format_table(
@@ -110,8 +165,8 @@ def get_gene_cnv_dict(
 
 
 def read_and_process_ctrlfreec_seg(
-    ctrlfreec_seg_fname: str, out_seg_io: IO, sample_id: str
-) -> None:
+    ctrlfreec_seg_fname: str, sample_id: str
+) -> list[str]:
     """Process ControlFreeC seg file and write to output.
 
     Replaces sample ID with cBio sample ID and strips leading chr from chromosome name, then writes to output file.
@@ -124,10 +179,12 @@ def read_and_process_ctrlfreec_seg(
     with open(ctrlfreec_seg_fname) as f:
         cnv_reader: csv.reader._reader = csv.reader(f, delimiter="\t")
         _header = next(cnv_reader)
+        out_seg_list: list[str] = []
         for entry in cnv_reader:
             entry[0] = sample_id
             entry[1] = entry[1][3:]  # remove leading chr
-            print(*entry, sep="\t", file=out_seg_io)
+            out_seg_list.append("\t".join(entry))
+        return out_seg_list
 
 
 def get_ctrlfreec_ploidy(cfree_info_fname: str) -> int:
@@ -179,7 +236,9 @@ def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
         return cnv_bed_obj
 
 
-def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str, out_seg_io: IO) -> BedTool:
+def read_and_process_gatk_cnv(
+    gatk_seg_fname: str, sample_id: str
+) -> tuple[BedTool, list[str]]:
     """Process GATK CNV seg file and return BedTool object.
 
     Convert MEAN_LOG2_COPY_RATIO to CN and strip leading chr from chromosome name
@@ -188,9 +247,10 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str, out_seg_io: I
     Args:
         gatk_seg_fname: Filename of GATK CNV seg file
         sample_id: Sample ID to use
-        out_seg_io: Output cbio seg file handle
 
-    Returns: BedTool object with CNV data
+    Returns:
+        BedTool object with CNV data
+        List of seg file entries to write to output file
 
     """
     with open(gatk_seg_fname) as f:
@@ -200,15 +260,16 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str, out_seg_io: I
         # Drop chrM, convert MEAN_LOG2_COPY_RATIO to CN and rm leading chr
         # Also output to merged seg file while in the process
         cnv_as_bed = ""
+        out_seg_list: list[str] = []
         for entry in cnv_list[1:]:
             if entry[0] != "chrM":
                 entry[0] = entry[0][3:]
-                print(*[sample_id, *entry[0:4]], sep="\t", file=out_seg_io)
+                out_seg_list.append("\t".join([sample_id] + entry[0:4]))
                 # ratio is typically log2(cn/ploidy)
                 entry[-2] = round(pow(2, float(entry[-2])) * 2)
                 cnv_as_bed += f"{entry[0]}\t{entry[1]}\t{entry[2]}\t{entry[-2]}\n"
         cnv_bed_obj: BedTool = BedTool(cnv_as_bed, from_string=True)
-        return cnv_bed_obj
+        return cnv_bed_obj, out_seg_list
 
 
 def main():
@@ -257,43 +318,34 @@ def main():
         gistic_cnv_dict: dict[str, dict] = {}
         # Keep track of ploidy for ControlFreeC to use as default value
         ploidy_dict: dict[str, int] = {}
-        for cbio_sample, cbio_samp_attr in samp_data.items():
-            if cbio_samp_attr["manifest_ftype"] == "ctrlfreec_pval":
-                print(f"Processing {project} {cbio_sample} ControlFreeC pval file", file=sys.stderr)
-                ploidy: int = 2
-                if project in info_meta and cbio_sample in info_meta[project]:
-                    info_fname: str = f"{info_meta[project][cbio_sample]['manifest_ftype']}/{info_meta[project][cbio_sample]['fname']}"
-                    ploidy: int = get_ctrlfreec_ploidy(info_fname)
-                else:
-                    print(
-                        f"WARNING: No info file for {cbio_sample} in {project}, using default ploidy of 2",
-                        file=sys.stderr,
-                    )
+        samp_list: list[str] = list(samp_data.keys())
+        with ProcessPoolExecutor() as executor:
+            tasks = [
+                executor.submit(
+                    mp_process_cnv_data,
+                    cbio_sample,
+                    cnv_meta[project][cbio_sample],
+                    (
+                        info_meta[project][cbio_sample] # ControlFreeC specific
+                        if project in info_meta and cbio_sample in info_meta[project]
+                        else None
+                    ),
+                    (
+                        seg_meta[project][cbio_sample] # ControlFreeC specific
+                        if project in seg_meta and cbio_sample in seg_meta[project]
+                        else None
+                    ),
+                    ref_bed,
+                    config_data,
+                )
+                for cbio_sample in samp_list
+            ]
+            for task in as_completed(tasks):
+                ss_raw_cnv_dict, ss_gistic_cnv_dict, ploidy, out_seg_list, cbio_sample = task.result()
+                raw_cnv_dict[cbio_sample] = ss_raw_cnv_dict
+                gistic_cnv_dict[cbio_sample] = ss_gistic_cnv_dict
                 ploidy_dict[cbio_sample] = ploidy
-                seg_fname: str = f"{seg_meta[project][cbio_sample]['manifest_ftype']}/{seg_meta[project][cbio_sample]['fname']}"
-                read_and_process_ctrlfreec_seg(
-                    ctrlfreec_seg_fname=seg_fname, out_seg_io=out_seg_io, sample_id=cbio_sample
-                )
-                pval_fname: str = f"{cbio_samp_attr['manifest_ftype']}/{cbio_samp_attr['fname']}"
-                cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=pval_fname)
-                raw_cnv_dict[cbio_sample], gistic_cnv_dict[cbio_sample] = get_gene_cnv_dict(
-                    cnv_bed_obj=cnv_bed_obj,
-                    ref_bed=ref_bed,
-                    ploidy=ploidy,
-                    high_gain=config_data["cnv_high_gain"],
-                )
-            else:
-                print(f"Processing {project} {cbio_sample} GATK CNV file", file=sys.stderr)
-                gatk_cnv_fname: str = (
-                    f"{cbio_samp_attr['manifest_ftype']}/{cbio_samp_attr['fname']}"
-                )
-                cnv_bed_obj: BedTool = read_and_process_gatk_cnv(
-                    gatk_seg_fname=gatk_cnv_fname, sample_id=cbio_sample, out_seg_io=out_seg_io
-                )
-                raw_cnv_dict[cbio_sample], gistic_cnv_dict[cbio_sample] = get_gene_cnv_dict(
-                    cnv_bed_obj=cnv_bed_obj, ref_bed=ref_bed, high_gain=config_data["cnv_high_gain"]
-                )
-                ploidy_dict[cbio_sample] = 2
+                print(*out_seg_list, sep="\n", file=out_seg_io)
         out_seg_io.close()
         # Print raw and GISTIC results to wide format
         print(f"Writing {project} CNV data to wide format", file=sys.stderr)
