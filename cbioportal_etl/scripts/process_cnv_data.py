@@ -265,7 +265,7 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedT
         for entry in cnv_list[1:]:
             if entry[0] != "chrM":
                 entry[0] = entry[0][3:]
-                out_seg_list.append("\t".join([sample_id] + entry[0:4]))
+                out_seg_list.append("\t".join([sample_id] + entry[0:5]))
                 # ratio is typically log2(cn/ploidy)
                 entry[-2] = round(pow(2, float(entry[-2])) * 2)
                 cnv_as_bed += f"{entry[0]}\t{entry[1]}\t{entry[2]}\t{entry[-2]}\n"
@@ -361,7 +361,7 @@ def main():
         print(f"Writing {project} GISTIC CNV data to wide format", file=sys.stderr)
         output_wide_format_table(
             cnv_dict=gistic_cnv_dict,
-            out_filename=f"{out_dir}/{project}.discrete_cnvs_cnv.txt",
+            out_filename=f"{out_dir}/{project}.discrete_cnvs.txt",
             ploidy_dict=ploidy_dict,
             cnv_type="gistic",
         )
