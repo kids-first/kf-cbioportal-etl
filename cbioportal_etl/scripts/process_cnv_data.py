@@ -3,6 +3,7 @@
 
 import argparse
 import csv
+import gc
 import json
 import os
 import sys
@@ -11,6 +12,7 @@ from typing import IO
 
 from get_file_metadata_helper import get_file_metadata
 from pybedtools import BedTool, cleanup
+
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
@@ -65,12 +67,15 @@ def mp_process_cnv_data(
             raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
                 cnv_bed_obj=cnv_bed_obj, ref_bed=ref_bed, high_gain=config_data["cnv_high_gain"]
             )
+        del cnv_bed_obj
+        del ref_bed
 
     except Exception as e:
         print(f"ERROR: {e} processing {cbio_sample}", file=sys.stderr)
         # clear out pybed temp files
         cleanup(remove_all=True)
         sys.exit()
+    gc.collect()
     return raw_cnv_dict, gistic_cnv_dict, ploidy, out_seg_list, cbio_sample
 
 
@@ -170,6 +175,7 @@ def get_gene_cnv_dict(
         else:
             g_cn = 0
         gistic_cnv_dict[gene] = g_cn
+    del annotated
     return raw_cnv_dict, gistic_cnv_dict
 
 
@@ -190,7 +196,7 @@ def read_and_process_ctrlfreec_seg(ctrlfreec_seg_fname: str, sample_id: str) -> 
             entry[0] = sample_id
             entry[1] = entry[1][3:]  # remove leading chr
             out_seg_list.append("\t".join(entry))
-        return out_seg_list
+    return out_seg_list
 
 
 def get_ctrlfreec_ploidy(cfree_info_fname: str) -> int:
@@ -201,16 +207,18 @@ def get_ctrlfreec_ploidy(cfree_info_fname: str) -> int:
         cfree_info_fname: Filename of ControFreeC info file
     Returns: int of output ploidy
     """
-    info: IO = open(cfree_info_fname)
-    for data in info:
-        datum: str = data.rstrip("\n")
-        try:
-            if datum.startswith("Output_Ploidy"):
-                (_key, value) = datum.split("\t")
-                return int(value)
-        except Exception as e:
-            print(f"WARN: {e} entry could not be split", file=sys.stderr)
-    return 2
+    ploidy = 2
+    with open(cfree_info_fname) as info:
+        for data in info:
+            datum: str = data.rstrip("\n")
+            try:
+                if datum.startswith("Output_Ploidy"):
+                    (_key, value) = datum.split("\t")
+                    ploidy = int(value)
+                    break
+            except Exception as e:
+                print(f"WARN: {e} entry could not be split", file=sys.stderr)
+    return ploidy
 
 
 def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
@@ -239,7 +247,8 @@ def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
             ]
         )
         cnv_bed_obj: BedTool = BedTool(cnv_filtered_as_bed, from_string=True)
-        return cnv_bed_obj
+        del cnv_filtered_as_bed
+    return cnv_bed_obj
 
 
 def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedTool, list[str]]:
@@ -273,7 +282,8 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedT
                 entry[-2] = round(pow(2, float(entry[-2])) * 2)
                 cnv_as_bed += f"{entry[0]}\t{entry[1]}\t{entry[2]}\t{entry[-2]}\n"
         cnv_bed_obj: BedTool = BedTool(cnv_as_bed, from_string=True)
-        return cnv_bed_obj, out_seg_list
+        del cnv_as_bed
+    return cnv_bed_obj, out_seg_list
 
 
 def main():
