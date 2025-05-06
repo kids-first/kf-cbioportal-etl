@@ -10,8 +10,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import IO
 
 from get_file_metadata_helper import get_file_metadata
-from pybedtools import BedTool
-
+from pybedtools import BedTool, cleanup
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
@@ -69,6 +68,8 @@ def mp_process_cnv_data(
 
     except Exception as e:
         print(f"ERROR: {e} processing {cbio_sample}", file=sys.stderr)
+        # clear out pybed temp files
+        cleanup(remove_all=True)
         sys.exit()
     return raw_cnv_dict, gistic_cnv_dict, ploidy, out_seg_list, cbio_sample
 
@@ -113,6 +114,8 @@ def output_wide_format_table(
                 print(f"{gene}\t{'\t'.join(cnv_values)}", file=out_file)
     except Exception as e:
         print(f"ERROR: {e} writing {out_filename}", file=sys.stderr)
+        # clear out pybed temp files
+        cleanup(remove_all=True)
         sys.exit(1)
 
 
