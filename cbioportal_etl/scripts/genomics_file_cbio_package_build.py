@@ -26,7 +26,7 @@ def log_cmd(cmd):
 def check_status(status, data_type, run_status):
     if status:
         print(
-            f"Something when wrong while processing the {data_type} shutting down other running procs",
+            f"Something went wrong while processing the {data_type} shutting down other running procs",
             file=sys.stderr,
         )
         for key in run_status:
