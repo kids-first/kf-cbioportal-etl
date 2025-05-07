@@ -109,14 +109,14 @@ def output_wide_format_table(
                 if cnv_type == "raw":
                     # Get the CNV value for the gene in the current sample, or ploidy if not present
                     cnv_values = [
-                        str(cnv_dict[sample].get(gene, ploidy_dict[sample]))
+                        cnv_dict[sample].get(gene, ploidy_dict[sample])
                         for sample in sample_names
                     ]
                 else:
                     # Get the CNV value for the gene in the current sample, or 0 if not present
-                    cnv_values = [str(cnv_dict[sample].get(gene, 0)) for sample in sample_names]
+                    cnv_values = [cnv_dict[sample].get(gene, 0) for sample in sample_names]
                 # Write the gene name and CNV values to the output file
-                print(f"{gene}\t{'\t'.join(cnv_values)}", file=out_file)
+                print(gene, *cnv_values, sep="\t", file=out_file)
     except Exception as e:
         print(f"ERROR: {e} writing {out_filename}", file=sys.stderr)
         # clear out pybed temp files
