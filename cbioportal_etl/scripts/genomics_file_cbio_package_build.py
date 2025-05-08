@@ -271,6 +271,7 @@ def run_py(args):
         if job in run_queue:
             run_queue[job]()
 
+    # trigger fusion processing if dgd status id dgd
     if args.dgd_status == "dgd":
         run_status["fusion"] = process_dgd_fusion(
             args.manifest,
