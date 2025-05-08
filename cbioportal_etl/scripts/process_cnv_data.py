@@ -28,15 +28,6 @@ def mp_process_cnv_data(
     try:
         if cnv_samp_attr["manifest_ftype"] == "ctrlfreec_pval":
             print(f"Processing {cbio_sample} ControlFreeC pval file", file=sys.stderr)
-
-            if info_samp_attr:
-                info_fname: str = f"{info_samp_attr['manifest_ftype']}/{info_samp_attr['fname']}"
-                ploidy: int = get_ctrlfreec_ploidy(info_fname)
-            else:
-                print(
-                    f"WARNING: No info file for {cbio_sample}, using default ploidy of 2",
-                    file=sys.stderr,
-                )
             if seg_samp_attr:
                 seg_fname: str = f"{seg_samp_attr['manifest_ftype']}/{seg_samp_attr['fname']}"
             else:
@@ -45,6 +36,15 @@ def mp_process_cnv_data(
                     file=sys.stderr,
                 )
                 sys.exit(1)
+            # ControlFreeC info file is optional, but if it exists, use it to set ploidy
+            if info_samp_attr:
+                info_fname: str = f"{info_samp_attr['manifest_ftype']}/{info_samp_attr['fname']}"
+                ploidy: int = get_ctrlfreec_ploidy(info_fname)
+            else:
+                print(
+                    f"WARNING: No info file for {cbio_sample}, using default ploidy of 2",
+                    file=sys.stderr,
+                )
 
             out_seg_list = read_and_process_ctrlfreec_seg(
                 ctrlfreec_seg_fname=seg_fname, sample_id=cbio_sample
@@ -66,9 +66,6 @@ def mp_process_cnv_data(
             raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
                 cnv_bed_obj=cnv_bed_obj, ref_bed=ref_bed, high_gain=config_data["cnv_high_gain"]
             )
-        del cnv_bed_obj
-        del ref_bed
-
     except Exception as e:
         print(f"ERROR: {e} processing {cbio_sample}", file=sys.stderr)
         # clear out pybed temp files
@@ -105,10 +102,7 @@ def output_wide_format_table(
                 # Create a list to hold the CNV values for each sample
                 default_cnv = 0 if cnv_type == "raw" else ploidy_dict[sample]
                 # Get the CNV value for the gene in the current sample, or default if not present
-                cnv_values = [
-                    cnv_dict[sample].get(gene, default_cnv)
-                    for sample in sample_names
-                ]
+                cnv_values = [cnv_dict[sample].get(gene, default_cnv) for sample in sample_names]
                 # Write the gene name and CNV values to the output file
                 print(gene, *cnv_values, sep="\t", file=out_file)
     except Exception as e:
@@ -171,7 +165,6 @@ def get_gene_cnv_dict(
         gistic_cnv_dict[gene] = g_cn
     # cleanup pybedtools temp files
     annotated.delete_temporary_history(ask=False)
-    del annotated
     return raw_cnv_dict, gistic_cnv_dict
 
 
@@ -190,7 +183,7 @@ def read_and_process_ctrlfreec_seg(ctrlfreec_seg_fname: str, sample_id: str) -> 
         out_seg_list: list[str] = []
         for entry in cnv_reader:
             entry[0] = sample_id
-            if entry[1].startswith("chr"): entry[1] = entry[1][3:]
+            entry[1] = entry[1].removeprefix("chr")
             out_seg_list.append("\t".join(entry))
     return out_seg_list
 
@@ -243,7 +236,6 @@ def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
             ]
         )
         cnv_bed_obj: BedTool = BedTool(cnv_filtered_as_bed, from_string=True)
-        del cnv_filtered_as_bed
     return cnv_bed_obj
 
 
@@ -266,21 +258,23 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedT
         cnv_reader: csv.reader._reader = csv.reader(f, delimiter="\t")
         cnv_as_bed = ""
         out_seg_list: list[str] = []
-        # Skip interval list-style headers
+        # Skip interval list-style headers by stopping at CONTIG
         # Skip chrM
         # Strip chr from chromosome names
         # Output to merged seg file while in the process
         # Convert MEAN_LOG2_COPY_RATIO to CN and rm leading chr
         for line in cnv_reader:
-            if line[0].startswith("@"): continue
-            if line[0].startswith("chrM"): continue
-            if line[0].startswith("chr"): line[0] = line[0][3:]
+            if line[0].startswith("CONTIG"):
+                break
+        for line in cnv_reader:
+            if line[0].startswith("chrM"):
+                continue
+            line[0] = line[0].removeprefix("chr")
             out_seg_list.append("\t".join([sample_id] + line[0:5]))
             # ratio is typically log2(cn/ploidy)
             line[-2] = round(pow(2, float(line[-2])) * 2)
             cnv_as_bed += f"{line[0]}\t{line[1]}\t{line[2]}\t{line[-2]}\n"
         cnv_bed_obj: BedTool = BedTool(cnv_as_bed, from_string=True)
-        del cnv_as_bed
     return cnv_bed_obj, out_seg_list
 
 
@@ -364,12 +358,13 @@ def main():
             except KeyboardInterrupt:
                 print("Keyboard interrupt, exiting", file=sys.stderr)
                 executor.shutdown(wait=False, cancel_futures=True)
-                sys.exit(1)
+
             except TimeoutError:
                 print("Timeout occurred during shutdown.", file=sys.stderr)
             finally:
                 cleanup(remove_all=True)
                 out_seg_io.close()
+                sys.exit(1)
         # Print raw and GISTIC results to wide format
         print(f"Writing {project} raw CNV data to wide format", file=sys.stderr)
         output_wide_format_table(
