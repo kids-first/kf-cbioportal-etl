@@ -91,11 +91,10 @@ def output_wide_format_table(
     """
     try:
         # Extract all unique genes from the dictionary
-        sample_names = list(cnv_dict.keys())
+        sample_names = cnv_dict.keys()
         all_genes = set()
         for sample in sample_names:
             all_genes.update(cnv_dict[sample].keys())
-        all_genes = sorted(all_genes)
 
         # Open the output file for writing
         with open(out_filename, "w") as out_file:
@@ -104,15 +103,12 @@ def output_wide_format_table(
             # Write the data rows for each gene
             for gene in all_genes:
                 # Create a list to hold the CNV values for each sample
-                if cnv_type == "raw":
-                    # Get the CNV value for the gene in the current sample, or ploidy if not present
-                    cnv_values = [
-                        cnv_dict[sample].get(gene, ploidy_dict[sample])
-                        for sample in sample_names
-                    ]
-                else:
-                    # Get the CNV value for the gene in the current sample, or 0 if not present
-                    cnv_values = [cnv_dict[sample].get(gene, 0) for sample in sample_names]
+                default_cnv = 0 if cnv_type == "raw" else ploidy_dict[sample]
+                # Get the CNV value for the gene in the current sample, or default if not present
+                cnv_values = [
+                    cnv_dict[sample].get(gene, default_cnv)
+                    for sample in sample_names
+                ]
                 # Write the gene name and CNV values to the output file
                 print(gene, *cnv_values, sep="\t", file=out_file)
     except Exception as e:
@@ -131,7 +127,7 @@ def get_gene_cnv_dict(
         cnv_bed_obj: BedTool object with CNV data
         ref_bed: BedTool object with reference gene data
         ploidy: Ploidy value for the sample
-        high_gain: High gain threshold for GISTIC-style values
+        high_gain: Value over ploidy that results in a GISTIC-style high gain designation
 
     Returns:
         raw_cnv_dict: Dictionary with gene names as keys and CNV values as values
@@ -194,7 +190,7 @@ def read_and_process_ctrlfreec_seg(ctrlfreec_seg_fname: str, sample_id: str) -> 
         out_seg_list: list[str] = []
         for entry in cnv_reader:
             entry[0] = sample_id
-            entry[1] = entry[1][3:]  # remove leading chr
+            if entry[1].startswith("chr"): entry[1] = entry[1][3:]
             out_seg_list.append("\t".join(entry))
     return out_seg_list
 
@@ -211,13 +207,13 @@ def get_ctrlfreec_ploidy(cfree_info_fname: str) -> int:
     with open(cfree_info_fname) as info:
         for data in info:
             datum: str = data.rstrip("\n")
-            try:
-                if datum.startswith("Output_Ploidy"):
+            if datum.startswith("Output_Ploidy"):
+                try:
                     (_key, value) = datum.split("\t")
                     ploidy = int(value)
-                    break
-            except Exception as e:
-                print(f"WARN: {e} entry could not be split", file=sys.stderr)
+                except Exception as e:
+                    print(f"WARN: {e} entry could not be split", file=sys.stderr)
+                break
     return ploidy
 
 
@@ -268,19 +264,21 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedT
     """
     with open(gatk_seg_fname) as f:
         cnv_reader: csv.reader._reader = csv.reader(f, delimiter="\t")
-        # Need to skip ridiculous interval list-style headers
-        cnv_list = [entry for entry in cnv_reader if not entry[0].startswith("@")]
-        # Drop chrM, convert MEAN_LOG2_COPY_RATIO to CN and rm leading chr
-        # Also output to merged seg file while in the process
         cnv_as_bed = ""
         out_seg_list: list[str] = []
-        for entry in cnv_list[1:]:
-            if entry[0] != "chrM":
-                entry[0] = entry[0][3:]
-                out_seg_list.append("\t".join([sample_id] + entry[0:5]))
-                # ratio is typically log2(cn/ploidy)
-                entry[-2] = round(pow(2, float(entry[-2])) * 2)
-                cnv_as_bed += f"{entry[0]}\t{entry[1]}\t{entry[2]}\t{entry[-2]}\n"
+        # Skip interval list-style headers
+        # Skip chrM
+        # Strip chr from chromosome names
+        # Output to merged seg file while in the process
+        # Convert MEAN_LOG2_COPY_RATIO to CN and rm leading chr
+        for line in cnv_reader:
+            if line[0].startswith("@"): continue
+            if line[0].startswith("chrM"): continue
+            if line[0].startswith("chr"): line[0] = line[0][3:]
+            out_seg_list.append("\t".join([sample_id] + line[0:5]))
+            # ratio is typically log2(cn/ploidy)
+            line[-2] = round(pow(2, float(line[-2])) * 2)
+            cnv_as_bed += f"{line[0]}\t{line[1]}\t{line[2]}\t{line[-2]}\n"
         cnv_bed_obj: BedTool = BedTool(cnv_as_bed, from_string=True)
         del cnv_as_bed
     return cnv_bed_obj, out_seg_list
@@ -366,12 +364,12 @@ def main():
             except KeyboardInterrupt:
                 print("Keyboard interrupt, exiting", file=sys.stderr)
                 executor.shutdown(wait=False, cancel_futures=True)
-                cleanup(remove_all=True)
-                out_seg_io.close()
                 sys.exit(1)
             except TimeoutError:
                 print("Timeout occurred during shutdown.", file=sys.stderr)
-        out_seg_io.close()
+            finally:
+                cleanup(remove_all=True)
+                out_seg_io.close()
         # Print raw and GISTIC results to wide format
         print(f"Writing {project} raw CNV data to wide format", file=sys.stderr)
         output_wide_format_table(
