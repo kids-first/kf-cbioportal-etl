@@ -3,7 +3,6 @@
 
 import argparse
 import csv
-import gc
 import json
 import os
 import sys
@@ -75,7 +74,6 @@ def mp_process_cnv_data(
         # clear out pybed temp files
         cleanup(remove_all=True)
         sys.exit()
-    gc.collect()
     return raw_cnv_dict, gistic_cnv_dict, ploidy, out_seg_list, cbio_sample
 
 
@@ -175,6 +173,8 @@ def get_gene_cnv_dict(
         else:
             g_cn = 0
         gistic_cnv_dict[gene] = g_cn
+    # cleanup pybedtools temp files
+    annotated.delete_temporary_history(ask=False)
     del annotated
     return raw_cnv_dict, gistic_cnv_dict
 
