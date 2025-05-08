@@ -358,13 +358,12 @@ def main():
             except KeyboardInterrupt:
                 print("Keyboard interrupt, exiting", file=sys.stderr)
                 executor.shutdown(wait=False, cancel_futures=True)
-
+                sys.exit(1)
             except TimeoutError:
                 print("Timeout occurred during shutdown.", file=sys.stderr)
             finally:
                 cleanup(remove_all=True)
                 out_seg_io.close()
-                sys.exit(1)
         # Print raw and GISTIC results to wide format
         print(f"Writing {project} raw CNV data to wide format", file=sys.stderr)
         output_wide_format_table(
