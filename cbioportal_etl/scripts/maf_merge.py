@@ -181,17 +181,6 @@ if __name__ == "__main__":
         dest="config_file",
         help="json config file with data types and data locations",
     )
-    parser.add_argument(
-        "-f",
-        "--dgd-status",
-        action="store",
-        dest="dgd_status",
-        help="Flag to determine load will have pbta/kf + dgd(both), kf/pbta only(kf), dgd-only(dgd)",
-        default="both",
-        const="both",
-        nargs="?",
-        choices=["both", "kf", "dgd"],
-    )
 
     args = parser.parse_args()
     with open(args.config_file) as f:
@@ -218,11 +207,8 @@ if __name__ == "__main__":
     if sym_errs:
         print(f"Could not sym link {sym_errs} files, exiting!", file=sys.stderr)
         sys.exit()
-    # If DGD maf only, else if both, dgd maf wil be handled separately, or not at all if no dgd and kf only
 
-    file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "DGD_MAF")
-    if args.dgd_status != "dgd":
-        file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "maf")
+    file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "maf")
     with open(args.header) as head_fh:
         print_head: str = next(head_fh)
         cur_head: str = next(head_fh)

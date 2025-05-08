@@ -68,7 +68,7 @@ def process_maf(
             continue
         if isinstance(maf_dir, list):
             maf_dir = ",".join(maf_dir)
-        maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -m {maf_dir} -j {data_config_file} -f {dgd_status} 2> collate_mafs.log"
+        maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -m {maf_dir} -j {data_config_file} 2> collate_mafs.log"
         log_cmd(maf_cmd)
         run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
 
@@ -186,6 +186,7 @@ def process_dgd_fusion(
         dgd_fusion_cmd += " -a >> " + append_fusion
     else:
         sys.stderr.write("Processing DGD fusion calls\n")
+        dgd_fusion_cmd += " -o merged_fusion/"
     dgd_fusion_cmd += " 2> add_dgd_fusion.log"
     log_cmd(dgd_fusion_cmd)
     return subprocess.Popen(dgd_fusion_cmd, shell=True)
@@ -269,6 +270,15 @@ def run_py(args):
     for job in run_priority:
         if job in run_queue:
             run_queue[job]()
+
+    if args.dgd_status == "dgd":
+        run_status["fusion"] = process_dgd_fusion(
+            args.manifest,
+            config_data["file_loc_defs"]["dgd_fusion"],
+            args.dgd_status,
+            script_dir,
+            cbio_study_id,
+        )
 
     # Wait for concurrent processes to finish and report statuses
     x: int = 30
