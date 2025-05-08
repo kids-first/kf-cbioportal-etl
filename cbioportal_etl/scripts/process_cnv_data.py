@@ -354,14 +354,23 @@ def main():
                 )
                 for cbio_sample in samp_list
             ]
-            for task in as_completed(tasks):
-                ss_raw_cnv_dict, ss_gistic_cnv_dict, ploidy, out_seg_list, cbio_sample = (
-                    task.result()
-                )
-                raw_cnv_dict[cbio_sample] = ss_raw_cnv_dict
-                gistic_cnv_dict[cbio_sample] = ss_gistic_cnv_dict
-                ploidy_dict[cbio_sample] = ploidy
-                print(*out_seg_list, sep="\n", file=out_seg_io)
+            try:
+                for task in as_completed(tasks):
+                    ss_raw_cnv_dict, ss_gistic_cnv_dict, ploidy, out_seg_list, cbio_sample = (
+                        task.result()
+                    )
+                    raw_cnv_dict[cbio_sample] = ss_raw_cnv_dict
+                    gistic_cnv_dict[cbio_sample] = ss_gistic_cnv_dict
+                    ploidy_dict[cbio_sample] = ploidy
+                    print(*out_seg_list, sep="\n", file=out_seg_io)
+            except KeyboardInterrupt:
+                print("Keyboard interrupt, exiting", file=sys.stderr)
+                executor.shutdown(wait=False, cancel_futures=True)
+                cleanup(remove_all=True)
+                out_seg_io.close()
+                sys.exit(1)
+            except TimeoutError:
+                print("Timeout occurred during shutdown.", file=sys.stderr)
         out_seg_io.close()
         # Print raw and GISTIC results to wide format
         print(f"Writing {project} raw CNV data to wide format", file=sys.stderr)
