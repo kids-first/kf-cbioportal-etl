@@ -1,30 +1,32 @@
 def get_file_metadata(table: str, ftype:str) -> dict[str, dict[str, dict[str, str]]]:
     """Convert table into dict for downsteam ETL use.
 
-    Subsets table by ftypr (File_Type) column, then returns dict.
-    Cbio_project is primary key,  Cbio_Tumor_Name is secondary key.
+    Subsets table by ftype (etl_file_type) column, then returns dict.
+    cbio_project is primary key,  cbio_sample_name is secondary key.
     Tertiary keys are other attributes with string as values.
     """
     tbl_fh = open(table)
     head = next(tbl_fh)
     header = head.rstrip("\n").split("\t")
-    cp_idx = header.index("Cbio_project")
-    ft_idx = header.index("File_Type")
-    fn_idx = header.index("File_Name")
-    ct_idx = header.index("Cbio_Tumor_Name")
-    cn_idx = header.index("Cbio_Matched_Normal_Name")
-    kt_idx = header.index("T_CL_BS_ID")
-    kn_idx = header.index("Norm_BS_ID")
+    project_idx = header.index("cbio_project")
+    etl_ft_idx = header.index("etl_file_type")
+    manifest_ft_idx = header.index("file_type")
+    fname_idx = header.index("file_name")
+    cbio_sample_idx = header.index("cbio_sample_name")
+    cbio_normal_idx = header.index("cbio_matched_normal_name")
+    kf_affected_idx = header.index("affected_bs_id")
+    kf_reference_idx = header.index("reference_bs_id")
     meta_dict = {}
     for line in tbl_fh:
         info = line.rstrip("\n").split("\t")
-        if info[ft_idx] == ftype:
-            project = info[cp_idx]
-            fname = info[fn_idx]
-            cbio_tum_samp = info[ct_idx]
-            cbio_norm_samp = info[cn_idx]
-            kf_tum_samp = info[kt_idx]
-            kf_norm_samp = info[kn_idx]
+        if info[etl_ft_idx] == ftype:
+            project = info[project_idx]
+            fname = info[fname_idx]
+            cbio_tum_samp = info[cbio_sample_idx]
+            cbio_norm_samp = info[cbio_normal_idx]
+            kf_tum_samp = info[kf_affected_idx]
+            kf_norm_samp = info[kf_reference_idx]
+            manifest_ftype = info[manifest_ft_idx]
             if project not in meta_dict:
                 meta_dict[project] = {}
             meta_dict[project][cbio_tum_samp] = {}
@@ -32,5 +34,6 @@ def get_file_metadata(table: str, ftype:str) -> dict[str, dict[str, dict[str, st
             meta_dict[project][cbio_tum_samp]["cbio_norm_id"] = cbio_norm_samp
             meta_dict[project][cbio_tum_samp]["kf_tum_id"] = kf_tum_samp
             meta_dict[project][cbio_tum_samp]["kf_norm_id"] = kf_norm_samp
+            meta_dict[project][cbio_tum_samp]["manifest_ftype"] = manifest_ftype
     tbl_fh.close()
     return meta_dict

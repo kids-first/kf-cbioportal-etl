@@ -612,7 +612,7 @@ def run_py(args):
                     select_id=update_only_ids,
                     update_list=etl_data,
                     header=etl_header,
-                    id_field="Cbio_Tumor_Name",
+                    id_field="cbio_sample_name",
                     outfile_name=f"{args.study}_add_data/cbio_file_name_id.txt",
                 )
 

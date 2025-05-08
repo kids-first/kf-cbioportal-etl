@@ -174,12 +174,12 @@ def init_cbio_master(
         # Merge so that sample names can be cBio names - thanks Natasha!
         merged: pd.DataFrame = pd.merge(
             openx_data,
-            rna_metadata[["T_CL_BS_ID", "Cbio_Tumor_Name"]],
+            rna_metadata[["affected_bs_id", "cbio_sample_name"]],
             left_on="Sample",
-            right_on="T_CL_BS_ID",
+            right_on="affected_bs_id",
             how="left",
         )
-        merged["Sample"] = merged.apply(lambda row: row["Cbio_Tumor_Name"], axis=1)
+        merged["Sample"] = merged.apply(lambda row: row["cbio_sample_name"], axis=1)
         # openPBTA...and maybe open pedcan uses this
         if "CalledBy" in merged.columns:
             merged.rename(columns={"CalledBy": "Caller"}, inplace=True)
@@ -195,7 +195,7 @@ def init_cbio_master(
             openx_data = collapse_and_format(openx_data)
         return openx_data, present
     else:
-        flist: pd.Series[str] = rna_metadata.File_Name
+        flist: pd.Series[str] = rna_metadata.file_name
         frame_list = []
         try:
             for i in range(0, len(flist), 1):
@@ -203,7 +203,7 @@ def init_cbio_master(
                 ann_file: pd.DataFrame = pd.read_csv(
                     f"{fusion_results}/{flist[i]}", sep="\t", keep_default_na=False, na_values=[""]
                 )
-                ann_file = ann_file.assign(Sample=rna_metadata.at[i, "Cbio_Tumor_Name"])
+                ann_file = ann_file.assign(Sample=rna_metadata.at[i, "cbio_sample_name"])
                 frame_list.append(ann_file)
         except Exception as e:
             print(f"{e}", file=sys.stderr)
@@ -278,15 +278,15 @@ def main():
     elif args.mode == "dgd":
         r_ext = "DGD_FUSION"
     # ensure sample name is imported as str
-    all_file_meta: pd.DataFrame = pd.read_csv(args.table, sep="\t", dtype={"Cbio_Tumor_Name": str})
+    all_file_meta: pd.DataFrame = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
     # ext used in pbta vs openpedcan varies
-    rna_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
+    rna_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["etl_file_type"] == r_ext]
     if rna_subset is None:
         r_ext = "rsem"
-        rna_subset = all_file_meta.loc[all_file_meta["File_Type"] == r_ext]
+        rna_subset = all_file_meta.loc[all_file_meta["etl_file_type"] == r_ext]
     # reset index so that references work later while iterating
     rna_subset = rna_subset.reset_index(drop=True)
-    project_list: np.ndarray = rna_subset.Cbio_project.unique()
+    project_list: np.ndarray = rna_subset.cbio_project.unique()
     cbio_master, present_cols = init_cbio_master(args.fusion_results, args.mode, rna_subset)
 
     # Get relevant columns
@@ -379,7 +379,7 @@ def main():
     cbio_master = cbio_master[present_order]
     for project in project_list:
         sub_sample_list = list(
-            rna_subset.loc[rna_subset["Cbio_project"] == project, "Cbio_Tumor_Name"]
+            rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
         fus_fname = out_dir + project + ".fusions.txt"
         fus_tbl: pd.DataFrame = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]

@@ -25,7 +25,10 @@ def log_cmd(cmd):
 
 def check_status(status, data_type, run_status):
     if status:
-        print(f"Something when wrong while processing the {data_type} shutting down other running procs", file=sys.stderr)
+        print(
+            f"Something went wrong while processing the {data_type} shutting down other running procs",
+            file=sys.stderr,
+        )
         for key in run_status:
             if run_status[key] is None:
                 run_status[key].kill()
@@ -98,67 +101,25 @@ def process_append_dgd_maf(
 
 
 def process_cnv(
-    cnv_loc_dict: dict[str, str],
     data_config_file: str,
     cbio_id_table: str,
     script_dir: str,
     run_status: dict[str, subprocess.Popen],
 ) -> None:
-    """Add gene info to CNV calls, merge into table, and create GISTIC-style output.
+    """Convert CNV data to wide format tables for RAW copy number and GISTIC-stlye, and output SEG CNV formats.
 
     Args:
-        cnv_loc_dict: Config dict entry with dbt file_type names and file header location
         cbio_id_table: Path of ETL table with IDs and file locations
         data_config_file: Path of file with ETL reference locations
         script_dir: path of dir containing ETL processing scripts
         run_status: Dict to track subprocess call statuses
 
     """
-    sys.stderr.write("Processing CNV calls\n")
-    cnv_dir: str = cnv_loc_dict["pval"]
-    gene_annot_cmd = f"python3 {os.path.join(script_dir, 'cnv_1_genome2gene.py')} -d {cnv_dir} -j {data_config_file} 2> cnv_gene_annot.log"
-    log_cmd(gene_annot_cmd)
-    run_status["convert_to_gene"] = subprocess.Popen(gene_annot_cmd, shell=True)
+    print("Processing CNV calls", file=sys.stderr)
+    process_cnv_cmd = f"python3 {os.path.join(script_dir, 'process_cnv_data.py')} -t {cbio_id_table} -j {data_config_file} 2> cnv_processing.log"
+    log_cmd(process_cnv_cmd)
+    run_status["convert_to_gene"] = subprocess.Popen(process_cnv_cmd, shell=True)
     run_status["convert_to_gene"].wait()
-    info_dir: str = cnv_loc_dict["info"]
-    merge_gene_cmd = f"python3 {os.path.join(script_dir, 'cnv_2_merge.py')} -t {cbio_id_table} -n converted_cnvs -j {data_config_file}"
-    if info_dir != "":
-        merge_gene_cmd += f" -i {info_dir}"
-    merge_gene_cmd += " 2> merge_cnv_gene.log"
-    log_cmd(merge_gene_cmd)
-    run_status["cnv_merge_gene"] = subprocess.Popen(merge_gene_cmd, shell=True)
-    run_status["cnv_merge_gene"].wait()
-    gistic_style_cmd = f"python3 {os.path.join(script_dir, 'cnv_3_gistic_style.py')} -d merged_cnvs -j {data_config_file} -t {cbio_id_table}"
-    if info_dir != "":
-        gistic_style_cmd += f" -i {info_dir}"
-    gistic_style_cmd += " 2> merge_cnv_gistic.log"
-    log_cmd(gistic_style_cmd)
-    run_status["gistic"] = subprocess.Popen(gistic_style_cmd, shell=True)
-
-    if "seg" in cnv_loc_dict:
-        run_status["seg"] = process_seg(cnv_loc_dict, cbio_id_table, data_config_file, script_dir)
-
-
-def process_seg(
-    cnv_loc_dict: dict[str, str], cbio_id_table: str, data_config_file: str, script_dir: str
-) -> subprocess.Popen:
-    """Collate and process CNV seg files.
-
-    Args:
-        cnv_loc_dict: Config dict entry with dbt file_type names and file header location
-        cbio_id_table: Path of ETL table with IDs and file locations
-        data_config_file: Path of file with ETL reference locations
-        script_dir: path of dir containing ETL processing scripts
-
-    Returns:
-        subprocess of process seg
-
-    """
-    sys.stderr.write("Processing CNV seg calls\n")
-    seg_dir = cnv_loc_dict["seg"]
-    merge_seg_cmd = f"python3 {os.path.join(script_dir, 'cnv_merge_seg.py')} -t {cbio_id_table} -m {seg_dir} -j {data_config_file} 2> cnv_merge_seg.log"
-    log_cmd(merge_seg_cmd)
-    return subprocess.Popen(merge_seg_cmd, shell=True)
 
 
 def process_rsem(
@@ -242,16 +203,14 @@ def run_py(args):
             fusion_file = config_data["file_loc_defs"]["dgd_fusion"]
             fusion_url = config_data["file_loc_defs"]["dgd_fusion_url"]
         except KeyError as e:
-            raise KeyError(f"Missing required config key: {e}. Please ensure 'dgd_fusion' and 'dgd_fusion_url' are defined in file_loc_defs.")
+            raise KeyError(
+                f"Missing required config key: {e}. Please ensure 'dgd_fusion' and 'dgd_fusion_url' are defined in file_loc_defs."
+            )
 
         if not os.path.exists(fusion_file):
             sys.stderr.write(f"{fusion_file} not found. Downloading from {fusion_url}...\n")
             try:
-                subprocess.run(
-                    f"curl -sSL -o {fusion_file} {fusion_url}",
-                    shell=True,
-                    check=True
-                )
+                subprocess.run(f"curl -sSL -o {fusion_file} {fusion_url}", shell=True, check=True)
                 sys.stderr.write(f"Downloaded {fusion_file} successfully.\n")
             except subprocess.CalledProcessError as e:
                 sys.stderr.write(f"Failed to download {fusion_file}: {e}\n")
@@ -301,11 +260,10 @@ def run_py(args):
             elif data_type == "cnvs":
                 run_queue["cnvs"] = partial(
                     process_cnv,
-                    config_data["file_loc_defs"]["cnvs"],
-                    args.study_config,
-                    args.manifest,
-                    script_dir,
-                    run_status,
+                    data_config_file=args.study_config,
+                    cbio_id_table=args.manifest,
+                    script_dir=script_dir,
+                    run_status=run_status,
                 )
 
     for job in run_priority:

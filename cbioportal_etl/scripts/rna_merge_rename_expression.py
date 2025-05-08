@@ -24,7 +24,7 @@ def mt_collate_df(rsem_file: str) -> int:
         rsem_file: File name of current RSEM file to process
     """
     try:
-        sample: str = rna_subset.loc[rna_subset["File_Name"] == rsem_file, "Cbio_Tumor_Name"].iloc[
+        sample: str = rna_subset.loc[rna_subset["file_name"] == rsem_file, "cbio_sample_name"].iloc[
             0
         ]
         if sample not in seen_dict:
@@ -66,9 +66,9 @@ if __name__ == "__main__":
 
     # Use cbio table to create master table to choose representative gene symbol, calc z scores, output both
     # ensure sample name is imported as str
-    all_file_meta: pd.DataFrame = pd.read_csv(args.table, sep="\t", dtype={"Cbio_Tumor_Name": str})
-    rna_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["File_Type"] == "rsem"]
-    rsem_list: list[str] = rna_subset["File_Name"].to_list()
+    all_file_meta: pd.DataFrame = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
+    rna_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["etl_file_type"] == "rsem"]
+    rsem_list: list[str] = rna_subset["file_name"].to_list()
     print("Creating merged rsem table", file=sys.stderr)
     x: int = 1
     m: int = 50
@@ -115,13 +115,13 @@ if __name__ == "__main__":
         master_tbl.drop(to_dump, inplace=True)
     master_tbl.set_index("Hugo_Symbol", inplace=True)
     gene_sym_list = master_tbl.index
-    project_list = rna_subset.Cbio_project.unique()
+    project_list = rna_subset.cbio_project.unique()
 
     print("Outputting FPKM expression results", file=sys.stderr)
     sys.stderr.flush()
     for project in project_list:
         sub_sample_list = list(
-            rna_subset.loc[rna_subset["Cbio_project"] == project, "Cbio_Tumor_Name"]
+            rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
         expr_fname = f"{out_dir}{project}.rsem_merged.txt"
         master_tbl[sub_sample_list].to_csv(expr_fname, sep="\t", mode="w", index=True)
@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
     for project in project_list:
         sub_sample_list = list(
-            rna_subset.loc[rna_subset["Cbio_project"] == project, "Cbio_Tumor_Name"]
+            rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
         zscore_fname = f"{out_dir}{project}.rsem_merged_zscore.txt"
         master_zscore_log[sub_sample_list].to_csv(
