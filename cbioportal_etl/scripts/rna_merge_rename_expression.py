@@ -185,9 +185,10 @@ if __name__ == "__main__":
                     healthy_ref = healthy_files[ref_key]
                     healthy_mu = healthy_ref.mean(axis=1)
                     healthy_sigma = healthy_ref.std(axis=1)
-
-                    group_tbl_log = np.log2(group_tbl + 1)
-                    z_vs_healthy = group_tbl_log.sub(healthy_mu, axis=0).div(healthy_sigma, axis=0)
+                    # keep only genes present in tumor samples
+                    common_genes = group_tbl.index.intersection(healthy_mu.index)
+                    group_tbl_log = np.log2(group_tbl.loc[common_genes] + 1)
+                    z_vs_healthy = group_tbl_log.sub(healthy_mu.loc[common_genes], axis=0).div(healthy_sigma.loc[common_genes], axis=0)
                     group_zscores_vs_healthy.append(z_vs_healthy)
                 else:
                     print(f"No matching healthy reference for library type {library_type}, calculating intra-cohort z-score", file=sys.stderr)
