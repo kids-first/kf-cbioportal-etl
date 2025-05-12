@@ -4,7 +4,7 @@
 Converts to wide-format
 Replace BS ID with cBio ID
 Repeat gene names merge to take highest mean expression
-Final result also z scored across cohort as log2(FPKM + 1)
+Final result also z scored across cohort as log2(FPKM + 1) or as log2(TPM + 1)
 """
 
 import argparse
@@ -18,7 +18,7 @@ from scipy import stats
 
 
 def mt_collate_df(rsem_file: str) -> int:
-    """Concat desired FPKM data into data frame.
+    """Concat desired FPKM/TPM data into data frame.
 
     Args:
         rsem_file: File name of current RSEM file to process
@@ -29,8 +29,8 @@ def mt_collate_df(rsem_file: str) -> int:
         ]
         if sample not in seen_dict:
             current: pd.DataFrame = pd.read_csv(rsem_dir + rsem_file, sep="\t", index_col=0)
-            cur_subset = current[["FPKM"]]
-            cur_subset.rename(columns={"FPKM": sample}, inplace=True)
+            cur_subset = current[[args.expression_type]].copy()
+            cur_subset.rename(columns={args.expression_type: sample}, inplace=True)
             df_list.append(cur_subset)
             seen_dict[sample] = 1
         else:
@@ -52,6 +52,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-r", "--rsem-dir", action="store", dest="rsem_dir", help="rsem file directory"
+    )
+    parser.add_argument(
+        "-ds", "--data-sample", action="store", dest="data_sample", default="datasheets/data_clinical_sample.txt", help="data_clinical_sample.txt file"
+    )
+    parser.add_argument(
+        "-et", "--expression-type", action="store", dest="expression_type", choices=["TPM", "FPKM"], default="FPKM", help="Which expression value to use: TPM or FPKM. Default is FPKM."
     )
     args = parser.parse_args()
 
@@ -117,23 +123,106 @@ if __name__ == "__main__":
     gene_sym_list = master_tbl.index
     project_list = rna_subset.cbio_project.unique()
 
-    print("Outputting FPKM expression results", file=sys.stderr)
+    print(f"Outputting {args.expression_type} expression results", file=sys.stderr)
     sys.stderr.flush()
     for project in project_list:
         sub_sample_list = list(
             rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
-        expr_fname = f"{out_dir}{project}.rsem_merged.txt"
+        expr_fname = f"{out_dir}{project}.rsem_merged.{args.expression_type}.txt"
         master_tbl[sub_sample_list].to_csv(expr_fname, sep="\t", mode="w", index=True)
 
     print("Calculating z scores", file=sys.stderr)
     sys.stderr.flush()
 
-    z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis=1)
-    del master_tbl
-    master_zscore_log: pd.DataFrame = pd.DataFrame(
-        z_scored, index=gene_sym_list, columns=sample_list
-    )
+    clinical_df = pd.read_csv(args.data_sample, sep="\t", comment="#")
+    if "RNA_LIBRARY_SELECTION" in clinical_df.columns:
+        print("Detected RNA_LIBRARY_SELECTION column, calculating group-specific z-scores", file=sys.stderr)
+        clinical_df = clinical_df[["SAMPLE_ID", "RNA_LIBRARY_SELECTION"]].drop_duplicates()
+        rna_subset = rna_subset.merge(clinical_df, left_on="cbio_sample_name", right_on="SAMPLE_ID", how="left")
+
+        healthy_ref_dir = "/home/ubuntu/tools/kf-cbioportal-etl/cbioportal_etl/REFS"
+        healthy_files = {
+            "polyA_FPKM": pd.read_csv(f"{healthy_ref_dir}/healthy_polyA_log_FPKM.tsv", sep="\t", index_col=0),
+            "polyA_TPM": pd.read_csv(f"{healthy_ref_dir}/healthy_polyA_log_TPM.tsv", sep="\t", index_col=0),
+            "totalRNA_FPKM": pd.read_csv(f"{healthy_ref_dir}/healthy_totalRNA_log_FPKM.tsv", sep="\t", index_col=0),
+            "totalRNA_TPM": pd.read_csv(f"{healthy_ref_dir}/healthy_totalRNA_log_TPM.tsv", sep="\t", index_col=0),
+        }
+
+        group_zscores = []
+        group_zscores_vs_healthy = []
+
+        for library_type in rna_subset.RNA_LIBRARY_SELECTION.unique():
+            print(f"Calculating z-scores for RNA library type: {library_type}", file=sys.stderr)
+            if pd.isna(library_type):
+                group_samples = rna_subset[rna_subset["RNA_LIBRARY_SELECTION"].isna()]["cbio_sample_name"].tolist()
+            else:
+                group_samples = rna_subset[rna_subset["RNA_LIBRARY_SELECTION"] == library_type]["cbio_sample_name"].tolist()
+
+            if not group_samples:
+                continue
+
+            group_tbl = master_tbl[group_samples]
+
+            # Intra-cohort z-score
+            group_z = stats.zscore(np.log2(np.array(group_tbl + 1)), axis=1)
+            group_z_df = pd.DataFrame(group_z, index=master_tbl.index, columns=group_samples)
+            group_zscores.append(group_z_df)
+
+            # Tumor vs healthy z-score
+            lib_key = str(library_type).strip().lower()
+            if lib_key == "rrna depletion":
+                match_type = "totalRNA"
+            elif lib_key in ["poly-t enrichment", "hybrid selection"]:
+                match_type = "polyA"
+            else:
+                match_type = None
+        
+            # Construct key based on expression type
+            if match_type:
+                ref_key = f"{match_type}_{args.expression_type}"
+                if ref_key in healthy_files:
+                    healthy_ref = healthy_files[ref_key]
+                    healthy_mu = healthy_ref.mean(axis=1)
+                    healthy_sigma = healthy_ref.std(axis=1)
+
+                    group_tbl_log = np.log2(group_tbl + 1)
+                    z_vs_healthy = group_tbl_log.sub(healthy_mu, axis=0).div(healthy_sigma, axis=0)
+                    group_zscores_vs_healthy.append(z_vs_healthy)
+                else:
+                    print(f"No matching healthy reference for library type {library_type}, calculating intra-cohort z-score", file=sys.stderr)
+                    z_fallback = stats.zscore(np.log2(np.array(group_tbl + 1)), axis=1)
+                    group_zscores_vs_healthy.append(pd.DataFrame(z_fallback, index=master_tbl.index, columns=group_samples))
+            else:
+                print(f"No library type '{library_type}', calculating intra-cohort z-score", file=sys.stderr)
+                z_fallback = stats.zscore(np.log2(np.array(group_tbl + 1)), axis=1)
+                group_zscores_vs_healthy.append(pd.DataFrame(z_fallback, index=master_tbl.index, columns=group_samples))
+
+        # concat the intra-cohort zscores
+        master_zscore_log = pd.concat(group_zscores, axis=1)
+        master_zscore_log.fillna(0, inplace=True)
+        # concat the tumor vs healthy zscores and output it
+        master_zscore_vs_healthy = pd.concat(group_zscores_vs_healthy, axis=1)
+        master_zscore_vs_healthy.fillna(0, inplace=True)
+        for project in project_list:
+            sub_sample_list = list(
+                rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
+            )
+            zscore_healthy_fname = f"{out_dir}{project}.rsem_merged_vs_healthy_zscore.txt"
+            master_zscore_vs_healthy[sub_sample_list].to_csv(
+                zscore_healthy_fname,
+                sep="\t",
+                mode="w",
+                index=True,
+                float_format="%.4f",
+            )
+    else: 
+        print("No RNA_LIBRARY_SELECTION column found, using full cohort for z-score calculation", file=sys.stderr)
+        z_scored = stats.zscore(np.log2(np.array(master_tbl + 1)), axis=1)
+        del master_tbl
+        master_zscore_log: pd.DataFrame = pd.DataFrame(
+            z_scored, index=gene_sym_list, columns=sample_list
+        )
     # this may be memory-intensive for some insane reason...
     print("Replacing NaN with 0", file=sys.stderr)
     sys.stderr.flush()
@@ -145,7 +234,7 @@ if __name__ == "__main__":
         sub_sample_list = list(
             rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
-        zscore_fname = f"{out_dir}{project}.rsem_merged_zscore.txt"
+        zscore_fname = f"{out_dir}{project}.rsem_merged_tumor_only_zscore.txt"
         master_zscore_log[sub_sample_list].to_csv(
             zscore_fname,
             sep="\t",
