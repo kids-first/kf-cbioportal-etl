@@ -123,7 +123,7 @@ def process_cnv(
 
 
 def process_rsem(
-    rsem_dir: str, cbio_id_table: str, script_dir: str, run_status: dict[str, subprocess.Popen]
+    rsem_dir: str, cbio_id_table: str, script_dir: str, run_status: dict[str, subprocess.Popen], data_sample: str, expression_type: str, study_config: str
 ) -> None:
     """Merge rsem results by FPKM, calculate z-scores.
 
@@ -132,10 +132,13 @@ def process_rsem(
         cbio_id_table: Path of ETL table with IDs and file locations
         script_dir: path of dir containing ETL processing scripts
         run_status: Dict to track subprocess call statuses
+        data_sample: path to data_clinical_sample.txt file
+        expression_type: TPM or FPKM for calculating zscores
+        study_config: path to cbio study config json
 
     """
     print("Processing RNA expression data", file=sys.stderr)
-    merge_rsem_cmd = f"python3 {os.path.join(script_dir, 'rna_merge_rename_expression.py')} -t {cbio_id_table} -r {rsem_dir} 2> rna_merge_rename_expression.log"
+    merge_rsem_cmd = f"python3 {os.path.join(script_dir, 'rna_merge_rename_expression.py')} -t {cbio_id_table} -r {rsem_dir} -ds {data_sample} -et {expression_type} -sc {study_config} 2> rna_merge_rename_expression.log"
     log_cmd(merge_rsem_cmd)
     run_status["rsem_merge"] = subprocess.Popen(merge_rsem_cmd, shell=True)
 
@@ -244,6 +247,9 @@ def run_py(args):
                     args.manifest,
                     script_dir,
                     run_status,
+                    args.data_sample,
+                    args.expression_type,
+                    args.study_config
                 )
             elif data_type == "fusion":
                 # Status both works for...both, only when one is specifically picked should one not be run
@@ -349,7 +355,11 @@ def main():
         help="Download file manifest with cbio project, kf bs ids, cbio IDs, and file names",
     )
     parser.add_argument(
-        "-sc", "--study-config", action="store", dest="study_config", help="cbio study config file"
+        "-sc", 
+        "--study-config", 
+        action="store", 
+        dest="study_config", 
+        help="cbio study config file"
     )
     parser.add_argument(
         "-dgd",
@@ -369,6 +379,24 @@ def main():
         dest="add_data",
         help="Flag to skip validation when running for add_data directory",
     )
+    parser.add_argument(
+        "-ds", 
+        "--data-sample", 
+        action="store", 
+        dest="data_sample", 
+        default="datasheets/data_clinical_sample.txt", 
+        help="data_clinical_sample.txt file"
+    )
+    parser.add_argument(
+        "-et", 
+        "--expression-type", 
+        action="store", 
+        dest="expression_type", 
+        choices=["TPM", "FPKM"], 
+        default="FPKM", 
+        help="Which expression value to use: TPM or FPKM. Default is FPKM."
+    )
+
 
     args = parser.parse_args()
     run_py(args)

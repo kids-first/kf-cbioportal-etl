@@ -105,6 +105,23 @@ def main():
         dest="add_data",
         help="Flag to indicate add_data mode (automatically set when applicable)",
     )
+    parser.add_argument(
+        "-ds", 
+        "--data-sample", 
+        action="store", 
+        dest="data_sample", 
+        default="datasheets/data_clinical_sample.txt",
+        help="data_clinical_sample.txt file"
+    )
+    parser.add_argument(
+        "-et", 
+        "--expression-type", 
+        action="store", 
+        dest="expression_type", 
+        choices=["TPM", "FPKM"], 
+        default="FPKM", 
+        help="Which expression value to use: TPM or FPKM. Default is FPKM."
+    )
 
     # Arguments exclusive to update (step 3 - diff_studies.py)
     update_args = argparse.ArgumentParser(add_help=False)
