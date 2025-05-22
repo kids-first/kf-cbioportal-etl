@@ -20,7 +20,14 @@ from scipy import stats
 
 
 def load_rsem_file(rsem_file: str, sample: str, rsem_dir: str, expr_type: str) -> pd.DataFrame:
-    """Reads and formats a single RSEM file."""
+    """Reads and formats a single RSEM file.
+    
+    Args: 
+        rsem_file: Filename of RSEM (example: 'sample.rsem.genes.results.gz')
+        sample: Sample ID
+        rsem_dir: Directory where RSEM files are located
+        expr_type: Type of expression value to extract (TPM or FPKM)
+    """
     try:
         current = pd.read_csv(os.path.join(rsem_dir, rsem_file), sep="\t", index_col=0)
         subset = current[[expr_type]].copy()
