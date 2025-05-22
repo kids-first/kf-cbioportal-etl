@@ -135,6 +135,7 @@ def process_rsem(
         data_sample: path to data_clinical_sample.txt file
         expression_type: TPM or FPKM for calculating zscores
         study_config: path to cbio study config json
+        default_match_type: match type for samples with unknown RNA library type for z-score calculations (polyA, totalRNA, or none)
 
     """
     print("Processing RNA expression data", file=sys.stderr)
