@@ -55,6 +55,21 @@ def process_meta_data(meta_data: dict, output_dir: str, canc_study_id: str) -> N
         for dtype in meta_data["dtypes"]:
             # pointer for easier readability and dict key traciing
             cur_data: dict = meta_data["dtypes"][dtype]
+
+            # Check which expression file (FPKM or TPM) exists
+            if dtype.startswith("counts_"):
+                data_path = os.path.join(meta_data["dir"], f"{canc_study_id}.{cur_data['ext']}")
+                if not os.path.exists(data_path):
+                    print(f"Skipping {dtype} - {data_path} not found", file=sys.stderr)
+                    continue
+
+            # Skip healthy z-score if file does not exist
+            if dtype.startswith("zscore_"):
+                data_path = os.path.join(meta_data["dir"], f"{canc_study_id}.{cur_data['ext']}")
+                if not os.path.exists(data_path):
+                    print(f"Skipping {dtype} - {data_path} not found", file=sys.stderr)
+                    continue
+
             cbio_name: str = cur_data["cbio_name"]
             parts: list[str] = cbio_name.split("_")
             attr_dict: dict = cur_data["meta_file_attr"]
@@ -195,9 +210,13 @@ def create_case_lists(data_dict: dict[str, int], output_dir: str):
 
         if data_dict["merged_rsem"]:
             # Get samples from merged rsem file - is a simple gene by sample table
-            rna_fname: str = (
-                f"{output_dir}{config_data['merged_rsem']['dtypes']['counts']['cbio_name']}"
-            )
+            rsem_dtypes = config_data["merged_rsem"]["dtypes"]
+            counts_key = next((k for k in rsem_dtypes if k.startswith("counts_")), None)
+            if counts_key:
+                rna_fname = f"{output_dir}{rsem_dtypes[counts_key]['cbio_name']}"
+            else:
+                print("No counts_fpkm or counts_tpm found in merged_rsem", file=sys.stderr)
+                sys.exit(1)
             with open(rna_fname) as rna_file:
                 head: str = next(rna_file)
                 rna_list: list[str] = head.rstrip("\n").split("\t")[1:]
