@@ -71,6 +71,15 @@ if __name__ == "__main__":
         dest="study_config", 
         help="cbio study config file."
     )
+    parser.add_argument(
+        "-dmt", 
+        "--default-match-type", 
+        action="store", 
+        dest="default_match_type", 
+        choices=["polyA", "totalRNA", "none"], 
+        default="none", 
+        help="Default match type for samples with unknown RNA library type for z-score calculations. Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score."
+    )    
     args = parser.parse_args()
 
     rsem_dir = args.rsem_dir.rstrip("/")
@@ -123,17 +132,24 @@ if __name__ == "__main__":
     if "RNA_LIBRARY_SELECTION" in clinical_df.columns:
         clinical_df = clinical_df[["SAMPLE_ID", "RNA_LIBRARY_SELECTION"]].drop_duplicates()
         rna_subset = rna_subset.merge(clinical_df, left_on="cbio_sample_name", right_on="SAMPLE_ID", how="left")
-
         # load healthy references
         TOOL_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
         with open(args.study_config) as f:
             config_data: dict = json.load(f)
         config_data = resolve_config_paths(config_data, TOOL_DIR)
-        healthy_files = {
-            key: pd.read_csv(path, sep="\t", index_col=0)
-            for key, path in config_data["rsem_ref"]["dtypes"].items()
-        }
+        healthy_files = {}
+        for key, path in config_data["rsem_ref"]["dtypes"].items():
+            if key.endswith(f"_{args.expression_type}"):
+                df = pd.read_csv(path, sep="\t", index_col=0)
+                # convert genes to Hugo symbols
+                df["Hugo_Symbol"] = df.index.str.split("_", n=1).str[1]
+                # keep the most highly expressed entry per Hugo symbol 
+                df["mean_expr"] = df.drop(columns="Hugo_Symbol").mean(axis=1)
+                df = df.sort_values("mean_expr", ascending=False).drop_duplicates("Hugo_Symbol", keep="first")
+                df.set_index("Hugo_Symbol", inplace=True)
+                df.drop(columns="mean_expr", inplace=True)
+                healthy_files[key] = df
 
         zscore_intracohort = []
         zscore_vs_healthy = []
@@ -146,24 +162,28 @@ if __name__ == "__main__":
                 print(f"Processing samples with RNA_LIBRARY_SELECTION {library_type}", file=sys.stderr)
                 group_df = rna_subset[rna_subset["RNA_LIBRARY_SELECTION"] == library_type]
 
-            group_samples = group_df["cbio_sample_name"].tolist()
+            group_samples = group_df["cbio_sample_name"].drop_duplicates().tolist()
             if not group_samples:
                 continue
 
-            group_tbl = log_master_tbl[group_samples]
+            group_tbl = log_master_tbl[group_samples].copy()
 
             # Intra-cohort z-score
+            print(f"Calculating intra-cohort z-score for {library_type}")
             zscore_vals = stats.zscore(group_tbl, axis=1, nan_policy='omit')
             intracohort_df = pd.DataFrame(zscore_vals, index=group_tbl.index, columns=group_tbl.columns).fillna(0)
             zscore_intracohort.append(intracohort_df)
 
             # Tumor vs healthy reference z-score (only if match_type available)
+            print(f"Calculating tumor vs normal z-score for {library_type}")
             library_key = str(library_type).strip().lower() if not pd.isna(library_type) else None
             match_type = (
                 "totalRNA" if library_key == "rrna depletion"
                 else "polyA" if library_key in {"poly-t enrichment", "hybrid selection"}
+                else args.default_match_type if args.default_match_type != "none"
                 else None
             )
+            print(f"  ➤ Match type being used: {match_type}", file=sys.stderr)
             ref_key = f"{match_type}_{args.expression_type}" if match_type else None
 
             if ref_key and ref_key in healthy_files:
@@ -173,6 +193,9 @@ if __name__ == "__main__":
                 sigma = healthy_ref.loc[common_genes].std(axis=1)
                 zscore_df = group_tbl.loc[common_genes].sub(mu, axis=0).div(sigma, axis=0).fillna(0)
                 zscore_vs_healthy.append(zscore_df)
+            else:
+                print(f"No healthy reference available for {library_type} library type, using intra-cohort z-score instead", file=sys.stderr)
+                zscore_vs_healthy.append(intracohort_df[group_tbl.columns])
 
         master_zscore_vs_healthy = pd.concat(zscore_vs_healthy, axis=1).fillna(0).astype(np.float32)
         master_zscore_intracohort = pd.concat(zscore_intracohort, axis=1).fillna(0).astype(np.float32)

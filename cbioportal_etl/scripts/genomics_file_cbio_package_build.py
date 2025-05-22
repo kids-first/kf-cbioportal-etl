@@ -123,7 +123,7 @@ def process_cnv(
 
 
 def process_rsem(
-    rsem_dir: str, cbio_id_table: str, script_dir: str, run_status: dict[str, subprocess.Popen], data_sample: str, expression_type: str, study_config: str
+    rsem_dir: str, cbio_id_table: str, script_dir: str, run_status: dict[str, subprocess.Popen], data_sample: str, expression_type: str, study_config: str, default_match_type: str
 ) -> None:
     """Merge rsem results by FPKM, calculate z-scores.
 
@@ -138,7 +138,7 @@ def process_rsem(
 
     """
     print("Processing RNA expression data", file=sys.stderr)
-    merge_rsem_cmd = f"python3 {os.path.join(script_dir, 'rna_merge_rename_expression.py')} -t {cbio_id_table} -r {rsem_dir} -ds {data_sample} -et {expression_type} -sc {study_config} 2> rna_merge_rename_expression.log"
+    merge_rsem_cmd = f"python3 {os.path.join(script_dir, 'rna_merge_rename_expression.py')} -t {cbio_id_table} -r {rsem_dir} -ds {data_sample} -et {expression_type} -sc {study_config} -dmt {default_match_type} 2> rna_merge_rename_expression.log"
     log_cmd(merge_rsem_cmd)
     run_status["rsem_merge"] = subprocess.Popen(merge_rsem_cmd, shell=True)
 
@@ -249,7 +249,8 @@ def run_py(args):
                     run_status,
                     args.data_sample,
                     args.expression_type,
-                    args.study_config
+                    args.study_config,
+                    args.default_match_type
                 )
             elif data_type == "fusion":
                 # Status both works for...both, only when one is specifically picked should one not be run
@@ -380,7 +381,7 @@ def main():
         help="Flag to skip validation when running for add_data directory",
     )
     parser.add_argument(
-        "-ds", 
+        "-dcs", 
         "--data-sample", 
         action="store", 
         dest="data_sample", 
@@ -396,6 +397,15 @@ def main():
         default="FPKM", 
         help="Which expression value to use: TPM or FPKM. Default is FPKM."
     )
+    parser.add_argument(
+        "-dmt", 
+        "--default-match-type", 
+        action="store", 
+        dest="default_match_type", 
+        choices=["polyA", "totalRNA", "none"], 
+        default="none", 
+        help="Default match type for samples with unknown RNA library type for z-score calculations. Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score."
+    )    
 
 
     args = parser.parse_args()
