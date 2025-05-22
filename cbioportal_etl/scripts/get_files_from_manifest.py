@@ -155,7 +155,7 @@ def mt_type_download(
             download_sbg(file_type, selected, aws_tbl, api, overwrite, err_types)
     else:
         print(
-            "WARNING: No files of type {file_type} in which file_id and s3_path is not NA. Skipping!",
+            f"WARNING: No files of type {file_type} in which file_id and s3_path is not NA. Skipping!",
             file=sys.stderr,
         )
     sys.stderr.flush()
