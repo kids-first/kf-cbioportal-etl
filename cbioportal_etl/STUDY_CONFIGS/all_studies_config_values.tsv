@@ -11,6 +11,9 @@ static	cases_all		case_list_category	all_cases_in_study
 static	cases_all		stable_id	all
 static	cbioportal_validator			external_scripts/cbioportal-5.4.10/core/src/main/scripts/importer/validateData.py
 static	cnv_high_gain			4
+static	cnv_priority		WGS	["ctrlfreec_pval", "ctrlfreec_bam_seg", "theta2_calls", "theta2_seg", "cnvkit_calls", "cnvkit_seg", "gatk_copy_ratio_segments_tumor", "called_copy_ratio_segments_tumor"]
+static	cnv_priority		WXS	["theta2_calls", "theta2_seg", "cnvkit_calls", "cnvkit_seg", "ctrlfreec_pval", "ctrlfreec_bam_seg", "gatk_copy_ratio_segments_tumor", "called_copy_ratio_segments_tumor"]
+static	cnv_priority		Targeted Sequencing	["theta2_calls", "theta2_seg", "cnvkit_calls", "cnvkit_seg", "ctrlfreec_pval", "ctrlfreec_bam_seg","gatk_copy_ratio_segments_tumor", "called_copy_ratio_segments_tumor"]
 static	cp_only_script			scripts/get_cbio_copy_only_num.pl
 static	cpus			8
 static	data_sheets		dir	datasheets
