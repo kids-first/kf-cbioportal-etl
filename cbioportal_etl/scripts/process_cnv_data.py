@@ -16,17 +16,18 @@ from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 def mp_process_cnv_data(
     cbio_sample: str,
-    cnv_samp_attr: dict,
-    info_samp_attr: dict | None,
-    seg_samp_attr: dict | None,
+    cnv_samp_attr: dict[str, str],
+    info_samp_attr: dict[str, str] | None,
+    seg_samp_attr: dict[str, str] | None,
     ref_bed: BedTool,
     config_data: dict,
 ) -> tuple[dict[str, int], dict[str, int], int, list[str], str]:
     """Multi process CNV data by project."""
     ploidy: int = 2
     try:
-        if cnv_samp_attr["manifest_ftype"] == "ctrlfreec_pval":
-            print(f"Processing {cbio_sample} ControlFreeC pval file", file=sys.stderr)
+        cnv_manifest_ftype: str = cnv_samp_attr["manifest_ftype"]
+        if cnv_manifest_ftype == "ctrlfreec_pval" or cnv_manifest_ftype.endswith("_calls"):
+            print(f"Processing {cbio_sample} {cnv_manifest_ftype} file", file=sys.stderr)
             if seg_samp_attr:
                 seg_fname: str = f"{seg_samp_attr['manifest_ftype']}/{seg_samp_attr['fname']}"
             else:
@@ -48,8 +49,12 @@ def mp_process_cnv_data(
             out_seg_list = read_and_process_ctrlfreec_seg(
                 ctrlfreec_seg_fname=seg_fname, sample_id=cbio_sample
             )
-            pval_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
-            cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=pval_fname)
+            cnv_fname: str = f"{cnv_manifest_ftype}/{cnv_samp_attr['fname']}"
+            # only a slight difference iv cnvkit and pval inputs, the rest should be the same
+            if cnv_manifest_ftype == "ctrlfreec_pval":
+                cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=cnv_fname)
+            else:
+                cnv_bed_obj: BedTool = read_and_process_cnvkit_theta2_cns(cns_fname=cnv_fname)
             raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
                 cnv_bed_obj=cnv_bed_obj,
                 ref_bed=ref_bed,
@@ -58,7 +63,7 @@ def mp_process_cnv_data(
             )
         else:
             print(f"Processing {cbio_sample} GATK CNV file", file=sys.stderr)
-            gatk_cnv_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
+            gatk_cnv_fname: str = f"{cnv_manifest_ftype}/{cnv_samp_attr['fname']}"
             cnv_bed_obj, out_seg_list = read_and_process_gatk_cnv(
                 gatk_seg_fname=gatk_cnv_fname, sample_id=cbio_sample
             )
@@ -212,7 +217,7 @@ def get_ctrlfreec_ploidy(cfree_info_fname: str) -> int:
 def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
     """Process ControlFreeC pval file and return BedTool object.
 
-    Filter CNV data by pvalues, strip leading chr, and convert to BedTool object
+    Filter CNV data by pvalues, convert to BedTool object
 
     Args:
         pval_fname: Filename of ControlFreeC pval file
@@ -232,6 +237,30 @@ def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
                 for bed in cnv_reader
                 if (bed[wilcox_idx] != "NA" and bed[ks_idx] != "NA")
                 and (float(bed[wilcox_idx]) <= PVALUE and float(bed[ks_idx]) <= PVALUE)
+            ]
+        )
+        cnv_bed_obj: BedTool = BedTool(cnv_filtered_as_bed, from_string=True)
+    return cnv_bed_obj
+
+
+def read_and_process_cnvkit_theta2_cns(cns_fname: str) -> BedTool:
+    """Process CNS file from CNVkit/theta2 file and return BedTool object.
+
+    Strip leading chr before converting to BedTool object
+
+    Args:
+        cns_fname: Filename of CNS file
+    Returns: BedTool object with filtered CNV data
+
+    """
+    with open(cns_fname) as f:
+        cnv_reader = csv.reader(f, delimiter="\t")
+        _header = next(cnv_reader)
+        # create bed str representation of CNV data, stripping leading chr from chrom
+        cnv_filtered_as_bed: str = "\n".join(
+            [
+                "\t".join([bed[0].removeprefix("chr"), bed[1], bed[2], bed[6]])
+                for bed in cnv_reader
             ]
         )
         cnv_bed_obj: BedTool = BedTool(cnv_filtered_as_bed, from_string=True)
@@ -278,7 +307,7 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedT
 
 
 def pioritize_cnvs(
-    cbio_tbl: csv.reader._reader, config_data: dict[str, list[str]]
+    cbio_tbl, config_data: dict[str, list[str]]
 ) -> dict[str, dict[str, dict[str, dict[str, str]]]]:
     """Prioritize CNVs based on config data.
 
