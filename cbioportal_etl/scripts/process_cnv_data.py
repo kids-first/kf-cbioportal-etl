@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Read in GATK and ControlFreeC CNV data and convert to cBio format."""
 
+import _csv
 import argparse
 import csv
 import json
@@ -258,10 +259,7 @@ def read_and_process_cnvkit_theta2_cns(cns_fname: str) -> BedTool:
         _header = next(cnv_reader)
         # create bed str representation of CNV data, stripping leading chr from chrom
         cnv_filtered_as_bed: str = "\n".join(
-            [
-                "\t".join([bed[0].removeprefix("chr"), bed[1], bed[2], bed[6]])
-                for bed in cnv_reader
-            ]
+            ["\t".join([bed[0].removeprefix("chr"), bed[1], bed[2], bed[6]]) for bed in cnv_reader]
         )
         cnv_bed_obj: BedTool = BedTool(cnv_filtered_as_bed, from_string=True)
     return cnv_bed_obj
@@ -307,12 +305,12 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedT
 
 
 def pioritize_cnvs(
-    cbio_tbl, config_data: dict[str, list[str]]
+    cbio_tbl: str, config_data: dict[str, list[str]]
 ) -> dict[str, dict[str, dict[str, dict[str, str]]]]:
     """Prioritize CNVs based on config data.
 
     Args:
-        cbio_tbl: CSV reader object with cBio etl TSV
+        cbio_tbl: cBio etl filename
         config_data: CNVs defined by cnv_priority
 
     Returns:
@@ -321,46 +319,41 @@ def pioritize_cnvs(
     """
     # lists and dicts of CNV types
     cnv_ftypes: dict[str, dict[str, dict[str, dict[str, str]]]] = {"cnv": {}, "seg": {}, "info": {}}
+    with open(cbio_tbl) as f:
+        cbio_reader: _csv._reader = csv.reader(f, delimiter="\t")
 
-    header = next(cbio_tbl)
-    # get key fields from header
-    cbio_project_idx = header.index("cbio_project")
-    cbio_sample_idx = header.index("cbio_sample_name")
-    etl_ftype_idx = header.index("etl_file_type")
-    etl_exp_idx = header.index("etl_experiment_strategy")
-    manifest_ftype_idx = header.index("file_type")
-    fname_idx = header.index("file_name")
-    for entry in cbio_tbl:
-        project = entry[cbio_project_idx]
-        cbio_sample = entry[cbio_sample_idx]
-        etl_ftype = entry[etl_ftype_idx]
-        etl_exp = entry[etl_exp_idx]
-        manifest_ftype = entry[manifest_ftype_idx]
-        fname = entry[fname_idx]
+        header = next(cbio_reader)
+        # get key fields from header
+        cbio_project_idx = header.index("cbio_project")
+        cbio_sample_idx = header.index("cbio_sample_name")
+        etl_ftype_idx = header.index("etl_file_type")
+        etl_exp_idx = header.index("etl_experiment_strategy")
+        manifest_ftype_idx = header.index("file_type")
+        fname_idx = header.index("file_name")
+        for entry in cbio_reader:
+            project = entry[cbio_project_idx]
+            cbio_sample = entry[cbio_sample_idx]
+            etl_ftype = entry[etl_ftype_idx]
+            etl_exp = entry[etl_exp_idx]
+            manifest_ftype = entry[manifest_ftype_idx]
+            fname = entry[fname_idx]
 
-        if etl_ftype not in cnv_ftypes:
-            continue
-        if etl_ftype == "info":
-            if project not in cnv_ftypes[etl_ftype]:
-                cnv_ftypes[etl_ftype][project] = {}
-            if cbio_sample not in cnv_ftypes[etl_ftype][project]:
-                cnv_ftypes[etl_ftype][project][cbio_sample] = {}
-            cnv_ftypes[etl_ftype][project][cbio_sample]["fname"] = fname
-        else:
+            if etl_ftype not in cnv_ftypes:
+                continue
             if project not in cnv_ftypes[etl_ftype]:
                 cnv_ftypes[etl_ftype][project] = {}
             if cbio_sample not in cnv_ftypes[etl_ftype][project]:
                 cnv_ftypes[etl_ftype][project][cbio_sample] = {}
                 cnv_ftypes[etl_ftype][project][cbio_sample]["fname"] = fname
                 cnv_ftypes[etl_ftype][project][cbio_sample]["manifest_ftype"] = manifest_ftype
-            # If the sample already exists, check if the file type is higher priority
+            # If the etl_ftype is already set for that cbio_sample
+            # check if the new manifest_ftype is higher priority
             elif config_data[etl_exp].index(manifest_ftype) < config_data[etl_exp].index(
                 cnv_ftypes[etl_ftype][project][cbio_sample]["manifest_ftype"]
             ):
-                # If the new file type is higher priority, update the sample entry
+                # If the new manifest_ftype is higher priority, update the sample entry
                 cnv_ftypes[etl_ftype][project][cbio_sample]["fname"] = fname
                 cnv_ftypes[etl_ftype][project][cbio_sample]["manifest_ftype"] = manifest_ftype
-
     return cnv_ftypes
 
 
@@ -390,11 +383,9 @@ def main():
     with open(args.config_file) as f:
         config_data = json.load(f)
     config_data: dict = resolve_config_paths(config_data, TOOL_DIR)
-
+    print(f"Prioritizing CNV calls base on {config_data["cnv_priority"]}", file=sys.stderr)
     # subset cnv and seg data using priority from config file
-    with open(args.table) as f:
-        cbio_reader: csv.reader._reader = csv.reader(f, delimiter="\t")
-        prioritized_cnv_meta = pioritize_cnvs(cbio_reader, config_data["cnv_priority"])
+    prioritized_cnv_meta = pioritize_cnvs(args.table, config_data["cnv_priority"])
 
     ref_bed = BedTool(config_data["bed_genes"])
     out_dir: str = "merged_cnvs"
