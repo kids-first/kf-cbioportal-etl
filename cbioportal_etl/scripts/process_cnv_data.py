@@ -51,7 +51,7 @@ def mp_process_cnv_data(
                 ctrlfreec_seg_fname=seg_fname, sample_id=cbio_sample
             )
             cnv_fname: str = f"{cnv_manifest_ftype}/{cnv_samp_attr['fname']}"
-            # only a slight difference iv cnvkit and pval inputs, the rest should be the same
+            # only a slight difference in cnvkit and pval inputs, the rest should be the same
             if cnv_manifest_ftype == "ctrlfreec_pval":
                 cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=cnv_fname)
             else:
