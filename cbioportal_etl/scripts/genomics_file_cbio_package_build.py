@@ -123,23 +123,22 @@ def process_cnv(
 
 
 def process_rsem(
-    rsem_dir: str, cbio_id_table: str, script_dir: str, run_status: dict[str, subprocess.Popen], data_sample: str, expression_type: str, study_config: str, default_match_type: str
+    rsem_dir: str, cbio_id_table: str, script_dir: str, run_status: dict[str, subprocess.Popen], expression_type: str, study_config: str, default_match_type: str
 ) -> None:
-    """Merge rsem results by FPKM, calculate z-scores.
+    """Merge rsem results by expression_type, calculate z-scores.
 
     Args:
         rsem_dir: Path to rsem data
         cbio_id_table: Path of ETL table with IDs and file locations
         script_dir: path of dir containing ETL processing scripts
         run_status: Dict to track subprocess call statuses
-        data_sample: path to data_clinical_sample.txt file
         expression_type: TPM or FPKM for calculating zscores
         study_config: path to cbio study config json
         default_match_type: match type for samples with unknown RNA library type for z-score calculations (polyA, totalRNA, or none)
 
     """
     print("Processing RNA expression data", file=sys.stderr)
-    merge_rsem_cmd = f"python3 {os.path.join(script_dir, 'rna_merge_rename_expression.py')} -t {cbio_id_table} -r {rsem_dir} -ds {data_sample} -et {expression_type} -sc {study_config} -dmt {default_match_type} 2> rna_merge_rename_expression.log"
+    merge_rsem_cmd = f"python3 {os.path.join(script_dir, 'rna_merge_rename_expression.py')} -t {cbio_id_table} -r {rsem_dir} -et {expression_type} -sc {study_config} -dmt {default_match_type} 2> rna_merge_rename_expression.log"
     log_cmd(merge_rsem_cmd)
     run_status["rsem_merge"] = subprocess.Popen(merge_rsem_cmd, shell=True)
 
@@ -249,7 +248,6 @@ def run_py(args):
                     args.manifest,
                     script_dir,
                     run_status,
-                    args.data_sample,
                     args.expression_type,
                     args.study_config,
                     args.default_match_type
@@ -390,14 +388,6 @@ def main():
         action="store_true",
         dest="add_data",
         help="Flag to skip validation when running for add_data directory",
-    )
-    parser.add_argument(
-        "-dcs", 
-        "--data-sample", 
-        action="store", 
-        dest="data_sample", 
-        default="datasheets/data_clinical_sample.txt", 
-        help="data_clinical_sample.txt file"
     )
     parser.add_argument(
         "-et", 

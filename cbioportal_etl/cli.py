@@ -106,14 +106,6 @@ def main():
         help="Flag to indicate add_data mode (automatically set when applicable)",
     )
     common_args.add_argument(
-        "-dcs", 
-        "--data-sample", 
-        action="store", 
-        dest="data_sample", 
-        default="datasheets/data_clinical_sample.txt",
-        help="data_clinical_sample.txt file"
-    )
-    common_args.add_argument(
         "-et", 
         "--expression-type", 
         action="store", 

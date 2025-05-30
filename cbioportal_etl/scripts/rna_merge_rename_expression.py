@@ -9,9 +9,11 @@ Final result also z scored across cohort as log2(FPKM + 1) or as log2(TPM + 1)
 
 import argparse
 import concurrent.futures
+import io
 import json
 import os
 import sys
+import tarfile
 
 import numpy as np
 import pandas as pd
@@ -55,14 +57,6 @@ if __name__ == "__main__":
         help="rsem file directory"
     )
     parser.add_argument(
-        "-ds", 
-        "--data-sample", 
-        action="store", 
-        dest="data_sample", 
-        default="datasheets/data_clinical_sample.txt", 
-        help="data_clinical_sample.txt file"
-    )
-    parser.add_argument(
         "-et", 
         "--expression-type", 
         action="store", 
@@ -100,7 +94,6 @@ if __name__ == "__main__":
     print("Reading RSEM files...", file=sys.stderr)
     seen = set()
     df_list = []
-
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = {
             executor.submit(load_rsem_file, fname, sample, rsem_dir, args.expression_type): sample
@@ -133,41 +126,47 @@ if __name__ == "__main__":
         master_tbl[sub_samples].to_csv(f"{out_dir}{project}.rsem_merged.{args.expression_type}.txt", sep="\t")
 
     print("Calculating z-scores...", file=sys.stderr)
-    clinical_df = pd.read_csv(args.data_sample, sep="\t", comment="#")
-
     # Studies with library type column will be processed by library type 
-    if "RNA_LIBRARY_SELECTION" in clinical_df.columns:
-        clinical_df = clinical_df[["SAMPLE_ID", "RNA_LIBRARY_SELECTION"]].drop_duplicates()
-        rna_subset = rna_subset.merge(clinical_df, left_on="cbio_sample_name", right_on="SAMPLE_ID", how="left")
+    if "etl_experiment_strategy" in rna_subset.columns:
         # load healthy references
         TOOL_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
         with open(args.study_config) as f:
             config_data: dict = json.load(f)
         config_data = resolve_config_paths(config_data, TOOL_DIR)
+
         healthy_files = {}
-        for key, path in config_data["rsem_ref"]["dtypes"].items():
-            if key.endswith(f"_{args.expression_type}"):
-                df = pd.read_csv(path, sep="\t", index_col=0)
-                # convert genes to Hugo symbols
-                df["Hugo_Symbol"] = df.index.str.split("_", n=1).str[1]
-                # keep the most highly expressed entry per Hugo symbol 
-                df["mean_expr"] = df.drop(columns="Hugo_Symbol").mean(axis=1)
-                df = df.sort_values("mean_expr", ascending=False).drop_duplicates("Hugo_Symbol", keep="first")
-                df.set_index("Hugo_Symbol", inplace=True)
-                df.drop(columns="mean_expr", inplace=True)
-                healthy_files[key] = df
+
+        archive_path = config_data["rsem_ref"]["archive"]
+        with tarfile.open(archive_path, "r:gz") as tar:
+            for member in tar.getmembers():
+                if not member.isfile():
+                    continue
+                name = os.path.basename(member.name)
+                if name.endswith(f"_{args.expression_type}.tsv"):
+                    key = name.replace(f"_log_{args.expression_type}.tsv", "") + f"_{args.expression_type}"
+                    file_obj = tar.extractfile(member)
+                    if file_obj:
+                        df = pd.read_csv(io.TextIOWrapper(file_obj), sep="\t", index_col=0)
+                        # convert genes to Hugo symbols
+                        df["Hugo_Symbol"] = df.index.str.split("_", n=1).str[1]
+                        # keep the most highly expressed entry per Hugo symbol for duplicates
+                        df["mean_expr"] = df.drop(columns="Hugo_Symbol").mean(axis=1)
+                        df = df.sort_values("mean_expr", ascending=False).drop_duplicates("Hugo_Symbol", keep="first")
+                        df.set_index("Hugo_Symbol", inplace=True)
+                        df.drop(columns="mean_expr", inplace=True)
+                        healthy_files[key] = df
 
         zscore_intracohort = []
         zscore_vs_healthy = []
         # Process samples grouped by library type
-        for library_type in rna_subset["RNA_LIBRARY_SELECTION"].dropna().unique().tolist() + [np.nan]:
+        for library_type in rna_subset["etl_experiment_strategy"].dropna().unique().tolist() + [np.nan]:
             if pd.isna(library_type):
-                print("Processing samples with missing RNA_LIBRARY_SELECTION", file=sys.stderr)
-                group_df = rna_subset[rna_subset["RNA_LIBRARY_SELECTION"].isna()]
+                print("Processing samples with missing etl_experiment_strategy", file=sys.stderr)
+                group_df = rna_subset[rna_subset["etl_experiment_strategy"].isna()]
             else:
-                print(f"Processing samples with RNA_LIBRARY_SELECTION {library_type}", file=sys.stderr)
-                group_df = rna_subset[rna_subset["RNA_LIBRARY_SELECTION"] == library_type]
+                print(f"Processing samples with etl_experiment_strategy {library_type}", file=sys.stderr)
+                group_df = rna_subset[rna_subset["etl_experiment_strategy"] == library_type]
 
             group_samples = group_df["cbio_sample_name"].drop_duplicates().tolist()
             if not group_samples:
@@ -177,12 +176,14 @@ if __name__ == "__main__":
 
             # Intra-cohort z-score
             print(f"Calculating intra-cohort z-score for {library_type}")
+            # Calculate z-score and ignore NaN values when computing mean and SD for each row
+            # Mean and SD is calculated with non-NaN values
             zscore_vals = stats.zscore(group_tbl, axis=1, nan_policy='omit')
             intracohort_df = pd.DataFrame(zscore_vals, index=group_tbl.index, columns=group_tbl.columns).fillna(0)
             zscore_intracohort.append(intracohort_df)
 
             # Tumor vs healthy reference z-score (only if match_type available)
-            print(f"Calculating tumor vs normal z-score for {library_type}")
+            print(f"Calculating tumor vs healthy z-score for {library_type}")
             library_key = str(library_type).strip().lower() if not pd.isna(library_type) else None
             match_type = (
                 "totalRNA" if library_key == "rrna depletion"
@@ -218,7 +219,7 @@ if __name__ == "__main__":
 
     else:
         # Studies without library type columns will use intra-cohort z-score
-        print("No RNA_LIBRARY_SELECTION column found, using intra-cohort z-score", file=sys.stderr)
+        print("No etl_experiment_strategy column found, using intra-cohort z-score", file=sys.stderr)
         zscore_vals = stats.zscore(log_master_tbl, axis=1, nan_policy='omit')
         master_zscore_log = pd.DataFrame(zscore_vals, index=log_master_tbl.index, columns=log_master_tbl.columns).fillna(0).astype(np.float32)
 
