@@ -160,7 +160,10 @@ if __name__ == "__main__":
         zscore_intracohort = []
         zscore_vs_healthy = []
         # Process samples grouped by library type
-        for library_type in rna_subset["etl_experiment_strategy"].dropna().unique().tolist() + [np.nan]:
+        unique_strategies = rna_subset["etl_experiment_strategy"].dropna().unique().tolist()
+        if rna_subset["etl_experiment_strategy"].isna().any():
+            unique_strategies.append(np.nan)
+        for library_type in unique_strategies:
             if pd.isna(library_type):
                 print("Processing samples with missing etl_experiment_strategy", file=sys.stderr)
                 group_df = rna_subset[rna_subset["etl_experiment_strategy"].isna()]
@@ -192,7 +195,7 @@ if __name__ == "__main__":
                 else None
             )
             print(f"  ➤ Match type being used: {match_type}", file=sys.stderr)
-            ref_key = f"{match_type}_{args.expression_type}" if match_type else None
+            ref_key = f"healthy_{match_type}_{args.expression_type}" if match_type else None
 
             if ref_key and ref_key in healthy_files:
                 healthy_ref = healthy_files[ref_key]
