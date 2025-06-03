@@ -111,8 +111,8 @@ def main():
         action="store", 
         dest="expression_type", 
         choices=["TPM", "FPKM"], 
-        default="FPKM", 
-        help="Which expression value to use: TPM or FPKM. Default is FPKM."
+        default="TPM", 
+        help="Which expression value to use: TPM or FPKM. Default is TPM."
     )
     common_args.add_argument(
         "-dmt", 
