@@ -50,7 +50,7 @@ def process_meta_data(meta_data: dict, output_dir: str, canc_study_id: str) -> N
         output_dir: Location to create each meta file
         canc_study_id: Name of study/project
 
-    """
+    """        
     try:
         for dtype in meta_data["dtypes"]:
             # pointer for easier readability and dict key traciing

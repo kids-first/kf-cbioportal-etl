@@ -214,10 +214,10 @@ if __name__ == "__main__":
         for project in project_list:
             sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
             if not master_zscore_vs_healthy.empty:
-                healthy_outfile = f"{out_dir}{project}.rsem_merged_vs_healthy_zscore.txt"
+                healthy_outfile = f"{out_dir}{project}.rsem_merged_vs_healthy_zscore_{args.expression_type}.txt"
                 master_zscore_vs_healthy[sub_samples].to_csv(healthy_outfile, sep="\t", float_format="%.4f")
 
-            intra_outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore.txt"
+            intra_outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
             master_zscore_intracohort[sub_samples].to_csv(intra_outfile, sep="\t", float_format="%.4f")
 
     else:
@@ -228,5 +228,5 @@ if __name__ == "__main__":
 
         for project in project_list:
             sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
-            outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore.txt"
+            outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
             master_zscore_log[sub_samples].to_csv(outfile, sep="\t", float_format="%.4f")
