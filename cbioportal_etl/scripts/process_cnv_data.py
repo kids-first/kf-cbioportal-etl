@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Read in GATK and ControlFreeC CNV data and convert to cBio format."""
 
+import _csv
 import argparse
 import csv
 import json
@@ -9,7 +10,6 @@ import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import IO
 
-from get_file_metadata_helper import get_file_metadata
 from pybedtools import BedTool, cleanup
 
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
@@ -17,17 +17,18 @@ from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 def mp_process_cnv_data(
     cbio_sample: str,
-    cnv_samp_attr: dict,
-    info_samp_attr: dict | None,
-    seg_samp_attr: dict | None,
+    cnv_samp_attr: dict[str, str],
+    info_samp_attr: dict[str, str] | None,
+    seg_samp_attr: dict[str, str] | None,
     ref_bed: BedTool,
     config_data: dict,
 ) -> tuple[dict[str, int], dict[str, int], int, list[str], str]:
     """Multi process CNV data by project."""
     ploidy: int = 2
     try:
-        if cnv_samp_attr["manifest_ftype"] == "ctrlfreec_pval":
-            print(f"Processing {cbio_sample} ControlFreeC pval file", file=sys.stderr)
+        cnv_manifest_ftype: str = cnv_samp_attr["manifest_ftype"]
+        if cnv_manifest_ftype == "ctrlfreec_pval" or cnv_manifest_ftype.endswith("_calls"):
+            print(f"Processing {cbio_sample} {cnv_manifest_ftype} file", file=sys.stderr)
             if seg_samp_attr:
                 seg_fname: str = f"{seg_samp_attr['manifest_ftype']}/{seg_samp_attr['fname']}"
             else:
@@ -49,8 +50,12 @@ def mp_process_cnv_data(
             out_seg_list = read_and_process_ctrlfreec_seg(
                 ctrlfreec_seg_fname=seg_fname, sample_id=cbio_sample
             )
-            pval_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
-            cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=pval_fname)
+            cnv_fname: str = f"{cnv_manifest_ftype}/{cnv_samp_attr['fname']}"
+            # only a slight difference in cnvkit and pval inputs, the rest should be the same
+            if cnv_manifest_ftype == "ctrlfreec_pval":
+                cnv_bed_obj: BedTool = read_and_process_ctrlfreec_pval(pval_fname=cnv_fname)
+            else:
+                cnv_bed_obj: BedTool = read_and_process_cnvkit_theta2_cns(cns_fname=cnv_fname)
             raw_cnv_dict, gistic_cnv_dict = get_gene_cnv_dict(
                 cnv_bed_obj=cnv_bed_obj,
                 ref_bed=ref_bed,
@@ -59,7 +64,7 @@ def mp_process_cnv_data(
             )
         else:
             print(f"Processing {cbio_sample} GATK CNV file", file=sys.stderr)
-            gatk_cnv_fname: str = f"{cnv_samp_attr['manifest_ftype']}/{cnv_samp_attr['fname']}"
+            gatk_cnv_fname: str = f"{cnv_manifest_ftype}/{cnv_samp_attr['fname']}"
             cnv_bed_obj, out_seg_list = read_and_process_gatk_cnv(
                 gatk_seg_fname=gatk_cnv_fname, sample_id=cbio_sample
             )
@@ -213,7 +218,7 @@ def get_ctrlfreec_ploidy(cfree_info_fname: str) -> int:
 def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
     """Process ControlFreeC pval file and return BedTool object.
 
-    Filter CNV data by pvalues, strip leading chr, and convert to BedTool object
+    Filter CNV data by pvalues, convert to BedTool object
 
     Args:
         pval_fname: Filename of ControlFreeC pval file
@@ -234,6 +239,27 @@ def read_and_process_ctrlfreec_pval(pval_fname: str) -> BedTool:
                 if (bed[wilcox_idx] != "NA" and bed[ks_idx] != "NA")
                 and (float(bed[wilcox_idx]) <= PVALUE and float(bed[ks_idx]) <= PVALUE)
             ]
+        )
+        cnv_bed_obj: BedTool = BedTool(cnv_filtered_as_bed, from_string=True)
+    return cnv_bed_obj
+
+
+def read_and_process_cnvkit_theta2_cns(cns_fname: str) -> BedTool:
+    """Process CNS file from CNVkit/theta2 file and return BedTool object.
+
+    Strip leading chr before converting to BedTool object
+
+    Args:
+        cns_fname: Filename of CNS file
+    Returns: BedTool object with filtered CNV data
+
+    """
+    with open(cns_fname) as f:
+        cnv_reader = csv.reader(f, delimiter="\t")
+        _header = next(cnv_reader)
+        # create bed str representation of CNV data, stripping leading chr from chrom
+        cnv_filtered_as_bed: str = "\n".join(
+            ["\t".join([bed[0].removeprefix("chr"), bed[1], bed[2], bed[6]]) for bed in cnv_reader]
         )
         cnv_bed_obj: BedTool = BedTool(cnv_filtered_as_bed, from_string=True)
     return cnv_bed_obj
@@ -278,6 +304,59 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedT
     return cnv_bed_obj, out_seg_list
 
 
+def prioritize_cnvs(
+    cbio_tbl: str, config_data: dict[str, list[str]]
+) -> dict[str, dict[str, dict[str, dict[str, str]]]]:
+    """Prioritize CNVs based on config data.
+
+    Args:
+        cbio_tbl: cBio etl filename
+        config_data: CNVs defined by cnv_priority
+
+    Returns:
+        Dict of cnv types with prioritized file names and manifest file types.
+
+    """
+    # lists and dicts of CNV types
+    cnv_ftypes: dict[str, dict[str, dict[str, dict[str, str]]]] = {"cnv": {}, "seg": {}, "info": {}}
+    with open(cbio_tbl) as f:
+        cbio_reader: _csv._reader = csv.reader(f, delimiter="\t")
+
+        header = next(cbio_reader)
+        # get key fields from header
+        cbio_project_idx = header.index("cbio_project")
+        cbio_sample_idx = header.index("cbio_sample_name")
+        etl_ftype_idx = header.index("etl_file_type")
+        etl_exp_idx = header.index("etl_experiment_strategy")
+        manifest_ftype_idx = header.index("file_type")
+        fname_idx = header.index("file_name")
+        for entry in cbio_reader:
+            project = entry[cbio_project_idx]
+            cbio_sample = entry[cbio_sample_idx]
+            etl_ftype = entry[etl_ftype_idx]
+            etl_exp = entry[etl_exp_idx]
+            manifest_ftype = entry[manifest_ftype_idx]
+            fname = entry[fname_idx]
+
+            if etl_ftype not in cnv_ftypes:
+                continue
+            if project not in cnv_ftypes[etl_ftype]:
+                cnv_ftypes[etl_ftype][project] = {}
+            if cbio_sample not in cnv_ftypes[etl_ftype][project]:
+                cnv_ftypes[etl_ftype][project][cbio_sample] = {}
+                cnv_ftypes[etl_ftype][project][cbio_sample]["fname"] = fname
+                cnv_ftypes[etl_ftype][project][cbio_sample]["manifest_ftype"] = manifest_ftype
+            # If the etl_ftype is already set for that cbio_sample
+            # check if the new manifest_ftype is higher priority
+            elif config_data[etl_exp].index(manifest_ftype) < config_data[etl_exp].index(
+                cnv_ftypes[etl_ftype][project][cbio_sample]["manifest_ftype"]
+            ):
+                # If the new manifest_ftype is higher priority, update the sample entry
+                cnv_ftypes[etl_ftype][project][cbio_sample]["fname"] = fname
+                cnv_ftypes[etl_ftype][project][cbio_sample]["manifest_ftype"] = manifest_ftype
+    return cnv_ftypes
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Merges files in gene <tab> entrez id <tab> copy number format into a genes-by-sample copy number table"
@@ -304,25 +383,22 @@ def main():
     with open(args.config_file) as f:
         config_data = json.load(f)
     config_data: dict = resolve_config_paths(config_data, TOOL_DIR)
-    # for metadata dicts, cbio_project is primary key,  cbio_sample_name is secondary key.
-    # Tertiary keys are other attributes with string as values.
-
-    cnv_meta: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "cnv")
-    info_meta: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "info")
-    seg_meta: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "seg")
+    print(f"Prioritizing CNV calls base on {config_data["cnv_priority"]}", file=sys.stderr)
+    # subset cnv and seg data using priority from config file
+    prioritized_cnv_meta = prioritize_cnvs(args.table, config_data["cnv_priority"])
 
     ref_bed = BedTool(config_data["bed_genes"])
     out_dir: str = "merged_cnvs"
     os.makedirs(out_dir, exist_ok=True)
     # cnv meta should have ALL IDs to be processed
-    for project, samp_data in cnv_meta.items():
+    for project, samp_data in prioritized_cnv_meta["cnv"].items():
         # initialize out_seg_io here since it can be appended on-the-fly
         out_seg_io: IO = open(f"{out_dir}/{project}.merged_seg.txt", "w")
         print("ID\tchrom\tloc.start\tloc.end\tnum.mark\tseg.mean", file=out_seg_io)
         # store raw and GISTIC-transformed CNV datato be transposed into wide format
         raw_cnv_dict: dict[str, dict] = {}
         gistic_cnv_dict: dict[str, dict] = {}
-        # Keep track of ploidy for ControlFreeC to use as default value
+        # Keep track of ploidy for non-GATK to use as default value
         ploidy_dict: dict[str, int] = {}
         samp_list: list[str] = list(samp_data.keys())
         with ProcessPoolExecutor() as executor:
@@ -330,15 +406,17 @@ def main():
                 executor.submit(
                     mp_process_cnv_data,
                     cbio_sample,
-                    cnv_meta[project][cbio_sample],
+                    prioritized_cnv_meta["cnv"][project][cbio_sample],
                     (
-                        info_meta[project][cbio_sample]  # ControlFreeC specific
-                        if project in info_meta and cbio_sample in info_meta[project]
+                        prioritized_cnv_meta["info"][project][cbio_sample]  # Non-GATK specific
+                        if project in prioritized_cnv_meta["info"]
+                        and cbio_sample in prioritized_cnv_meta["info"][project]
                         else None
                     ),
                     (
-                        seg_meta[project][cbio_sample]  # ControlFreeC specific
-                        if project in seg_meta and cbio_sample in seg_meta[project]
+                        prioritized_cnv_meta["seg"][project][cbio_sample]  # Non-GATK specific
+                        if project in prioritized_cnv_meta["seg"]
+                        and cbio_sample in prioritized_cnv_meta["seg"][project]
                         else None
                     ),
                     ref_bed,
