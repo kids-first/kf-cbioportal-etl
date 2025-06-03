@@ -304,7 +304,7 @@ def read_and_process_gatk_cnv(gatk_seg_fname: str, sample_id: str) -> tuple[BedT
     return cnv_bed_obj, out_seg_list
 
 
-def pioritize_cnvs(
+def prioritize_cnvs(
     cbio_tbl: str, config_data: dict[str, list[str]]
 ) -> dict[str, dict[str, dict[str, dict[str, str]]]]:
     """Prioritize CNVs based on config data.
@@ -385,7 +385,7 @@ def main():
     config_data: dict = resolve_config_paths(config_data, TOOL_DIR)
     print(f"Prioritizing CNV calls base on {config_data["cnv_priority"]}", file=sys.stderr)
     # subset cnv and seg data using priority from config file
-    prioritized_cnv_meta = pioritize_cnvs(args.table, config_data["cnv_priority"])
+    prioritized_cnv_meta = prioritize_cnvs(args.table, config_data["cnv_priority"])
 
     ref_bed = BedTool(config_data["bed_genes"])
     out_dir: str = "merged_cnvs"
