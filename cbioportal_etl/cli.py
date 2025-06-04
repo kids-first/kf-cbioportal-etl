@@ -105,6 +105,24 @@ def main():
         dest="add_data",
         help="Flag to indicate add_data mode (automatically set when applicable)",
     )
+    common_args.add_argument(
+        "-et", 
+        "--expression-type", 
+        action="store", 
+        dest="expression_type", 
+        choices=["TPM", "FPKM"], 
+        default="TPM", 
+        help="Which expression value to use: TPM or FPKM. Default is TPM."
+    )
+    common_args.add_argument(
+        "-dmt", 
+        "--default-match-type", 
+        action="store", 
+        dest="default_match_type", 
+        choices=["polyA", "totalRNA", "none"], 
+        default="none", 
+        help="Default match type for samples with unknown RNA library type for z-score calculations. Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score."
+    ) 
 
     # Arguments exclusive to update (step 3 - diff_studies.py)
     update_args = argparse.ArgumentParser(add_help=False)

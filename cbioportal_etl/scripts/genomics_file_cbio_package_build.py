@@ -123,19 +123,22 @@ def process_cnv(
 
 
 def process_rsem(
-    rsem_dir: str, cbio_id_table: str, script_dir: str, run_status: dict[str, subprocess.Popen]
+    rsem_dir: str, cbio_id_table: str, script_dir: str, run_status: dict[str, subprocess.Popen], expression_type: str, study_config: str, default_match_type: str
 ) -> None:
-    """Merge rsem results by FPKM, calculate z-scores.
+    """Merge rsem results by expression_type, calculate z-scores.
 
     Args:
         rsem_dir: Path to rsem data
         cbio_id_table: Path of ETL table with IDs and file locations
         script_dir: path of dir containing ETL processing scripts
         run_status: Dict to track subprocess call statuses
+        expression_type: TPM or FPKM for calculating zscores
+        study_config: path to cbio study config json
+        default_match_type: match type for samples with unknown RNA library type for z-score calculations (polyA, totalRNA, or none)
 
     """
     print("Processing RNA expression data", file=sys.stderr)
-    merge_rsem_cmd = f"python3 {os.path.join(script_dir, 'rna_merge_rename_expression.py')} -t {cbio_id_table} -r {rsem_dir} 2> rna_merge_rename_expression.log"
+    merge_rsem_cmd = f"python3 {os.path.join(script_dir, 'rna_merge_rename_expression.py')} -t {cbio_id_table} -r {rsem_dir} -et {expression_type} -sc {study_config} -dmt {default_match_type} 2> rna_merge_rename_expression.log"
     log_cmd(merge_rsem_cmd)
     run_status["rsem_merge"] = subprocess.Popen(merge_rsem_cmd, shell=True)
 
@@ -245,6 +248,9 @@ def run_py(args):
                     args.manifest,
                     script_dir,
                     run_status,
+                    args.expression_type,
+                    args.study_config,
+                    args.default_match_type
                 )
             elif data_type == "fusion":
                 # Status both works for...both, only when one is specifically picked should one not be run
@@ -359,7 +365,11 @@ def main():
         help="Download file manifest with cbio project, kf bs ids, cbio IDs, and file names",
     )
     parser.add_argument(
-        "-sc", "--study-config", action="store", dest="study_config", help="cbio study config file"
+        "-sc", 
+        "--study-config", 
+        action="store", 
+        dest="study_config", 
+        help="cbio study config file"
     )
     parser.add_argument(
         "-dgd",
@@ -379,6 +389,25 @@ def main():
         dest="add_data",
         help="Flag to skip validation when running for add_data directory",
     )
+    parser.add_argument(
+        "-et", 
+        "--expression-type", 
+        action="store", 
+        dest="expression_type", 
+        choices=["TPM", "FPKM"], 
+        default="TPM", 
+        help="Which expression value to use: TPM or FPKM. Default is TPM."
+    )
+    parser.add_argument(
+        "-dmt", 
+        "--default-match-type", 
+        action="store", 
+        dest="default_match_type", 
+        choices=["polyA", "totalRNA", "none"], 
+        default="none", 
+        help="Default match type for samples with unknown RNA library type for z-score calculations. Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score."
+    )    
+
 
     args = parser.parse_args()
     run_py(args)
