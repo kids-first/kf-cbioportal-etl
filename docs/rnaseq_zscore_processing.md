@@ -8,7 +8,8 @@ The script performs the following key tasks:
 1. Converts gene symbols to Hugo, filters out duplicate gene symbols
 1. Applies log transformation (log2(TPM + 1))
 1. Calculates z-scores per gene across all samples in the cohort
-1. Outputs merged log2(TPM + 1) matrix and two z-scored matrices
+1. Outputs:
+    1. merged TPM matrix
     1. Intra-cohort z-scores
     1. Tumor vs reference z-scores (if available)
 
