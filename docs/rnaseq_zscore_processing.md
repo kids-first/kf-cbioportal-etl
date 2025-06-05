@@ -4,7 +4,7 @@ This document outlines how RNA-seq gene expression values are processed and tran
 ## Overview
 The script performs the following key tasks:
 1. Merges multiple RSEM gene expression files into a single matrix. Default expression is TPM, but FPKM can be chosen as a parameter
-1. Maps internal biospedimen IDs to cBioPortal sample names
+1. Maps internal biospecimen IDs to cBioPortal sample names
 1. Converts gene symbols to Hugo, filters out duplicate gene symbols
 1. Applies log transformation (log2(TPM + 1))
 1. Calculates z-scores per gene across all samples in the cohort
@@ -25,14 +25,16 @@ For RSEM files that include multiple rows per gene symbol, only the transcript w
 All TPM values are transformed using log2(TPM + 1), which is used to generate z-score-normalized values.
 
 ## Z-Score Calculation
-Z-scores are calculated to normalize gene expression levels across samples. The input RSEM files generated from RNA-Seq pipelines generally includes metadata about:
+The input RSEM files, generated from RNA-Seq pipelines, are accompanied by manifests that include metadata about each sample, such as sample type (e.g., tumor or normal), RNA library preparation method (e.g., polyA or total RNA), sequencing platform, and other relevant clinical or technical annotations. This metadata is essential for determining appropriate reference cohorts and for filtering samples during normalization and analysis.
+Examples:
 - Experimental strategy: DNA or RNA-Seq
 - Library type: only available for RNA-Seq samples, including hybrid selection (exome capture), poly-t enrichment (poly), and rRNA depletion (totalRNA)
 
 There are two modes of z-score calculation:
 
 ### Intra-Cohort Z-Scores
-When it is used:
+Intra-cohort z-scoring is always performed for all samples. 
+Additionally, it is used as the z-scoring method in the following cases:
 - If library type is null for a sample
 - If no matching health reference exists for a given RNA library type
 - If the `--default-match-type` argument is not set
