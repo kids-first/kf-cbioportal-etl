@@ -62,24 +62,34 @@ cbio-etl import \
   ```
 
 ## Docker Installation
+We've created a Docker image that allows you to dynamically choose which version of cbio-etl to use at runtime.
 ### Installation Steps
 ```sh
-docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:v2.2.0
+docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:cbio-etl-runtime-env
 ```
 
-### Usage
-```
+### Runtime and Usage
+```sh
 docker run --rm -it \
     -v /path/to/db.ini:/credentials/db.ini \
     -v /path/to/cbioportal_data_access_token.txt:/credentials/cbioportal_data_access_token.txt \
     -v /path/to/.sevenbridges/credentials:/root/.sevenbridges/credentials \
     -v /path/to/output_dir:/output \
-    cbio-etl /bin/bash -c "cd /output && cbio-etl update \
+    cbio-etl-runtime-env /bin/bash
+
+# Install cbio-etl within container
+cd kf-cbioportal-etl/
+git checkout v2.3.0 # Replace with any desired version or tag
+pip install .
+
+# Run cbio-etl
+cd /output/
+cbio-etl update \
     --db-ini /credentials/db.ini \
     --token /credentials/cbioportal_data_access_token.txt \
     --study pbta_pnoc \
     --sbg-profile default \
-    --dgd-status kf"
+    --dgd-status kf
 ```
 
 ## Collaborative and Publication Workflows
