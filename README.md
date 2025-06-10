@@ -79,7 +79,7 @@ docker run --rm -it \
 
 # Install cbio-etl within container
 cd kf-cbioportal-etl/
-git checkout v2.3.0 # Replace with any desired version or tag
+git checkout v2.3.0  # Use a specific version instead of the latest from main
 pip install .
 
 # Run cbio-etl
