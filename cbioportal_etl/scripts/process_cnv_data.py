@@ -105,7 +105,7 @@ def output_wide_format_table(
             # Write the data rows for each gene
             for gene in all_genes:
                 # Create a list to hold the CNV values for each sample
-                default_cnv = 0 if cnv_type == "raw" else ploidy_dict[sample]
+                default_cnv = 0 if cnv_type == "gistic" else ploidy_dict[sample]
                 # Get the CNV value for the gene in the current sample, or default if not present
                 cnv_values = [cnv_dict[sample].get(gene, default_cnv) for sample in sample_names]
                 # Write the gene name and CNV values to the output file
