@@ -7,7 +7,7 @@ import csv
 import json
 import os
 import sys
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, wait
 from typing import IO
 
 from pybedtools import BedTool, cleanup
@@ -425,13 +425,15 @@ def main():
                 for cbio_sample in samp_list
             ]
             try:
-                for task in as_completed(tasks):
-                    ss_raw_cnv_dict, ss_gistic_cnv_dict, ploidy, out_seg_list, cbio_sample = (
+                # Need to wait or wide print will not work properly
+                wait(tasks, return_when="FIRST_EXCEPTION")
+                for task in tasks:
+                    ss_raw_cnv_dict, ss_gistic_cnv_dict, ploidy, out_seg_list, processed_cbio_sample = (
                         task.result()
                     )
-                    raw_cnv_dict[cbio_sample] = ss_raw_cnv_dict
-                    gistic_cnv_dict[cbio_sample] = ss_gistic_cnv_dict
-                    ploidy_dict[cbio_sample] = ploidy
+                    raw_cnv_dict[processed_cbio_sample] = ss_raw_cnv_dict
+                    gistic_cnv_dict[processed_cbio_sample] = ss_gistic_cnv_dict
+                    ploidy_dict[processed_cbio_sample] = ploidy
                     print(*out_seg_list, sep="\n", file=out_seg_io)
             except KeyboardInterrupt:
                 print("Keyboard interrupt, exiting", file=sys.stderr)

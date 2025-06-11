@@ -36,8 +36,6 @@ The steps in `cbio-etl import` are outlined as follows:
 ## Local Installation
 ### Software Prerequisites
 + `python3` v3.10+
-+ [`bedtools`](https://bedtools.readthedocs.io/en/latest/content/installation.html)
-+ `Try::Tiny` Perl module
 + [`saml2aws`](https://github.com/Versent/saml2aws) - [directions to use](https://www.notion.so/d3b/Setup-SAML-Login-1056131f1200806ba182f7b7c1793a40?pvs=4)
 + Access to [AWS Infra PedCBioPortal Import](https://github.com/d3b-center/aws-infra-pedcbioportal-import) repo for server loading
 + Access to the `postgres` D3b Warehouse database at `d3b-warehouse-aurora-prd.d3b.io`. Need at least read access to tables with the `bix_workflows` schema
@@ -64,22 +62,32 @@ cbio-etl import \
 ## Docker Installation
 ### Installation Steps
 ```sh
-docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:v2.2.0
+docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:cbio-etl-runtime-env
 ```
 
 ### Usage
 ```
+# Start container interactively
 docker run --rm -it \
     -v /path/to/db.ini:/credentials/db.ini \
     -v /path/to/cbioportal_data_access_token.txt:/credentials/cbioportal_data_access_token.txt \
     -v /path/to/.sevenbridges/credentials:/root/.sevenbridges/credentials \
     -v /path/to/output_dir:/output \
-    cbio-etl /bin/bash -c "cd /output && cbio-etl update \
+    cbio-etl-runtime-env /bin/bash
+    
+# Install cbio-etl within container
+cd kf-cbioportal-etl/
+# git checkout v2.3.1  # Use a specific version instead of the latest from main
+pip install .
+
+# Run cbio-etl
+cd /output/
+cbio-etl update \
     --db-ini /credentials/db.ini \
     --token /credentials/cbioportal_data_access_token.txt \
     --study pbta_pnoc \
     --sbg-profile default \
-    --dgd-status kf"
+    --dgd-status kf
 ```
 
 ## Collaborative and Publication Workflows
