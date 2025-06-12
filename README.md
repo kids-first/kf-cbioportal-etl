@@ -60,14 +60,14 @@ cbio-etl import \
   ```
 
 ## Docker Installation
+We've created a Docker image that allows you to dynamically choose which version of cbio-etl to use at runtime.
 ### Installation Steps
 ```sh
 docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:cbio-etl-runtime-env
 ```
 
-### Usage
-```
-# Start container interactively
+### Runtime and Usage
+```sh
 docker run --rm -it \
     -v /path/to/db.ini:/credentials/db.ini \
     -v /path/to/cbioportal_data_access_token.txt:/credentials/cbioportal_data_access_token.txt \
@@ -77,9 +77,8 @@ docker run --rm -it \
     
 # Install cbio-etl within container
 cd kf-cbioportal-etl/
-# git checkout v2.3.1  # Use a specific version instead of the latest from main
+git checkout v2.3.1  # Use a specific version instead of the latest from main
 pip install .
-
 # Run cbio-etl
 cd /output/
 cbio-etl update \
