@@ -1,0 +1,3 @@
+[submodule "cbioportal_etl/kf-cbioportal-etl-refs"]
+	path = cbioportal_etl/kf-cbioportal-etl-refs
+	url = https://github.com/kids-first/kf-cbioportal-etl-refs
