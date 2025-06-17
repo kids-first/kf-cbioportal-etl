@@ -3,9 +3,6 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
-# Specific sub-dirs now managed by another repository
-cbioportal_etl/REFS/
-cbioportal_etl/STUDY_CONFIGS/
 
 # User-specific files
 *.rsuser
@@ -13,9 +10,6 @@ cbioportal_etl/STUDY_CONFIGS/
 *.user
 *.userosscache
 *.sln.docstates
-
-
-**/.vscode/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
