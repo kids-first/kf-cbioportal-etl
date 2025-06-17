@@ -6,12 +6,16 @@
 # Specific sub-dirs now managed by another repository
 cbioportal_etl/REFS/
 cbioportal_etl/STUDY_CONFIGS/
+
 # User-specific files
 *.rsuser
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
+
+
+**/.vscode/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
