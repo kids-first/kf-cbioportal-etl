@@ -123,6 +123,13 @@ def main():
         default="none", 
         help="Default match type for samples with unknown RNA library type for z-score calculations. Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score."
     ) 
+    common_args.add_argument(
+        "--schema",
+        action="store",
+        dest="schema",
+        help="Set to change default schema for table searches for dev purposes only",
+        default="prod_cbio",
+    )
 
     # Arguments exclusive to update (step 3 - diff_studies.py)
     update_args = argparse.ArgumentParser(add_help=False)
