@@ -10,7 +10,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        "wheel==0.37.1",
+        "wheel==0.38.1",
         "psycopg2-binary==2.9.10",
         "boto3==1.37.6",
         "pandas==2.2.3",
