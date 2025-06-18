@@ -113,11 +113,8 @@ def get_merged(db_cur: psycopg2.extensions.cursor, study: str, tbl_name: str, co
 
             # Extract rows from TSV where Key == "merged_{type}"
             extracted_rows = config_tsv_df[
-                ((config_tsv_df["Key"] == merged_key) & (config_tsv_df["Study"] == study))
-                | (
-                    (config_tsv_df["Key"] == merged_key)
-                    & (config_tsv_df["Study"] == f"{file_type}_etl_file_type_only")
-                )
+                ((config_tsv_df["Key"] == merged_key) & (config_tsv_df["Study"] == study)) |
+                ((config_tsv_df["Key"] == merged_key) & (config_tsv_df["Study"] == f"{file_type}_etl_file_type_only"))
             ].copy()
 
             merged_entries.extend(extracted_rows.values.tolist())
@@ -342,142 +339,52 @@ def get_cases_info(db_cur: psycopg2.extensions.cursor, study: str, tbl_name: str
 
     # cases_3way_complete - check if study has maf, cnv, and rsem
     if has_maf and has_cnv and has_rsem:
-        entries.extend(
-            [
-                [
-                    study,
-                    "cases_3way_complete",
-                    original_config,
-                    "case_list_category",
-                    "all_cases_with_mutation_and_cna_and_mrna_data",
-                ],
-                [
-                    study,
-                    "cases_3way_complete",
-                    original_config,
-                    "case_list_description",
-                    case_list_desc_3way,
-                ],
-                [
-                    study,
-                    "cases_3way_complete",
-                    original_config,
-                    "case_list_name",
-                    case_list_name_3way,
-                ],
-                [study, "cases_3way_complete", original_config, "stable_id", "3way_complete"],
-            ]
-        )
+        entries.extend([
+            [study, "cases_3way_complete", original_config, "case_list_category", "all_cases_with_mutation_and_cna_and_mrna_data"],
+            [study, "cases_3way_complete", original_config, "case_list_description", case_list_desc_3way],
+            [study, "cases_3way_complete", original_config, "case_list_name", case_list_name_3way],
+            [study, "cases_3way_complete", original_config, "stable_id", "3way_complete"]
+        ])
     # cna - check if study has cnv
     if has_cnv:
-        entries.extend(
-            [
-                [
-                    study,
-                    "cases_cna",
-                    original_config,
-                    "case_list_category",
-                    "all_cases_with_cna_data",
-                ],
-                [study, "cases_cna", original_config, "case_list_description", case_list_desc_cna],
-                [study, "cases_cna", original_config, "case_list_name", case_list_name_cna],
-                [study, "cases_cna", original_config, "stable_id", "cna"],
-            ]
-        )
+        entries.extend([
+            [study, "cases_cna", original_config, "case_list_category", "all_cases_with_cna_data"],
+            [study, "cases_cna", original_config, "case_list_description", case_list_desc_cna],
+            [study, "cases_cna", original_config, "case_list_name", case_list_name_cna],
+            [study, "cases_cna", original_config, "stable_id", "cna"]
+        ])
     # cnaseq - check if study has maf + cnv
     if has_maf and has_cnv:
-        entries.extend(
-            [
-                [
-                    study,
-                    "cases_cnaseq",
-                    original_config,
-                    "case_list_category",
-                    "all_cases_with_mutation_and_cna_data",
-                ],
-                [
-                    study,
-                    "cases_cnaseq",
-                    original_config,
-                    "case_list_description",
-                    case_list_desc_cnaseq,
-                ],
-                [study, "cases_cnaseq", original_config, "case_list_name", case_list_name_cnaseq],
-                [study, "cases_cnaseq", original_config, "stable_id", "cnaseq"],
-            ]
-        )
+        entries.extend([
+            [study, "cases_cnaseq", original_config, "case_list_category", "all_cases_with_mutation_and_cna_data"],
+            [study, "cases_cnaseq", original_config, "case_list_description", case_list_desc_cnaseq],
+            [study, "cases_cnaseq", original_config, "case_list_name", case_list_name_cnaseq],
+            [study, "cases_cnaseq", original_config, "stable_id", "cnaseq"]
+        ])
     # cases_RNA_Seq_v2_mRNA - check if study has rsem
     if has_rsem:
-        entries.extend(
-            [
-                [
-                    study,
-                    "cases_RNA_Seq_v2_mRNA",
-                    original_config,
-                    "case_list_category",
-                    "all_cases_with_mrna_rnaseq_data",
-                ],
-                [
-                    study,
-                    "cases_RNA_Seq_v2_mRNA",
-                    original_config,
-                    "case_list_description",
-                    case_list_desc_rna,
-                ],
-                [
-                    study,
-                    "cases_RNA_Seq_v2_mRNA",
-                    original_config,
-                    "case_list_name",
-                    case_list_name_rna,
-                ],
-                [study, "cases_RNA_Seq_v2_mRNA", original_config, "stable_id", "rna_seq_v2_mrna"],
-            ]
-        )
+        entries.extend([
+            [study, "cases_RNA_Seq_v2_mRNA", original_config, "case_list_category", "all_cases_with_mrna_rnaseq_data"],
+            [study, "cases_RNA_Seq_v2_mRNA", original_config, "case_list_description", case_list_desc_rna],
+            [study, "cases_RNA_Seq_v2_mRNA", original_config, "case_list_name", case_list_name_rna],
+            [study, "cases_RNA_Seq_v2_mRNA", original_config, "stable_id", "rna_seq_v2_mrna"]
+        ])
     # cases_sequenced - check if study has maf
     if has_maf:
-        entries.extend(
-            [
-                [
-                    study,
-                    "cases_sequenced",
-                    original_config,
-                    "case_list_category",
-                    "all_cases_with_mutation_data",
-                ],
-                [
-                    study,
-                    "cases_sequenced",
-                    original_config,
-                    "case_list_description",
-                    case_list_desc_sequenced,
-                ],
-                [
-                    study,
-                    "cases_sequenced",
-                    original_config,
-                    "case_list_name",
-                    case_list_name_sequenced,
-                ],
-                [study, "cases_sequenced", original_config, "stable_id", "sequenced"],
-            ]
-        )
+        entries.extend([
+            [study, "cases_sequenced", original_config, "case_list_category", "all_cases_with_mutation_data"],
+            [study, "cases_sequenced", original_config, "case_list_description", case_list_desc_sequenced],
+            [study, "cases_sequenced", original_config, "case_list_name", case_list_name_sequenced],
+            [study, "cases_sequenced", original_config, "stable_id", "sequenced"]
+        ])
     # cases_sv - check if study has fusion data
     if has_sv:
-        entries.extend(
-            [
-                [
-                    study,
-                    "cases_sv",
-                    original_config,
-                    "case_list_category",
-                    "all_cases_with_sv_data",
-                ],
-                [study, "cases_sv", original_config, "case_list_description", case_list_desc_sv],
-                [study, "cases_sv", original_config, "case_list_name", case_list_name_sv],
-                [study, "cases_sv", original_config, "stable_id", "sv"],
-            ]
-        )
+        entries.extend([
+            [study, "cases_sv", original_config, "case_list_category", "all_cases_with_sv_data"],
+            [study, "cases_sv", original_config, "case_list_description", case_list_desc_sv],
+            [study, "cases_sv", original_config, "case_list_name", case_list_name_sv],
+            [study, "cases_sv", original_config, "stable_id", "sv"]
+        ])
 
     return pd.DataFrame(entries, columns=["Study", "Key", "File", "Sub-Key", "Value"])
 
@@ -502,23 +409,11 @@ def get_database_pulls(db_cur: psycopg2.extensions.cursor, study: str, tbl_name:
         pd.DataFrame: DataFrame with database pulls and data sheets entries
     """
     original_config = f"{study}_case_meta_config.json"
-    entries = [
-        [study, "database_pulls", original_config, "genomics_etl.table", f"{schema}.{tbl_name}"],
-        [
-            study,
-            "database_pulls",
-            original_config,
-            "patient_file.table",
-            f"{schema}.{study}_data_clinical_patient",
-        ],
-        [
-            study,
-            "database_pulls",
-            original_config,
-            "sample_file.table",
-            f"{schema}.{study}_data_clinical_sample",
-        ],
-    ]
+    entries = ([
+        [study, "database_pulls", original_config, "genomics_etl.table", f"prod_cbio.{tbl_name}"],
+        [study, "database_pulls", original_config, "patient_file.table", f"prod_cbio.{study}_data_clinical_patient"],
+        [study, "database_pulls", original_config, "sample_file.table", f"prod_cbio.{study}_data_clinical_sample"]   
+    ])
 
     # Query to check if the timeline tables exist for the study
     timeline_tables = {
@@ -561,18 +456,10 @@ def get_database_pulls(db_cur: psycopg2.extensions.cursor, study: str, tbl_name:
         table_exists = db_cur.fetchone()[0]
 
         if table_exists:
-            entries.extend(
-                [
-                    [study, "database_pulls", original_config, f"{key}.out_file", info["out_file"]],
-                    [
-                        study,
-                        "database_pulls",
-                        original_config,
-                        f"{key}.table",
-                        f"{schema}.{info['table']}",
-                    ],
-                ]
-            )
+            entries.extend([
+                [study, "database_pulls", original_config, f"{key}.out_file", info["out_file"]],
+                [study, "database_pulls", original_config, f"{key}.table", f"prod_cbio.{info['table']}"]
+            ])
 
             correct_subkey = timeline_subkey_map.get(key, f"dtypes.{key}")
 
