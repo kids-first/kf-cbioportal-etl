@@ -79,7 +79,7 @@ docker run --rm -it \
     -v /path/to/output_dir:/output \
     cbio-etl-runtime-env /bin/bash
     
-# Install cbio-etl within container
+# If you want to change the refs used, run the code snippet below, otherwise skip
 curl -L https://github.com/kids-first/kf-cbioportal-etl-refs/archive/refs/tags/<desired version>.tar.gz | tar -xz -C </path/to/kf-cbioportal-etl/cbioportal_etl/> --wildcards '*REFS/*' --strip-components=1
 curl -L https://github.com/kids-first/kf-cbioportal-etl-refs/archive/refs/tags/<desired version>.tar.gz | tar -xz -C </path/to/kf-cbioportal-etl/cbioportal_etl/> --wildcards '*STUDY_CONFIGS/*' --strip-components=1
 pip install /path/to/kf-cbioportal-etl/

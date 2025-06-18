@@ -42,7 +42,7 @@ def config(filename: str = "database.ini", section: str = "postgresql") -> dict:
 
 def get_file_type(
     db_cur: psycopg2.extensions.cursor, study: str, tbl_name: str, schema: str) -> pd.DataFrame:
-    """Query 'etl_file_type' column for dl_file_type_list.
+    """Get valid list of 'file_type' from genomics_etl_file table.
 
     Args:
         db_cur (psycopg2.extensions.cursor): Database cursor
@@ -194,7 +194,9 @@ def get_dna_rna_ext_list(db_cur: psycopg2.extensions.cursor, study: str, tbl_nam
 
 
 def get_file_loc_defs(db_cur: psycopg2.extensions.cursor, study: str, tbl_name: str, schema: str) -> pd.DataFrame:
-    """Query 'file_type' column for file_loc_defs.
+    """Get file name extension 'file_type' column for file_loc_defs.
+
+    Map file extensions to file_type to inform proper grouping of files by file_type
 
     Args:
         db_cur (psycopg2.extensions.cursor): Database cursor
