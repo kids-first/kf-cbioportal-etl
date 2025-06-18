@@ -44,9 +44,13 @@ The steps in `cbio-etl import` are outlined as follows:
 Refer to [INSTALL.md](docs/INSTALL.md) and [setup.py](setup.py) for more details.
 
 ### Installation Steps
+Standard references and configs are stored in a [separate git repo](https://github.com/kids-first/kf-cbioportal-etl-refs).
+Be sure to grab the desired release before pip install as demonstrated below
 Run on `Mgmt-Console-Dev-chopd3bprod@684194535433` EC2 instance
 ```sh
 git clone https://github.com/kids-first/kf-cbioportal-etl.git
+curl -L https://github.com/kids-first/kf-cbioportal-etl-refs/archive/refs/tags/<desired version>.tar.gz | tar -xz -C </path/to/kf-cbioportal-etl/cbioportal_etl/> --wildcards '*REFS/*' --strip-components=1
+curl -L https://github.com/kids-first/kf-cbioportal-etl-refs/archive/refs/tags/<desired version>.tar.gz | tar -xz -C </path/to/kf-cbioportal-etl/cbioportal_etl/> --wildcards '*STUDY_CONFIGS/*' --strip-components=1
 pip install /path/to/kf-cbioportal-etl/
 ```
 
@@ -63,7 +67,7 @@ cbio-etl import \
 We've created a Docker image that allows you to dynamically choose which version of cbio-etl to use at runtime.
 ### Installation Steps
 ```sh
-docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:cbio-etl-runtime-env
+docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:v2.4.1
 ```
 
 ### Runtime and Usage
@@ -75,10 +79,10 @@ docker run --rm -it \
     -v /path/to/output_dir:/output \
     cbio-etl-runtime-env /bin/bash
     
-# Install cbio-etl within container
-cd kf-cbioportal-etl/
-git checkout v2.3.1  # Use a specific version instead of the latest from main
-pip install .
+# If you want to change the refs used, run the code snippet below, otherwise skip
+curl -L https://github.com/kids-first/kf-cbioportal-etl-refs/archive/refs/tags/<desired version>.tar.gz | tar -xz -C </path/to/kf-cbioportal-etl/cbioportal_etl/> --wildcards '*REFS/*' --strip-components=1
+curl -L https://github.com/kids-first/kf-cbioportal-etl-refs/archive/refs/tags/<desired version>.tar.gz | tar -xz -C </path/to/kf-cbioportal-etl/cbioportal_etl/> --wildcards '*STUDY_CONFIGS/*' --strip-components=1
+pip install /path/to/kf-cbioportal-etl/
 # Run cbio-etl
 cd /output/
 cbio-etl update \

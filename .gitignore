@@ -10,6 +10,10 @@
 *.userosscache
 *.sln.docstates
 
+# Specific sub-dirs now managed by another repository
+cbioportal_etl/REFS/
+cbioportal_etl/STUDY_CONFIGS/
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -352,4 +356,5 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
 .vscode/settings.json
+**/.vscode/
 .DS_Store
