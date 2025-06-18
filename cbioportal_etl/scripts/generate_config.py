@@ -194,9 +194,9 @@ def get_dna_rna_ext_list(db_cur: psycopg2.extensions.cursor, study: str, tbl_nam
 
 
 def get_file_loc_defs(db_cur: psycopg2.extensions.cursor, study: str, tbl_name: str, schema: str) -> pd.DataFrame:
-    """Get file name extension 'file_type' column for file_loc_defs.
+    """Get file name extension from 'file_name' column for unique 'file_type' values.
 
-    Map file extensions to file_type to inform proper grouping of files by file_type
+    Group 'file_type' files by mapping each 'file_type' value to a predefined sub-key and value
 
     Args:
         db_cur (psycopg2.extensions.cursor): Database cursor
