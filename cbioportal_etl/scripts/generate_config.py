@@ -412,9 +412,9 @@ def get_database_pulls(db_cur: psycopg2.extensions.cursor, study: str, tbl_name:
     """
     original_config = f"{study}_case_meta_config.json"
     entries = ([
-        [study, "database_pulls", original_config, "genomics_etl.table", f"prod_cbio.{tbl_name}"],
-        [study, "database_pulls", original_config, "patient_file.table", f"prod_cbio.{study}_data_clinical_patient"],
-        [study, "database_pulls", original_config, "sample_file.table", f"prod_cbio.{study}_data_clinical_sample"]   
+        [study, "database_pulls", original_config, "genomics_etl.table", f"{schema}.{tbl_name}"],
+        [study, "database_pulls", original_config, "patient_file.table", f"{schema}.{study}_data_clinical_patient"],
+        [study, "database_pulls", original_config, "sample_file.table", f"{schema}.{study}_data_clinical_sample"]   
     ])
 
     # Query to check if the timeline tables exist for the study
@@ -572,7 +572,6 @@ def generate_tsv(args: argparse.Namespace) -> None:
     study: str = args.study
     schema: str = args.schema
     tbl_name: str = f"{study}_genomics_etl_file"
-
     studies_without_data_configs: list[str] = [
         "case_cptac",
         "chdm_phs002301_2021",
