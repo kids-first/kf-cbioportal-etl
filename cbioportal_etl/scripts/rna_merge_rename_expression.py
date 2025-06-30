@@ -211,12 +211,22 @@ if __name__ == "__main__":
         master_zscore_vs_healthy = pd.concat(zscore_vs_healthy, axis=1).fillna(0).astype(np.float32)
         master_zscore_intracohort = pd.concat(zscore_intracohort, axis=1).fillna(0).astype(np.float32)
 
+        NONE_TYPES = {"rnaseq", "rna-seq", "rna seq", "none", "nan", ""}
+        raw_value = unique_strategies[0]
+        is_none_type = pd.isna(raw_value) or str(raw_value).strip().lower() in NONE_TYPES
+        all_library_types_none = len(unique_strategies) == 1 and is_none_type
+        skip_vs_healthy_output = all_library_types_none and str(args.default_match_type).strip().lower() in {"none", "", "nan"}
         for project in project_list:
             sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
-            if not master_zscore_vs_healthy.empty:
+            if not skip_vs_healthy_output and not master_zscore_vs_healthy.empty:
                 healthy_outfile = f"{out_dir}{project}.rsem_merged_vs_healthy_zscore_{args.expression_type}.txt"
                 master_zscore_vs_healthy[sub_samples].to_csv(healthy_outfile, sep="\t", float_format="%.4f")
-
+            else:
+                if skip_vs_healthy_output:
+                    print(f"Skipping output of vs-healthy z-score for {project} since values are equivalent to intra-cohort z-score", file=sys.stderr)
+                elif master_zscore_vs_healthy.empty:
+                    print(f"Skipping output of vs-healthy z-score for {project} because vs-healthy table is empty", file=sys.stderr)
+                    
             intra_outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
             master_zscore_intracohort[sub_samples].to_csv(intra_outfile, sep="\t", float_format="%.4f")
 
