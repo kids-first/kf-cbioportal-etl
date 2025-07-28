@@ -1,0 +1,97 @@
+name: Check Incremental Updates
+
+on:
+  # schedule: 
+  #   cron: "0 12 * * 0"   # every Sunday at 8 AM EST
+  workflow_dispatch: 
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+
+  steps:
+  - name: Checkout repo
+    uses: actions/checkout@v4
+
+  - name: setup pyenv
+    uses: "gabrielfalcao/pyenv-action@v18"
+    with:
+      default: 3.10
+      command: |
+        pip install --upgrade pip
+        pip install pandas psycopg2-binary typing
+
+  - name: Run snapshot check
+    id: run_snapshot_check
+    run: |
+      python3 cbioportal_etl/scripts/check_snapshot_updates.py --db-ini db.ini
+  
+  - name: Run diff_studies for each study
+    id: diff_studies
+    run: | 
+      mkdir -p diff_outputs
+      while read study; do
+        echo "Running diff_studies.py for $study"
+          python3 cbioportal_etl/scripts/diff_studies.py --study "$study" --output-dir diff_outputs
+        done < updated_snapshots.txt
+  
+  - name: Upload diff outputs
+    uses: actions/upload-artifact@v4
+    with:
+      name: diff-studies-outputs
+      path: diff_outputs/
+
+  - name: Create Jira ticket
+    env:
+      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+      JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+      JIRA_ACCOUNT_ID: ${{ secrets.JIRA_ACCOUNT_ID }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+    run: |
+      echo "Studies with changes:"
+      cat updated_snapshots.txt
+
+      DESCRIPTION_PARAGRAPHS="[]"
+      for study in $(cat updated_snapshots.txt); do
+        PARAGRAPH=$(jq -n --arg name "$study" '{
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Study " },
+            { type: "text", text: $name }
+          ]
+        }')
+
+        DESCRIPTION_PARAGRAPHS=$(jq -n --argjson old "$DESCRIPTION_PARAGRAPHS" --argjson new "$PARAGRAPH" '$old + [$new]')
+      done
+
+      FINAL_DESCRIPTION=$(jq -n \
+        --argjson paragraphs "$DESCRIPTION_PARAGRAPHS" \
+        '{
+          type: "doc",
+          version: 1,
+          content: $paragraphs
+        }'
+      )
+
+      echo "$FINAL_DESCRIPTION" > payload.json
+
+      jq -n \
+        --arg accid "$JIRA_ACCOUNT_ID" \
+        --argjson desc "$FINAL_DESCRIPTION" '{
+          fields: {
+            project: { key: "BIXU" },
+            summary: "Studies Detected with Changes in DBT Snapshots",
+            description: $desc,
+            issuetype: { id: "10226" },
+            assignee: { id: $accid },
+            reporter: { id: $accid },
+            customfield_10051: 1
+          }
+        }' > ticket_payload.json
+
+      curl --request POST \
+        --url "$JIRA_BASE_URL/rest/api/3/issue/" \
+        --user "$JIRA_USER_EMAIL:$JIRA_API_TOKEN" \
+        --header 'Content-Type: application/json' \
+        --data @ticket_payload.json
