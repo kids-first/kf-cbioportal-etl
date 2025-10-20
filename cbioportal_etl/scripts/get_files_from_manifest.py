@@ -107,10 +107,20 @@ def download_sbg(
         if overwrite or not os.path.isfile(out):
             try:
                 sbg_file.download(out)
-            except Exception as e:
-                err_types["sbg download"] += 1
-                print(f"Failed to download file with id {loc}", file=sys.stderr)
+            except SbgError as e:
+                print(
+                f"Failed to download file with id {loc}. Will try once more in 3 seconds",
+                file=sys.stderr )
                 print(e, file=sys.stderr)
+                try:
+                    sleep(3)
+                    sbg_file.download(out)
+                    print("Success on second try!", file=sys.stderr)
+                except SbgError as e:
+                    print("Failed on second attempt", file=sys.stderr)
+                    err_types["sbg download"] += 1
+                    print(f"Failed to download file with id {loc}", file=sys.stderr)
+                    print(e, file=sys.stderr)
         else:
             print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
     return 0
