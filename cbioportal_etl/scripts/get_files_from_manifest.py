@@ -78,7 +78,8 @@ def download_sbg(
         aws_tbl: Table with AWS key info. Will trigger AWS downloads
 
     """
-    sub_file_list: list = list(selected.loc[selected["file_type"] == file_type, "file_id"])
+    # get file id file name pairs from manifest
+    sub_file_list: list = selected.loc[selected["file_type"] == file_type, ["file_id", "file_name"]].values.tolist()
     # Sort of a "trust fall" that if aws bucket exists, skip SBG download
     if aws_tbl:
         sub_file_list = list(
@@ -87,40 +88,31 @@ def download_sbg(
                 "file_id",
             ]
         )
-    for loc in sub_file_list:
-        try:
-            sbg_file: sbg.File = api.files.get(loc)
-        except SbgError as e:
-            print(
-                f"Failed to get file with id {loc}. Will try once more in 3 seconds",
-                file=sys.stderr,
-            )
-            print(e, file=sys.stderr)
+    for file_id, file_name in sub_file_list:
+        out = f"{file_type}/{file_name}"
+        if not os.path.isfile(out) or overwrite:
             try:
-                sleep(3)
-                sbg_file = api.files.get(loc)
-                print("Success on second try!", file=sys.stderr)
-            except SbgError as e:
-                print("Failed on second attempt", file=sys.stderr)
-                err_types["sbg get"] += 1
-        out = f"{file_type}/{sbg_file.name}"
-        if overwrite or not os.path.isfile(out):
-            try:
-                sbg_file.download(out)
+                sbg_file: sbg.File = api.files.get(file_id)
             except SbgError as e:
                 print(
-                f"Failed to download file with id {loc}. Will try once more in 3 seconds",
-                file=sys.stderr )
+                    f"Failed to get file with id {file_id}. Will try once more in 3 seconds",
+                    file=sys.stderr,
+                )
                 print(e, file=sys.stderr)
                 try:
                     sleep(3)
-                    sbg_file.download(out)
+                    sbg_file = api.files.get(file_id)
                     print("Success on second try!", file=sys.stderr)
                 except SbgError as e:
                     print("Failed on second attempt", file=sys.stderr)
-                    err_types["sbg download"] += 1
-                    print(f"Failed to download file with id {loc}", file=sys.stderr)
-                    print(e, file=sys.stderr)
+                    err_types["sbg get"] += 1
+                    continue
+            try:
+                sbg_file.download(out, retry=2)
+            except SbgError as e:
+                print(e, file=sys.stderr)
+                err_types["sbg download"] += 1
+                print(f"Failed to download file with id {file_id}", file=sys.stderr)
         else:
             print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
     return 0
@@ -293,6 +285,7 @@ def run_py(args: argparse.Namespace) -> int:
             ): ftype
             for ftype in file_types_list
         }
+
     flag: int = 0
     for protocol, count in err_types.items():
         if count:
