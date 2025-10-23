@@ -128,8 +128,8 @@ def download_sbg(
                 print(f"Skipping download for file id {file_id} due to previous errors.", file=sys.stderr)
                 continue
             try:
-                sbg_file.download(out, retry=2)
-            except SbgError as e:
+                sbg_file.download(out, retry=5)
+            except Exception as e:
                 print(e, file=sys.stderr)
                 err_types["sbg download"] += 1
                 print(f"Failed to download file with id {file_id}", file=sys.stderr)
