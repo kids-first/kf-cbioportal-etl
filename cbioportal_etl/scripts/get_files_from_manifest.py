@@ -58,6 +58,38 @@ def download_aws(
     print("Completed downloading files for " + file_type, file=sys.stderr)
     sys.stderr.flush()
 
+def get_file_with_retry(
+        api: sbg.Api,
+        file_id: str,
+        err_types: dict[str, int],
+        retries: int = 2,
+        delay: int = 3,
+) -> tuple[sbg.File | None, dict[str, int]]:
+    """Get SBG file with retry logic.
+
+    Args:
+        api: SBG API object
+        file_id: ID of the file to retrieve
+        retries: Number of retry attempts
+        delay: Delay between retries in seconds
+    Returns:
+        sbg.File object if successful, None otherwise
+    """
+    for attempt in range(1, retries + 1):
+        file_obj = None
+        try:
+            file_obj = api.files.get(file_id)
+            break  # Exit loop if successful
+        except SbgError as e:
+            print(f"Attempt {attempt} failed for file {file_id}: {e}", file=sys.stderr)
+            if attempt < retries:
+                print(f"Retrying in {delay} seconds...", file=sys.stderr)
+                sleep(delay)
+            else:
+                print("All attempts failed.", file=sys.stderr)
+                err_types["sbg get"] += 1
+    return file_obj, err_types
+
 
 def download_sbg(
     file_type: str,
@@ -91,22 +123,10 @@ def download_sbg(
     for file_id, file_name in sub_file_list:
         out = f"{file_type}/{file_name}"
         if not os.path.isfile(out) or overwrite:
-            try:
-                sbg_file: sbg.File = api.files.get(file_id)
-            except SbgError as e:
-                print(
-                    f"Failed to get file with id {file_id}. Will try once more in 3 seconds",
-                    file=sys.stderr,
-                )
-                print(e, file=sys.stderr)
-                try:
-                    sleep(3)
-                    sbg_file = api.files.get(file_id)
-                    print("Success on second try!", file=sys.stderr)
-                except SbgError as e:
-                    print("Failed on second attempt", file=sys.stderr)
-                    err_types["sbg get"] += 1
-                    continue
+            sbg_file, err_types = get_file_with_retry(api, file_id, err_types, retries=2, delay=3)
+            if sbg_file is None:
+                print(f"Skipping download for file id {file_id} due to previous errors.", file=sys.stderr)
+                continue
             try:
                 sbg_file.download(out, retry=2)
             except SbgError as e:
@@ -219,7 +239,7 @@ def run_py(args: argparse.Namespace) -> int:
     selected.to_csv(out_file, sep="\t", mode="w", index=False)
     if args.debug:
         print(
-            f"Debug flag given. No downloads actually happen, just a manifest subset to preview",
+            "Debug flag given. No downloads actually happen, just a manifest subset to preview",
             file=sys.stderr,
         )
         sys.exit(1)
