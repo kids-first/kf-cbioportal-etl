@@ -77,22 +77,18 @@ def download_sbg(
 
     """
     # get file id file name pairs from manifest
-    sub_file_list: list = selected.loc[selected["file_type"] == file_type, ["file_id", "file_name"]].values.tolist()
-    total_files: int = len(sub_file_list)
-    # Sort of a "trust fall" that if aws bucket exists, skip SBG download
+    sub_df = selected.loc[selected["file_type"] == file_type, ["file_id", "file_name", "s3_path"]]
+    total_files = len(sub_df)
+
     if aws_tbl:
-        sub_file_list = list(
-            selected.loc[
-                (selected["file_type"] == file_type) & (selected["s3_path"].isna()),
-                "file_id",
-            ]
-        )
-    # Process files in batches of 100, the max bulk op size
+        sub_df = sub_df.loc[sub_df["s3_path"].isna(), ["file_id", "file_name"]]
+
     batch_size = 100
-    for i in range(0, len(sub_file_list), batch_size):
-        print(f"Processing {file_type} files {i} to {min(i + batch_size, len(sub_file_list))} out of {total_files}", file=sys.stderr)
-        batch = sub_file_list[i:i + batch_size]
-        batch_ids, batch_names = zip(*batch)
+    for batch_start_idx in range(0, len(sub_df), batch_size):
+        print(f"Processed {file_type} files {batch_start_idx} out of {total_files}", file=sys.stderr)
+        batch = sub_df.iloc[batch_start_idx : batch_start_idx + batch_size]
+        batch_ids = batch["file_id"].tolist()
+        batch_names = batch["file_name"].tolist()
         try:
             bulk_files = api.files.bulk_get(batch_ids)
             for j, file_obj in enumerate(bulk_files):
@@ -108,7 +104,7 @@ def download_sbg(
                     print(f"File ID {batch_ids[j]} is not valid. Skipping download.", file=sys.stderr)
                     err_types[e_type] += 1
         except Exception as e:
-            print(f"Bulk get failed for batch starting at index {i}: {e}", file=sys.stderr)
+            print(f"Bulk get failed for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
             err_types[e_type] += 1
     print("Completed downloading files for " + file_type, file=sys.stderr)
     return 0
