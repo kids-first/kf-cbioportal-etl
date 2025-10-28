@@ -5,7 +5,6 @@ import argparse
 import concurrent.futures
 import os
 import sys
-from time import sleep
 from typing import TYPE_CHECKING, Any
 
 import boto3
@@ -13,7 +12,6 @@ import botocore
 import pandas as pd
 import sevenbridges as sbg
 import urllib3
-from sevenbridges.errors import SbgError
 from sevenbridges.http.error_handlers import maintenance_sleeper, rate_limit_sleeper
 
 if TYPE_CHECKING:
@@ -58,38 +56,6 @@ def download_aws(
     print("Completed downloading files for " + file_type, file=sys.stderr)
     sys.stderr.flush()
 
-def get_file_with_retry(
-        api: sbg.Api,
-        file_id: str,
-        err_types: dict[str, int],
-        retries: int = 2,
-        delay: int = 3,
-) -> tuple[sbg.File | None, dict[str, int]]:
-    """Get SBG file with retry logic.
-
-    Args:
-        api: SBG API object
-        file_id: ID of the file to retrieve
-        retries: Number of retry attempts
-        delay: Delay between retries in seconds
-    Returns:
-        sbg.File object if successful, None otherwise
-    """
-    for attempt in range(1, retries + 1):
-        file_obj = None
-        try:
-            file_obj = api.files.get(file_id)
-            break  # Exit loop if successful
-        except SbgError as e:
-            print(f"Attempt {attempt} failed for file {file_id}: {e}", file=sys.stderr)
-            if attempt < retries:
-                print(f"Retrying in {delay} seconds...", file=sys.stderr)
-                sleep(delay)
-            else:
-                print("All attempts failed.", file=sys.stderr)
-                err_types["sbg get"] += 1
-    return file_obj, err_types
-
 
 def download_sbg(
     file_type: str,
@@ -112,6 +78,7 @@ def download_sbg(
     """
     # get file id file name pairs from manifest
     sub_file_list: list = selected.loc[selected["file_type"] == file_type, ["file_id", "file_name"]].values.tolist()
+    total_files: int = len(sub_file_list)
     # Sort of a "trust fall" that if aws bucket exists, skip SBG download
     if aws_tbl:
         sub_file_list = list(
@@ -120,21 +87,30 @@ def download_sbg(
                 "file_id",
             ]
         )
-    for file_id, file_name in sub_file_list:
-        out = f"{file_type}/{file_name}"
-        if not os.path.isfile(out) or overwrite:
-            sbg_file, err_types = get_file_with_retry(api, file_id, err_types, retries=2, delay=3)
-            if sbg_file is None:
-                print(f"Skipping download for file id {file_id} due to previous errors.", file=sys.stderr)
-                continue
-            try:
-                sbg_file.download(out, retry=5)
-            except Exception as e:
-                print(e, file=sys.stderr)
-                err_types["sbg download"] += 1
-                print(f"Failed to download file with id {file_id}", file=sys.stderr)
-        else:
-            print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
+    # Process files in batches of 100, the max bulk op size
+    batch_size = 100
+    for i in range(0, len(sub_file_list), batch_size):
+        print(f"Processing {file_type} files {i} to {min(i + batch_size, len(sub_file_list))} out of {total_files}", file=sys.stderr)
+        batch = sub_file_list[i:i + batch_size]
+        batch_ids, batch_names = zip(*batch)
+        try:
+            bulk_files = api.files.bulk_get(batch_ids)
+            for j, file_obj in enumerate(bulk_files):
+                e_type = "sbg get"
+                if file_obj.valid:
+                    out = f"{file_type}/{batch_names[j]}"
+                    if not os.path.isfile(out) or overwrite:
+                        e_type = "sbg download"
+                        file_obj.resource.download(out, retry=5)
+                    else:
+                        print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
+                else:
+                    print(f"File ID {batch_ids[j]} is not valid. Skipping download.", file=sys.stderr)
+                    err_types[e_type] += 1
+        except Exception as e:
+            print(f"Bulk get failed for batch starting at index {i}: {e}", file=sys.stderr)
+            err_types[e_type] += 1
+    print("Completed downloading files for " + file_type, file=sys.stderr)
     return 0
 
 
@@ -305,6 +281,17 @@ def run_py(args: argparse.Namespace) -> int:
             ): ftype
             for ftype in file_types_list
         }
+    # for ftype in file_types_list:
+    #     mt_type_download(
+    #             ftype,
+    #             key_dict,
+    #             selected,
+    #             api,
+    #             args.overwrite,
+    #             err_types,
+    #             args.sbg_profile,
+    #             args.aws_tbl
+    #     )
 
     flag: int = 0
     for protocol, count in err_types.items():
