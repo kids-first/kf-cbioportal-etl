@@ -281,17 +281,6 @@ def run_py(args: argparse.Namespace) -> int:
             ): ftype
             for ftype in file_types_list
         }
-    # for ftype in file_types_list:
-    #     mt_type_download(
-    #             ftype,
-    #             key_dict,
-    #             selected,
-    #             api,
-    #             args.overwrite,
-    #             err_types,
-    #             args.sbg_profile,
-    #             args.aws_tbl
-    #     )
 
     flag: int = 0
     for protocol, count in err_types.items():
