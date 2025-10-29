@@ -20,6 +20,27 @@ if TYPE_CHECKING:
     from numpy import ndarray
 
 
+def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, delay: int=3) -> None:
+    """Download a file from SBG with retry logic.
+
+    Args:
+        file_obj: SBG File object to download
+        out: Output file path
+        retries: Number of retry attempts
+        delay: Delay between retries in seconds
+    """
+    for attempt in range(1, retries + 1):
+        try:
+            file_obj.download(out)
+            break
+        except Exception as e:
+            print(f"Attempt {attempt} failed for {out}: {e}", file=sys.stderr)
+            sleep(delay)
+    if attempt == retries:
+        print(f"Failed to download {out} after {retries} attempts", file=sys.stderr)
+        raise Exception(f"Download failed for {file_obj.id} to location {out}")
+
+
 def download_aws(
     file_type: str, key_dict: dict[str, dict[str, Any]], overwrite: bool, err_types: dict[str, int]
 ) -> None:
@@ -78,41 +99,42 @@ def download_sbg(
         aws_tbl: Table with AWS key info. Will trigger AWS downloads
 
     """
-    sub_file_list: list = list(selected.loc[selected["file_type"] == file_type, "file_id"])
-    # Sort of a "trust fall" that if aws bucket exists, skip SBG download
+    # get file id file name pairs from manifest
+    sub_df = selected.loc[selected["file_type"] == file_type, ["file_id", "file_name", "s3_path"]]
+    total_files = len(sub_df)
+
     if aws_tbl:
-        sub_file_list = list(
-            selected.loc[
-                (selected["file_type"] == file_type) & (selected["s3_path"].isna()),
-                "file_id",
-            ]
-        )
-    for loc in sub_file_list:
+        sub_df = sub_df.loc[sub_df["s3_path"].isna(), ["file_id", "file_name"]]
+
+    batch_size = 100
+    for batch_start_idx in range(0, len(sub_df), batch_size):
+        print(f"Processed {file_type} files {batch_start_idx} out of {total_files}", file=sys.stderr)
+        batch = sub_df.iloc[batch_start_idx : batch_start_idx + batch_size]
+        batch_ids = batch["file_id"].tolist()
+        batch_names = batch["file_name"].tolist()
         try:
-            sbg_file: sbg.File = api.files.get(loc)
+            bulk_files = api.files.bulk_get(batch_ids)
+            for j, file_obj in enumerate(bulk_files):
+                e_type = "sbg get"
+                if file_obj.valid:
+                    out = f"{file_type}/{batch_names[j]}"
+                    if not os.path.isfile(out) or overwrite:
+                        e_type = "sbg download"
+                        sbg_download_with_retry(file_obj.resource, out)
+                    else:
+                        print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
+                else:
+                    print(f"File ID {batch_ids[j]} is not valid. Skipping download.", file=sys.stderr)
+                    err_types[e_type] += 1
         except SbgError as e:
-            print(
-                f"Failed to get file with id {loc}. Will try once more in 3 seconds",
-                file=sys.stderr,
-            )
-            print(e, file=sys.stderr)
-            try:
-                sleep(3)
-                sbg_file = api.files.get(loc)
-                print("Success on second try!", file=sys.stderr)
-            except SbgError as e:
-                print("Failed on second attempt", file=sys.stderr)
-                err_types["sbg get"] += 1
-        out = f"{file_type}/{sbg_file.name}"
-        if overwrite or not os.path.isfile(out):
-            try:
-                sbg_file.download(out)
-            except Exception as e:
-                err_types["sbg download"] += 1
-                print(f"Failed to download file with id {loc}", file=sys.stderr)
-                print(e, file=sys.stderr)
-        else:
-            print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
+            if e_type == "sbg download":
+                print(f"Download failed for file {batch_names[j]}: {e}", file=sys.stderr)
+            else:
+                print(f"Bulk get failed for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
+            err_types[e_type] += 1
+        except Exception as e:
+            print(f"Unexpected error for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
+    print("Completed downloading files for " + file_type, file=sys.stderr)
     return 0
 
 
@@ -217,7 +239,7 @@ def run_py(args: argparse.Namespace) -> int:
     selected.to_csv(out_file, sep="\t", mode="w", index=False)
     if args.debug:
         print(
-            f"Debug flag given. No downloads actually happen, just a manifest subset to preview",
+            "Debug flag given. No downloads actually happen, just a manifest subset to preview",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -283,6 +305,7 @@ def run_py(args: argparse.Namespace) -> int:
             ): ftype
             for ftype in file_types_list
         }
+
     flag: int = 0
     for protocol, count in err_types.items():
         if count:
