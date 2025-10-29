@@ -12,6 +12,7 @@ import botocore
 import pandas as pd
 import sevenbridges as sbg
 import urllib3
+from sevenbridges.errors import SbgError
 from sevenbridges.http.error_handlers import maintenance_sleeper, rate_limit_sleeper
 
 if TYPE_CHECKING:
@@ -103,17 +104,19 @@ def download_sbg(
                 else:
                     print(f"File ID {batch_ids[j]} is not valid. Skipping download.", file=sys.stderr)
                     err_types[e_type] += 1
-        except Exception as e:
+        except SbgError as e:
             if e_type == "sbg download":
                 print(f"Download failed for file {batch_names[j]}: {e}, trying again", file=sys.stderr)
                 try:
                     file_obj.resource.download(out, retry=5)
-                except Exception as e2:
+                except SbgError as e2:
                     print(f"Second download attempt failed for file {batch_names[j]}: {e2}", file=sys.stderr)
                     err_types[e_type] += 1
             else:
                 print(f"Bulk get failed for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
             err_types[e_type] += 1
+        except Exception as e:
+            print(f"Unexpected error for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
     print("Completed downloading files for " + file_type, file=sys.stderr)
     return 0
 
