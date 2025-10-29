@@ -5,6 +5,7 @@ import argparse
 import concurrent.futures
 import os
 import sys
+from time import sleep
 from typing import TYPE_CHECKING, Any
 
 import boto3
@@ -17,6 +18,27 @@ from sevenbridges.http.error_handlers import maintenance_sleeper, rate_limit_sle
 
 if TYPE_CHECKING:
     from numpy import ndarray
+
+
+def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, delay: int=3) -> None:
+    """Download a file from SBG with retry logic.
+
+    Args:
+        file_obj: SBG File object to download
+        out: Output file path
+        retries: Number of retry attempts
+        delay: Delay between retries in seconds
+    """
+    for attempt in range(1, retries + 1):
+        try:
+            file_obj.download(out)
+            break
+        except Exception as e:
+            print(f"Attempt {attempt} failed for {out}: {e}", file=sys.stderr)
+            sleep(delay)
+    if attempt == retries:
+        print(f"Failed to download {out} after {retries} attempts", file=sys.stderr)
+        raise Exception(f"Download failed for {out}")
 
 
 def download_aws(
@@ -98,7 +120,7 @@ def download_sbg(
                     out = f"{file_type}/{batch_names[j]}"
                     if not os.path.isfile(out) or overwrite:
                         e_type = "sbg download"
-                        file_obj.resource.download(out, retry=5)
+                        sbg_download_with_retry(file_obj.resource, out)
                     else:
                         print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
                 else:
@@ -106,12 +128,7 @@ def download_sbg(
                     err_types[e_type] += 1
         except SbgError as e:
             if e_type == "sbg download":
-                print(f"Download failed for file {batch_names[j]}: {e}, trying again", file=sys.stderr)
-                try:
-                    file_obj.resource.download(out, retry=5)
-                except SbgError as e2:
-                    print(f"Second download attempt failed for file {batch_names[j]}: {e2}", file=sys.stderr)
-                    err_types[e_type] += 1
+                print(f"Download failed for file {batch_names[j]}: {e}", file=sys.stderr)
             else:
                 print(f"Bulk get failed for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
             err_types[e_type] += 1
