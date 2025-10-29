@@ -38,7 +38,7 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
             sleep(delay)
     if attempt == retries:
         print(f"Failed to download {out} after {retries} attempts", file=sys.stderr)
-        raise Exception(f"Download failed for {out}")
+        raise Exception(f"Download failed for {file_obj.id} to location {out}")
 
 
 def download_aws(
