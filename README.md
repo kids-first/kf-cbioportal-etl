@@ -67,7 +67,7 @@ cbio-etl import \
 We've created a Docker image that allows you to dynamically choose which version of cbio-etl to use at runtime.
 ### Installation Steps
 ```sh
-docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:v2.4.3
+docker pull pgc-images.sbgenomics.com/d3b-bixu/cbio-etl:v2.4.4
 ```
 
 ### Runtime and Usage
