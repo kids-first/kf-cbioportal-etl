@@ -168,13 +168,6 @@ if __name__ == "__main__":
         help="File with maf header only",
     )
     parser.add_argument(
-        "-m",
-        "--maf-dirs",
-        action="store",
-        dest="maf_dirs",
-        help="comma-separated list of maf file directories",
-    )
-    parser.add_argument(
         "-j",
         "--config",
         action="store",
@@ -186,14 +179,18 @@ if __name__ == "__main__":
     with open(args.config_file) as f:
         config_data = json.load(f)
     # Create symlinks to mafs in one place for ease of processing
+    file_meta_dict, dl_dir = get_file_metadata(args.table, "maf")
     maf_dir: str = "MAFS/"
-    maf_dirs_in: str = args.maf_dirs
-
+    maf_dirs_in: str = ",".join(dl_dir)
     print(f"Symlinking maf files from {maf_dirs_in} to {maf_dir}", file=sys.stderr)
     os.makedirs("MAFS", exist_ok=True)
     sym_errs: int = 0
     for dirname in maf_dirs_in.split(","):
-        abs_path: str = os.path.abspath(dirname)
+        if os.path.exists(dirname):
+            abs_path: str = os.path.abspath(dirname)
+        else:
+            print(f"Input MAF dir {dirname} does not exist. Check if files were downloaded to the correct location", file=sys.stderr)
+            sys.exit(2)
         try:
             for fname in os.listdir(dirname):
                 src: str = os.path.join(abs_path, fname)
@@ -206,9 +203,8 @@ if __name__ == "__main__":
     # If symlink errors, stop here as data will be incomplete
     if sym_errs:
         print(f"Could not sym link {sym_errs} files, exiting!", file=sys.stderr)
-        sys.exit()
+        sys.exit(2)
 
-    file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "maf")
     with open(args.header) as head_fh:
         print_head: str = next(head_fh)
         cur_head: str = next(head_fh)

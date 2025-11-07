@@ -66,9 +66,7 @@ def process_maf(
         if not maf_dir:
             print(f"Skipping {maf_type} as it is not defined in the config", file=sys.stderr)
             continue
-        if isinstance(maf_dir, list):
-            maf_dir = ",".join(maf_dir)
-        maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -m {maf_dir} -j {data_config_file} 2> collate_mafs.log"
+        maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -j {data_config_file} 2> collate_mafs.log"
         log_cmd(maf_cmd)
         run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
 
@@ -207,9 +205,8 @@ def run_py(args):
             fusion_file = config_data["file_loc_defs"]["dgd_fusion"]
             fusion_url = config_data["file_loc_defs"]["dgd_fusion_url"]
         except KeyError as e:
-            raise KeyError(
-                f"Missing required config key: {e}. Please ensure 'dgd_fusion' and 'dgd_fusion_url' are defined in file_loc_defs."
-            )
+            msg = "Missing required config key. Ensure 'dgd_fusion' and 'dgd_fusion_url' are defined in file_loc_defs"
+            raise KeyError(msg) from e
 
         if not os.path.exists(fusion_file):
             sys.stderr.write(f"{fusion_file} not found. Downloading from {fusion_url}...\n")
@@ -406,7 +403,7 @@ def main():
         choices=["polyA", "totalRNA", "none"], 
         default="none", 
         help="Default match type for samples with unknown RNA library type for z-score calculations. Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score."
-    )    
+    )
 
 
     args = parser.parse_args()

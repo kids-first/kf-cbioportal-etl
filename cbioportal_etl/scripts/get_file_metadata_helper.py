@@ -1,4 +1,4 @@
-def get_file_metadata(table: str, ftype:str) -> dict[str, dict[str, dict[str, str]]]:
+def get_file_metadata(table: str, ftype:str) -> tuple[(dict[str, dict[str, dict[str, str]]], set[str])]:
     """Convert table into dict for downsteam ETL use.
 
     Subsets table by ftype (etl_file_type) column, then returns dict.
@@ -17,6 +17,7 @@ def get_file_metadata(table: str, ftype:str) -> dict[str, dict[str, dict[str, st
     kf_affected_idx = header.index("affected_bs_id")
     kf_reference_idx = header.index("reference_bs_id")
     meta_dict = {}
+    dl_dir: set[str] = set()
     for line in tbl_fh:
         info = line.rstrip("\n").split("\t")
         if info[etl_ft_idx] == ftype:
@@ -35,5 +36,6 @@ def get_file_metadata(table: str, ftype:str) -> dict[str, dict[str, dict[str, st
             meta_dict[project][cbio_tum_samp]["kf_tum_id"] = kf_tum_samp
             meta_dict[project][cbio_tum_samp]["kf_norm_id"] = kf_norm_samp
             meta_dict[project][cbio_tum_samp]["manifest_ftype"] = manifest_ftype
+            dl_dir.add(manifest_ftype)
     tbl_fh.close()
-    return meta_dict
+    return meta_dict, dl_dir
