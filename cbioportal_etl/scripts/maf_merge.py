@@ -13,7 +13,7 @@ import os
 import sys
 from typing import IO, NamedTuple
 
-from get_file_metadata_helper import get_file_metadata
+import pandas as pd
 
 
 class EntryIndices(NamedTuple):
@@ -114,9 +114,7 @@ def process_maf(
                     new_maf.write("\t".join(to_print) + "\n")
 
 
-def process_tbl(
-    cbio_dx: str, file_meta_dict: dict[str, dict[str, dict[str, str]]], print_head: str
-) -> None:
+def process_tbl(study: str, file_meta_dict: list[list], print_head: str) -> None:
     """Process MAF file be project (cbio_dx).
 
     Unlikely that more than one project will be processed, pass each variant entry for filtering
@@ -128,21 +126,17 @@ def process_tbl(
     try:
         x = 0
         # project/disease name should be name of directory hosting datasheet
-        print(f"Processing {cbio_dx} project", file=sys.stderr)
-        with open(f"{out_dir}{cbio_dx}.maf", "w") as new_maf:
+        print(f"Processing {study} project", file=sys.stderr)
+        with open(f"{out_dir}{study}.maf", "w") as new_maf:
             new_maf.write(print_head)
-            for cbio_tum_id in file_meta_dict[cbio_dx]:
-                cbio_norm_id = file_meta_dict[cbio_dx][cbio_tum_id]["cbio_norm_id"]
-                fname = file_meta_dict[cbio_dx][cbio_tum_id]["fname"]
+            for fname, cbio_tum_id, cbio_norm_id in file_meta_dict:
                 print(
-                    f"Found relevant maf to process for {cbio_tum_id} {cbio_norm_id} \
-                    {file_meta_dict[cbio_dx][cbio_tum_id]['kf_tum_id']} \
-                    {file_meta_dict[cbio_dx][cbio_tum_id]['kf_norm_id']} {fname}",
+                    f"Found relevant maf to process for {cbio_tum_id} {cbio_norm_id} {fname}",
                     file=sys.stderr,
                 )
                 process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id)
                 x += 1
-            print(f"Completed processing {x} entries in {cbio_dx}", file=sys.stderr)
+            print(f"Completed processing {x} entries in {study}", file=sys.stderr)
             new_maf.close()
     except Exception as e:
         print(e, file=sys.stderr)
@@ -168,13 +162,6 @@ if __name__ == "__main__":
         help="File with maf header only",
     )
     parser.add_argument(
-        "-m",
-        "--maf-dirs",
-        action="store",
-        dest="maf_dirs",
-        help="comma-separated list of maf file directories",
-    )
-    parser.add_argument(
         "-j",
         "--config",
         action="store",
@@ -187,13 +174,21 @@ if __name__ == "__main__":
         config_data = json.load(f)
     # Create symlinks to mafs in one place for ease of processing
     maf_dir: str = "MAFS/"
-    maf_dirs_in: str = args.maf_dirs
+    all_file_meta = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
+    maf_subset = all_file_meta[all_file_meta["etl_file_type"] == "maf"].copy()
+    study = maf_subset["cbio_project"].iloc[0]
+    maf_list = maf_subset[["file_name", "cbio_sample_name", "cbio_matched_normal_name"]].drop_duplicates().values.tolist()
 
+    maf_dirs_in: str = ",".join(maf_subset.file_type.unique().tolist())
     print(f"Symlinking maf files from {maf_dirs_in} to {maf_dir}", file=sys.stderr)
     os.makedirs("MAFS", exist_ok=True)
     sym_errs: int = 0
     for dirname in maf_dirs_in.split(","):
-        abs_path: str = os.path.abspath(dirname)
+        if os.path.exists(dirname):
+            abs_path: str = os.path.abspath(dirname)
+        else:
+            print(f"Input MAF dir {dirname} does not exist. Check if files were downloaded to the correct location", file=sys.stderr)
+            sys.exit(2)
         try:
             for fname in os.listdir(dirname):
                 src: str = os.path.join(abs_path, fname)
@@ -206,9 +201,8 @@ if __name__ == "__main__":
     # If symlink errors, stop here as data will be incomplete
     if sym_errs:
         print(f"Could not sym link {sym_errs} files, exiting!", file=sys.stderr)
-        sys.exit()
+        sys.exit(2)
 
-    file_meta_dict: dict[str, dict[str, dict[str, str]]] = get_file_metadata(args.table, "maf")
     with open(args.header) as head_fh:
         print_head: str = next(head_fh)
         cur_head: str = next(head_fh)
@@ -230,7 +224,6 @@ if __name__ == "__main__":
     out_dir: str = "merged_mafs/"
     os.makedirs(out_dir, exist_ok=True)
     # iterating through projects that are the first key in dict
-    for cbio_dx in file_meta_dict:
-        process_tbl(cbio_dx, file_meta_dict, print_head)
+    process_tbl(study, maf_list, print_head)
 
     sys.stderr.write("Done, check logs\n")
