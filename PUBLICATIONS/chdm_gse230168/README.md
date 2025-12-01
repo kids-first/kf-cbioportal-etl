@@ -1,6 +1,6 @@
 # Publication Study Load chdm_gse230168: Molecular Characterization of Chordomas (GSE230168, publication)
 As part of the Open Chordoma effort, this dataset was loaded from GEO.
-Unfortunately, as of 11/25/2025, the author has only made available counts to GENCODE 39, but geenrated using `Rsubread`.
+Unfortunately, as of 11/25/2025, the author has only made available counts to GENCODE 39, but generated using `Rsubread`.
 Due to patient confidentiality we cannot reprocess BAMs and running RSEM to make the dataset load compatible with current Open Chordoma studies has not happened.
 Therefore, this will exist as a standalone.
 
