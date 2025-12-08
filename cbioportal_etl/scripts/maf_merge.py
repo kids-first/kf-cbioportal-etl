@@ -177,7 +177,7 @@ if __name__ == "__main__":
     all_file_meta = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
     maf_subset = all_file_meta[all_file_meta["etl_file_type"] == "maf"].copy()
     study = maf_subset["cbio_project"].iloc[0]
-    maf_list = maf_subset[["file_name", "cbio_sample_name", "cbio_matched_normal_name"]].drop_duplicates().values.tolist()
+    maf_list = maf_subset[["file_name", "cbio_sample_name", "cbio_matched_normal_name"]].fillna("").astype(str).drop_duplicates().values.tolist()
 
     maf_dirs_in: str = ",".join(maf_subset.file_type.unique().tolist())
     print(f"Symlinking maf files from {maf_dirs_in} to {maf_dir}", file=sys.stderr)
