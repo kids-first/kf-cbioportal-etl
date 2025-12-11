@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="cbio-etl",
-    version="2.4.4",
+    version="2.4.5",
     author="Jessica Wong & Miguel Brown",
     description="A tool/ETL for converting data from CAVATICA and Data Warehouse to PedcBioportal format",
     packages=find_packages(),
