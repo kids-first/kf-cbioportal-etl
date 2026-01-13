@@ -7,24 +7,27 @@ Outputs files that are the foundation for incremental updates and clinical data 
 import argparse
 import csv
 import glob
+import json
 import os
 import sys
-import json
 from typing import TypedDict
-import pandas as pd
 from urllib.parse import urlparse
 
+import pandas as pd
 import requests
+import truststore
 
 
 class Config(TypedDict):
     """
     Class to type run configuration for the standard diff anaylsis (current_only, delta, update_only)
     """
+
     attr_implicit: list[str]
     attr_skip: list[str]
     data_table: str
     data_table_key: str
+
 
 def parse_file(
     file_path: str, header_symbol: str | None = None, column_names: bool = False
@@ -136,13 +139,15 @@ def output_clinical_changes(
 
 
 def split_data_file(
-        data_lines: list[str],
-        column_names: list[str],
-        key: str,
-        aggr_list: list,
-        current_data: dict[str,dict[str,str]],
-        shared_attrs: set[str],
-) -> tuple[dict[str, dict[str, str]], list[str], dict[str, dict[str,str]], list[str] | None, set[str]]:
+    data_lines: list[str],
+    column_names: list[str],
+    key: str,
+    aggr_list: list,
+    current_data: dict[str, dict[str, str]],
+    shared_attrs: set[str],
+) -> tuple[
+    dict[str, dict[str, str]], list[str], dict[str, dict[str, str]], list[str] | None, set[str]
+]:
     """Take a text file and convert to dict with certain row value as primary, all other row values as subkeys.
 
     Args:
@@ -169,7 +174,9 @@ def split_data_file(
     for entry in data_lines:
         data: list = entry.rstrip("\n").split("\t")
         # Create a dictionary by zipping together the line with the header; sub in "NA" for empty columns
-        entry_dict: dict[str, str] = {k: ("NA" if v == "" else v) for k, v in zip(column_names, data)}
+        entry_dict: dict[str, str] = {
+            k: ("NA" if v == "" else v) for k, v in zip(column_names, data)
+        }
         # Aggregate attributes have multiple entries in a random order separated by a semicolon
         # Therefore, sort them so that when compared, no errors are triggered
         for aggr in aggr_list:
@@ -188,9 +195,9 @@ def split_data_file(
 
 
 def is_delta(
-        current: dict[str, str],
-        update: dict[str, str],
-        shared_attrs: set[str],
+    current: dict[str, str],
+    update: dict[str, str],
+    shared_attrs: set[str],
 ) -> bool:
     """Given two dicts, compare their shared keys and report if any of values differ.
 
@@ -210,12 +217,13 @@ def is_delta(
             return True
     return False
 
+
 def print_and_count_delta_attr(
-        clin_type: str,
-        delta_data: dict[str, dict[str,str]],
-        current_data: dict[str, dict[str,str]],
-        shared_attr: set[str],
-        out_filename: str
+    clin_type: str,
+    delta_data: dict[str, dict[str, str]],
+    current_data: dict[str, dict[str, str]],
+    shared_attr: set[str],
+    out_filename: str,
 ) -> dict[str, int]:
     """Iterate through a dict that has changed attributes.
 
@@ -249,17 +257,18 @@ def print_and_count_delta_attr(
                     delta_attr_cts[attr] += 1
     return delta_attr_cts
 
+
 def data_clinical_from_study(
-    url: str, auth_headers: dict, study_id: str, data_type: str, aggr_list: list
+    url: str, study_id: str, data_type: str, aggr_list: list, cbio_session: requests.Session
 ) -> dict:
     """Get all the column-value pairs for each data_type(SAMPLE or PATIENT) for a specific study.
 
     Args:
         url: current cbioportal instance url
-        auth_headers: dict with authorization token
         study_id: str of study name to pull
         data_type: str PATIENT or SAMPLE
         aggr_list: list of attribute names in which data values are are to be split and sorted to avoid a;b != b;a scenarios
+        cbio_session: requests.Session object for making API calls
 
     Returns:
         data_dict: dict with current cbioportal instance data converted as key value as primary key, associated column name as sub key, and row value as value
@@ -271,9 +280,8 @@ def data_clinical_from_study(
         "clinicalDataType": data_type,
     }
     get_current_clinical_data_path: str = f"api/studies/{study_id}/clinical-data"
-    data_clinical = requests.get(
+    data_clinical = cbio_session.get(
         f"{url}/{get_current_clinical_data_path}",
-        headers=auth_headers,
         params=params,
         timeout=60,
     ).json()
@@ -299,7 +307,9 @@ def data_clinical_from_study(
     return data_dict
 
 
-def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: str) -> dict:
+def data_clinical_timeline_from_current(
+    url: str, study_id: str, cbio_session: requests.Session
+) -> dict:
     """Pull all clinical event data (treatment, imaging, etc) for a study currently on a cBio server if the study has such data available.
 
     This will be used to compare to proposed data to update on to the server
@@ -335,9 +345,8 @@ def data_clinical_timeline_from_current(url: str, auth_headers: dict, study_id: 
     current_timeline_data: dict = {}
     for attr in current_timeline_attr:
         current_timeline_data[attr] = []
-    study_timeline_data: list = requests.get(
+    study_timeline_data: list = cbio_session.get(
         f"{url}/api/studies/{study_id}/clinical-events?projection=DETAILED",
-        headers=auth_headers,
         timeout=360,
     ).json()
     for entry in study_timeline_data:
@@ -392,7 +401,6 @@ def compare_timeline_data(
     update_timeline: dict,
     out_dir: str,
     header_info: dict,
-    file_ext: dict,
 ) -> None:
     """Compare each event type between current and update candidate to see if any differences exists.
 
@@ -401,11 +409,9 @@ def compare_timeline_data(
         update_timeline: dict of update flat file timeline data with event type as key
         out_dir: sre of output dir location
         header_info: dict of headers by event type for output
-        file_ext: dict of file extensions to use by event type for output
 
     """
     event_type = current_timeline.keys()
-    event_ext_dict = {v: k for k, v in file_ext.items()}
     all_diff_ids: set[str] = set()
 
     for event in event_type:
@@ -449,7 +455,6 @@ def generate_meta_files(config_file: str, data_dir: str) -> None:
     """
     with open(config_file) as f:
         config_data = json.load(f)
-
     study_id = config_data["study"]["cancer_study_identifier"]
 
     existing_files = set(os.listdir(data_dir))
@@ -457,7 +462,7 @@ def generate_meta_files(config_file: str, data_dir: str) -> None:
 
     for key in data_keys:
         if key in config_data:
-            for dtype, details in config_data[key]["dtypes"].items():
+            for _dtype, details in config_data[key]["dtypes"].items():
                 data_file = details["cbio_name"]
                 if data_file in existing_files:
                     meta_name = f"meta_{data_file.removeprefix('data_')}"
@@ -470,7 +475,7 @@ def generate_meta_files(config_file: str, data_dir: str) -> None:
                         meta_file.write(f"data_filename: {data_file}\n")
 
                     sys.stderr.write(f"Created meta file: {meta_name}\n")
-    
+
     combined_timeline_file = "data_clinical_timeline_combined.txt"
     if combined_timeline_file in existing_files:
         meta_name = "meta_clinical_timeline_combined.txt"
@@ -496,177 +501,183 @@ def run_py(args):
     auth_headers: dict = {"Authorization": f"Bearer {token}"}
     url_object = urlparse(args.url)
     formatted_url: str = f"{url_object.scheme}://{url_object.hostname}"
+    # Use session to reduce need to repeat token
+    with requests.Session() as cbio_session:
+        cbio_session.headers.update(auth_headers)
+        # Fetch attribute keys
+        fetch_attr_path: str = "api/clinical-attributes/fetch"
+        # overcome SSL issues with requests on MacOS
+        truststore.inject_into_ssl()
 
-    # Fetch attribute keys
-    fetch_attr_path: str = "api/clinical-attributes/fetch"
-    attr_keys: list[dict[str, str]] = requests.post(
-        f"{formatted_url}/{fetch_attr_path}",
-        headers=auth_headers,
-        json=[args.study],
-        params={"projection": "ID"},
-        timeout=30,
-    ).json()
+        attr_keys: list[dict[str, str]] = cbio_session.post(
+            f"{formatted_url}/{fetch_attr_path}",
+            json=[args.study],
+            params={"projection": "ID"},
+            timeout=30,
+        ).json()
 
-    # Hardcoding a JSON-like payload that will dictate do similar comparisons
-    # For each comparison it has implicit and skip attributes
-    # Also includes the name of the data table that has the relevant information as well as the key in that table to locate the information
-    aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
-    # get all datasheets
-    datasheet_dir: str = args.datasheets.rstrip("/")
+        # Hardcoding a JSON-like payload that will dictate do similar comparisons
+        # For each comparison it has implicit and skip attributes
+        # Also includes the name of the data table that has the relevant information as well as the key in that table to locate the information
+        aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
+        # get all datasheets
+        datasheet_dir: str = args.datasheets.rstrip("/")
 
-    comparisons: dict[str, Config] = {
-        "SAMPLE": {
-            "attr_implicit": ["PATIENT_ID"],
-            "attr_skip": ["FRACTION_GENOME_ALTERED", "MUTATION_COUNT"],
-            "data_table": f"{datasheet_dir}/data_clinical_sample.txt",
-            "data_table_key": "SAMPLE_ID",
-        },
-        "PATIENT": {
-            "attr_implicit": [],
-            "attr_skip": ["SAMPLE_COUNT"],
-            "data_table": f"{datasheet_dir}/data_clinical_patient.txt",
-            "data_table_key": "PATIENT_ID",
-        },
-    }
-
-    for comp in comparisons:
-        if comp == "PATIENT":
-            current_attr_keys: set[str] = {
-                x["clinicalAttributeId"] for x in attr_keys if x["patientAttribute"]
-            }
-        else:
-            current_attr_keys: set[str] = {
-                x["clinicalAttributeId"] for x in attr_keys if not x["patientAttribute"]
-            }
-
-        # Remove skip attrs and add implicit attrs
-        current_attr_keys -= set(comparisons[comp]["attr_skip"])
-        current_attr_keys |= set(comparisons[comp]["attr_implicit"])
-
-        # Pull current data from portal URL
-        current_data: dict = data_clinical_from_study(
-            url=formatted_url,
-            auth_headers=auth_headers,
-            study_id=args.study,
-            data_type=comp,
-            aggr_list=aggregate_vals,
-        )
-
-        # build update data from file
-        update_header, update_columns, update_body = parse_file(
-            file_path=comparisons[comp]["data_table"], header_symbol="#", column_names=True,
-        )
-
-        # Build update_attr_keys from column names
-        update_attr_keys: set[str] = set(update_columns)
-        update_attr_keys.remove(comparisons[comp]["data_table_key"])
-
-        # Get attrs uniq to the current and update datasets
-        current_only_attr: set[str]
-        update_only_attr: set[str]
-        shared_attr: set[str]
-        current_only_attr, update_only_attr, shared_attr = get_set_venn(
-            left=current_attr_keys, right=update_attr_keys
-        )
-
-        delta_data, delta_lines, update_only_data, update_only_lines, shared_ids = split_data_file(
-            data_lines=update_body,
-            column_names=update_columns,
-            key=comparisons[comp]["data_table_key"],
-            aggr_list=aggregate_vals,
-            current_data=current_data,
-            shared_attrs=shared_attr,
-        )
-
-        # Get ids uniq to the current and update datasets
-        update_only_ids: set[str] = set(update_only_data.keys())
-        current_only_ids: set[str] = set(current_data.keys()) - shared_ids
-
-        # report before and after for deltas
-        delta_attr_count: dict[str, int] = {}
-        if delta_data:
-            delta_attr_count = print_and_count_delta_attr(
-                clin_type=comp,
-                delta_data=delta_data,
-                current_data=current_data,
-                shared_attr=shared_attr,
-                out_filename=f"{comp.lower()}_current_v_update.txt",
-            )
-            print_parsed_file(
-                header=update_header,
-                body=delta_lines,
-                out_filename=f"{delta_dir}/data_clinical_{comp.lower()}.txt"
-            )
-
-        if update_only_data:
-            print_parsed_file(
-                header=update_header,
-                body=update_only_lines,
-                out_filename=f"{add_dir}/data_clinical_{comp.lower()}.txt"
-            )
-            if comp == "SAMPLE":
-                _, etl_header, etl_data = parse_file(
-                    file_path=args.manifest, header_symbol=None, column_names=True
-                )
-                output_file_by_id(
-                    select_id=update_only_ids,
-                    update_list=etl_data,
-                    header=etl_header,
-                    id_field="cbio_sample_name",
-                    outfile_name=f"{args.study}_add_data/cbio_file_name_id.txt",
-                )
-
-        output_clinical_changes(
-            clin_type=comp,
-            current_only_ids=current_only_ids,
-            update_only_ids=update_only_ids,
-            current_attr_only=current_only_attr,
-            update_attr_only=update_only_attr,
-            attr_cts=delta_attr_count,
-            suffix=f"{comp}.txt",
-        )
-
-    # timeline-diffs
-    timeline_update_files: list = glob.glob(f"{datasheet_dir}/data_clinical*timeline*")
-    if len(timeline_update_files):
-        print("Getting current timeline data, please wait...", file=sys.stderr)
-        timeline_event_dict: dict = {
-            "clinical_event.txt": "Clinical Status",
-            "imaging.txt": "IMAGING",
-            "specimen.txt": "SPECIMEN",
-            "surgery.txt": "SURGERY",
-            "treatment.txt": "TREATMENT",
+        comparisons: dict[str, Config] = {
+            "SAMPLE": {
+                "attr_implicit": ["PATIENT_ID"],
+                "attr_skip": ["FRACTION_GENOME_ALTERED", "MUTATION_COUNT"],
+                "data_table": f"{datasheet_dir}/data_clinical_sample.txt",
+                "data_table_key": "SAMPLE_ID",
+            },
+            "PATIENT": {
+                "attr_implicit": [],
+                "attr_skip": ["SAMPLE_COUNT"],
+                "data_table": f"{datasheet_dir}/data_clinical_patient.txt",
+                "data_table_key": "PATIENT_ID",
+            },
         }
-        timeline_current: dict = data_clinical_timeline_from_current(
-            url=formatted_url, auth_headers=auth_headers, study_id=args.study
-        )
-        timeline_update_file_prefix: str = f"{datasheet_dir}/data_clinical_timeline_"
-        # store file data in memory by event type to match current pull dict created
-        timeline_update: dict = {}
-        # store file headers to repurpose
-        event_file_head: dict = {}
-        for path in timeline_update_files:
-            suffix: str = path.replace(timeline_update_file_prefix, "")
-            event_type: str = timeline_event_dict[suffix]
-            _, event_file_head[event_type], timeline_update[event_type] = parse_file(
-                file_path=path, header_symbol=None, column_names=True
-            )
-        print("Comparing current timeline to update", file=sys.stderr)
-        compare_timeline_data(
-            current_timeline=timeline_current,
-            update_timeline=timeline_update,
-            out_dir=delta_dir,
-            header_info=event_file_head,
-            file_ext=timeline_event_dict,
-        )
 
-    if os.listdir(delta_dir): 
+        for comp in comparisons:
+            if comp == "PATIENT":
+                current_attr_keys: set[str] = {
+                    x["clinicalAttributeId"] for x in attr_keys if x["patientAttribute"]
+                }
+            else:
+                current_attr_keys: set[str] = {
+                    x["clinicalAttributeId"] for x in attr_keys if not x["patientAttribute"]
+                }
+
+            # Remove skip attrs and add implicit attrs
+            current_attr_keys -= set(comparisons[comp]["attr_skip"])
+            current_attr_keys |= set(comparisons[comp]["attr_implicit"])
+
+            # Pull current data from portal URL
+            current_data: dict = data_clinical_from_study(
+                url=formatted_url,
+                study_id=args.study,
+                data_type=comp,
+                aggr_list=aggregate_vals,
+                cbio_session=cbio_session,
+            )
+
+            # build update data from file
+            update_header, update_columns, update_body = parse_file(
+                file_path=comparisons[comp]["data_table"],
+                header_symbol="#",
+                column_names=True,
+            )
+
+            # Build update_attr_keys from column names
+            update_attr_keys: set[str] = set(update_columns)
+            update_attr_keys.remove(comparisons[comp]["data_table_key"])
+
+            # Get attrs uniq to the current and update datasets
+            current_only_attr: set[str]
+            update_only_attr: set[str]
+            shared_attr: set[str]
+            current_only_attr, update_only_attr, shared_attr = get_set_venn(
+                left=current_attr_keys, right=update_attr_keys
+            )
+
+            delta_data, delta_lines, update_only_data, update_only_lines, shared_ids = (
+                split_data_file(
+                    data_lines=update_body,
+                    column_names=update_columns,
+                    key=comparisons[comp]["data_table_key"],
+                    aggr_list=aggregate_vals,
+                    current_data=current_data,
+                    shared_attrs=shared_attr,
+                )
+            )
+
+            # Get ids uniq to the current and update datasets
+            update_only_ids: set[str] = set(update_only_data.keys())
+            current_only_ids: set[str] = set(current_data.keys()) - shared_ids
+
+            # report before and after for deltas
+            delta_attr_count: dict[str, int] = {}
+            if delta_data:
+                delta_attr_count = print_and_count_delta_attr(
+                    clin_type=comp,
+                    delta_data=delta_data,
+                    current_data=current_data,
+                    shared_attr=shared_attr,
+                    out_filename=f"{comp.lower()}_current_v_update.txt",
+                )
+                print_parsed_file(
+                    header=update_header,
+                    body=delta_lines,
+                    out_filename=f"{delta_dir}/data_clinical_{comp.lower()}.txt",
+                )
+
+            if update_only_data:
+                print_parsed_file(
+                    header=update_header,
+                    body=update_only_lines,
+                    out_filename=f"{add_dir}/data_clinical_{comp.lower()}.txt",
+                )
+                if comp == "SAMPLE":
+                    _, etl_header, etl_data = parse_file(
+                        file_path=args.manifest, header_symbol=None, column_names=True
+                    )
+                    output_file_by_id(
+                        select_id=update_only_ids,
+                        update_list=etl_data,
+                        header=etl_header,
+                        id_field="cbio_sample_name",
+                        outfile_name=f"{args.study}_add_data/cbio_file_name_id.txt",
+                    )
+
+            output_clinical_changes(
+                clin_type=comp,
+                current_only_ids=current_only_ids,
+                update_only_ids=update_only_ids,
+                current_attr_only=current_only_attr,
+                update_attr_only=update_only_attr,
+                attr_cts=delta_attr_count,
+                suffix=f"{comp}.txt",
+            )
+
+        # timeline-diffs
+        timeline_update_files: list = glob.glob(f"{datasheet_dir}/data_clinical*timeline*")
+        if len(timeline_update_files):
+            print("Getting current timeline data, please wait...", file=sys.stderr)
+            timeline_event_dict: dict = {
+                "clinical_event.txt": "Clinical Status",
+                "imaging.txt": "IMAGING",
+                "specimen.txt": "SPECIMEN",
+                "surgery.txt": "SURGERY",
+                "treatment.txt": "TREATMENT",
+            }
+            timeline_current: dict = data_clinical_timeline_from_current(
+                url=formatted_url, study_id=args.study, cbio_session=cbio_session
+            )
+            timeline_update_file_prefix: str = f"{datasheet_dir}/data_clinical_timeline_"
+            # store file data in memory by event type to match current pull dict created
+            timeline_update: dict = {}
+            # store file headers to repurpose
+            event_file_head: dict = {}
+            for path in timeline_update_files:
+                suffix: str = path.replace(timeline_update_file_prefix, "")
+                event_type: str = timeline_event_dict[suffix]
+                _, event_file_head[event_type], timeline_update[event_type] = parse_file(
+                    file_path=path, header_symbol=None, column_names=True
+                )
+            print("Comparing current timeline to update", file=sys.stderr)
+            compare_timeline_data(
+                current_timeline=timeline_current,
+                update_timeline=timeline_update,
+                out_dir=delta_dir,
+                header_info=event_file_head,
+            )
+
+    if os.listdir(delta_dir):
         print(f"Delta data detected in {delta_dir}. Generating meta files...", file=sys.stderr)
         generate_meta_files(args.study_config, delta_dir)
         print("Meta files generated successfully!", file=sys.stderr)
     else:
         print("No delta data files found. Skipping meta file generation.", file=sys.stderr)
-
 
     print("Done!", file=sys.stderr)
 

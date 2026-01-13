@@ -4,12 +4,11 @@
     - `bedtools`
   Not required, but depending on your system, might be needed:
     - `pkg-config`: May be required for building some Python libraries.
-    - `libmysqlclient-dev`: May be required for `mysqlclient`.
     - `build-essential`: Provides `gcc` for compiling Python extensions.
     - Install these on Ubuntu/Debian:
       ```bash
       sudo apt update
-      sudo apt install pkg-config libmysqlclient-dev build-essential
+      sudo apt install pkg-config build-essential
       ```
 
 2. **db.ini File**:
