@@ -179,10 +179,20 @@ def split_data_file(
         }
         # Aggregate attributes have multiple entries in a random order separated by a semicolon
         # Therefore, sort them so that when compared, no errors are triggered
+        key_value = entry_dict.pop(key)
+        # if special case triggered, cut loop short
+        skip = False
         for aggr in aggr_list:
             if aggr in column_names:
                 entry_dict[aggr] = ";".join(sorted(entry_dict[aggr].split(";")))
-        key_value = entry_dict.pop(key)
+                # handle special case for SPECIMEN_ID change - will become a delete + add situation
+                if aggr == "SPECIMEN_ID" and key_value in current_data and current_data[key_value][aggr] != entry_dict[aggr]:
+                    new_data[key_value] = entry_dict
+                    new_lines.append(entry)
+                    skip = True
+                    print(f"SPECIMEN_ID change for sample {key_value}. It will be dropped and re-added")
+        if skip:
+            continue
         if key_value in current_data:
             shared_ids.add(key_value)
             if is_delta(current_data[key_value], entry_dict, shared_attrs):
@@ -505,16 +515,26 @@ def run_py(args):
     with requests.Session() as cbio_session:
         cbio_session.headers.update(auth_headers)
         # Fetch attribute keys
-        fetch_attr_path: str = "api/clinical-attributes/fetch"
+        fetch_attr_path: str = f"{formatted_url}/api/clinical-attributes/fetch"
         # overcome SSL issues with requests on MacOS
         truststore.inject_into_ssl()
-
-        attr_keys: list[dict[str, str]] = cbio_session.post(
-            f"{formatted_url}/{fetch_attr_path}",
+        # check connection first
+        test = cbio_session.post(
+            fetch_attr_path,
             json=[args.study],
             params={"projection": "ID"},
             timeout=30,
-        ).json()
+        )
+        if test.status_code != 200:
+            print(f"Got http code {test.status_code} trying to reach {fetch_attr_path}. Check your url again!",
+                  file=sys.stderr)
+            sys.exit(68)
+        try:
+            attr_keys: list[dict[str, str]] = test.json()
+        except Exception as e:
+            print(f"Got error '{e}' converting the payload to json. Did you use the right/non-expired site token?",
+                  file=sys.stderr)
+            sys.exit(78)
 
         # Hardcoding a JSON-like payload that will dictate do similar comparisons
         # For each comparison it has implicit and skip attributes
@@ -594,7 +614,6 @@ def run_py(args):
             # Get ids uniq to the current and update datasets
             update_only_ids: set[str] = set(update_only_data.keys())
             current_only_ids: set[str] = set(current_data.keys()) - shared_ids
-
             # report before and after for deltas
             delta_attr_count: dict[str, int] = {}
             if delta_data:
@@ -687,6 +706,7 @@ def main():
         description="Compare update clinical and timeline data to current cbioportal instance. \
         Outputs changes summaries, id lists, and delta files. \
         Recommend running cbioportal_etl/scripts/get_study_metadata.py to get file inputs",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "-u",
