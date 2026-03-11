@@ -262,6 +262,9 @@ def print_and_count_delta_attr(
                         f"{clinical_id}\t{attr}\t{current_value}\t{delta_data[clinical_id][attr]}",
                         file=diff_out,
                     )
+                    if attr == "OS_STATUS" and current_value == "DECEASED" and delta_data[clinical_id][attr] == "LIVING":
+                        print(f"{attr} for {clinical_id} went from {current_value} to {delta_data[clinical_id][attr]}, might want to check that!",
+                              file=sys.stderr)
                     if attr not in delta_attr_cts:
                         delta_attr_cts[attr] = 0
                     delta_attr_cts[attr] += 1
@@ -357,7 +360,7 @@ def data_clinical_timeline_from_current(
         current_timeline_data[attr] = []
     study_timeline_data: list = cbio_session.get(
         f"{url}/api/studies/{study_id}/clinical-events?projection=DETAILED",
-        timeout=360,
+        timeout=720,
     ).json()
     for entry in study_timeline_data:
         event_type: str = entry["eventType"]
