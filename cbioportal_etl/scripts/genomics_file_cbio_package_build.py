@@ -220,6 +220,16 @@ def run_py(args):
     cbio_study_id: str = config_data["study"]["cancer_study_identifier"]
     # iterate through config file - file should only have keys related to data to be loaded
     script_dir: str = os.path.join(TOOL_DIR, config_data["script_dir"])
+    etl_file_types: set[str] = set()
+    # get existing file types from manifest, since when doing inc updates, not all frm config may be there
+    with open(args.manifest) as f:
+        head = next(f)
+        header = head.rstrip('\n').split('\t')
+        e_idx = header.index("etl_file_type")
+        for line in f:
+            fields = line.strip().split('\t')
+            if len(fields) > 0:
+                etl_file_types.add(fields[e_idx])
     # Store a list of run priorities to ensure historically slower jobs kick off first using partial:
     # https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
     run_priority: list[str] = ["rsem", "mafs", "fusion", "cnvs"]
@@ -228,7 +238,8 @@ def run_py(args):
     for key in config_data:
         if key.startswith("merged_"):
             data_type: str = "_".join(key.split("_")[1:])
-            if data_type == "mafs":
+            if data_type == "mafs" and "maf" in etl_file_types:
+                print("Both config and manifest have MAF data. Adding to queue", file=sys.stderr)
                 run_queue["mafs"] = partial(
                     process_maf,
                     config_data["file_loc_defs"]["mafs"],
@@ -238,7 +249,8 @@ def run_py(args):
                     script_dir,
                     run_status,
                 )
-            elif data_type == "rsem":
+            elif data_type == "rsem" and "rsem" in etl_file_types:
+                print("Both config and manifest have RSEM data. Adding to queue", file=sys.stderr)
                 run_queue["rsem"] = partial(
                     process_rsem,
                     config_data["file_loc_defs"]["rsem"],
@@ -249,9 +261,10 @@ def run_py(args):
                     args.study_config,
                     args.default_match_type
                 )
-            elif data_type == "fusion":
+            elif data_type == "fusion" and "fusion" in etl_file_types:
                 # Status both works for...both, only when one is specifically picked should one not be run
                 if args.dgd_status != "dgd":
+                    print("Both config and manifest have FUSION data. Adding to queue", file=sys.stderr)
                     run_queue["fusion"] = partial(
                         process_kf_fusion,
                         config_data["file_loc_defs"]["fusion"],
@@ -261,7 +274,8 @@ def run_py(args):
                         run_status,
                     )
 
-            elif data_type == "cnvs":
+            elif data_type == "cnvs" and "cnv" in etl_file_types:
+                print("Both config and manifest have CNV data. Adding to queue", file=sys.stderr)
                 run_queue["cnvs"] = partial(
                     process_cnv,
                     data_config_file=args.study_config,
