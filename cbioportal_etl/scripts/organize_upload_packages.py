@@ -50,10 +50,10 @@ def process_meta_data(meta_data: dict, output_dir: str, canc_study_id: str) -> N
         output_dir: Location to create each meta file
         canc_study_id: Name of study/project
 
-    """        
+    """
     try:
         for dtype in meta_data["dtypes"]:
-            # pointer for easier readability and dict key traciing
+            # pointer for easier readability and dict key tracing
             cur_data: dict = meta_data["dtypes"][dtype]
 
             # Check which expression file (FPKM or TPM) exists
@@ -307,12 +307,13 @@ try:
             "merged_fusion": 0,
         }
         for key in data_keys:
-            if key in config_data and config_data[key]["dir"] != "":
+            merged_dir = config_data[key]["dir"]
+            if key in config_data and merged_dir != "" and os.path.isdir(merged_dir):
                 data_keys[key] = 1
                 process_meta_data(config_data[key], cur_dir, canc_study_id)
                 print(f"Creating meta data files and links for {key}", file=sys.stderr)
             else:
-                print(f"Skipping meta files for {key}", file=sys.stderr)
+                print(f"Skipping meta files for {key}, either key or path not present", file=sys.stderr)
         print("Creating clinical meta sheets and link", file=sys.stderr)
         process_clinical_data(config_data["data_sheets"], cur_dir, canc_study_id, args.add_data)
         if not args.add_data:
