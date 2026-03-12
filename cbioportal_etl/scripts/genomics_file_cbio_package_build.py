@@ -223,13 +223,10 @@ def run_py(args):
     etl_file_types: set[str] = set()
     # get existing file types from manifest, since when doing inc updates, not all frm config may be there
     with open(args.manifest) as f:
-        head = next(f)
-        header = head.rstrip('\n').split('\t')
-        e_idx = header.index("etl_file_type")
-        for line in f:
-            fields = line.strip().split('\t')
-            if len(fields) > 0:
-                etl_file_types.add(fields[e_idx])
+        reader = csv.DictReader(f, delimiter='\t')
+        for row in reader:
+            if len(row) > 0:
+                etl_file_types.add(row.get("etl_file_type"))
     # Store a list of run priorities to ensure historically slower jobs kick off first using partial:
     # https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
     run_priority: list[str] = ["rsem", "mafs", "fusion", "cnvs"]
