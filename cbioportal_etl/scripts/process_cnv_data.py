@@ -383,9 +383,9 @@ def main():
     with open(args.config_file) as f:
         config_data = json.load(f)
     config_data: dict = resolve_config_paths(config_data, TOOL_DIR)
-    print(f"Prioritizing CNV calls base on {config_data["cnv_priority"]}", file=sys.stderr)
+    print(f"Prioritizing CNV calls base on {config_data['cnv_priority']}", file=sys.stderr)
     # subset cnv and seg data using priority from config file
-    prioritized_cnv_meta = prioritize_cnvs(args.table, config_data["cnv_priority"])
+    prioritized_cnv_meta = prioritize_cnvs(args.table, config_data['cnv_priority'])
 
     ref_bed = BedTool(config_data["bed_genes"])
     out_dir: str = "merged_cnvs"
