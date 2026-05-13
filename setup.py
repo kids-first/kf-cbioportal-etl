@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="cbio-etl",
-    version="2.4.8",
+    version="2.4.9",
     author="Jessica Wong & Miguel Brown",
     description="A tool/ETL for converting data from CAVATICA and Data Warehouse to PedcBioportal format",
     packages=find_packages(),
@@ -17,6 +17,7 @@ setup(
         "PyYAML==6.0.2",
         "dsnparse==0.2.1",
         "scipy==1.15.2",
+        "mysqlclient==2.2.7",
         "importer==1.2",
         "truststore==0.10.4",
         "pybedtools==0.12.0",
