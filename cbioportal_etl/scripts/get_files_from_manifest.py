@@ -37,7 +37,7 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
         try:
             file_obj.download(out)
             break
-        except Exception as e:
+        except (Exception, SbgError) as e:
             print(f"Attempt {attempt} failed for {out}: {e}. Retrying in {delay} seconds",
                   file=sys.stderr)
             sleep(delay)
