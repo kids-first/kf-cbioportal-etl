@@ -23,11 +23,15 @@ if TYPE_CHECKING:
 def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, delay: int=3) -> None:
     """Download a file from SBG with retry logic.
 
+    Will attempt to download a file up to `retries` times, with an exponential
+    backoff delay between attempts.
+
     Args:
         file_obj: SBG File object to download
         out: Output file path
         retries: Number of retry attempts
         delay: Delay between retries in seconds
+
     """
     for attempt in range(1, retries + 1):
         try:
@@ -36,9 +40,11 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
         except Exception as e:
             print(f"Attempt {attempt} failed for {out}: {e}", file=sys.stderr)
             sleep(delay)
+            delay *= 2  # Exponential backoff
     if attempt == retries:
         print(f"Failed to download {out} after {retries} attempts", file=sys.stderr)
-        raise Exception(f"Download failed for {file_obj.id} to location {out}")
+        dl_err_msg = f"Download failed for {file_obj.id} to location {out}"
+        raise Exception(dl_err_msg)
 
 
 def download_aws(
