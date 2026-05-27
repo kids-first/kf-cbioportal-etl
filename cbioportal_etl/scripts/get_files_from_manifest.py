@@ -33,19 +33,14 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
         delay: Delay between retries in seconds
 
     """
-    for attempt in range(1, retries + 1):
-        try:
-            file_obj.download(out)
-            break
-        except (Exception, SbgError) as e:
-            print(f"Attempt {attempt} failed for {out}: {e}. Retrying in {delay} seconds",
-                  file=sys.stderr)
-            sleep(delay)
-            delay *= 2  # Exponential backoff
-    if attempt == retries:
+    try:
+        file_obj.download(out, retry=3, )
+    except (Exception, SbgError) as e:
+
         print(f"Failed to download {out} after {retries} attempts", file=sys.stderr)
         dl_err_msg = f"Download failed for {file_obj.id} to location {out}"
-        raise Exception(dl_err_msg)
+        raise Exception(dl_err_msg) from e
+
 
 
 def download_aws(
@@ -133,7 +128,7 @@ def download_sbg(
                 else:
                     print(f"File ID {batch_ids[j]} is not valid. Skipping download.", file=sys.stderr)
                     err_types[e_type] += 1
-        except SbgError as e:
+        except sbg.SbgError as e:
             if e_type == "sbg download":
                 print(f"Download failed for file {batch_names[j]}: {e}", file=sys.stderr)
             else:
