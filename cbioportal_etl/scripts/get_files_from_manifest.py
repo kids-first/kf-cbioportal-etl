@@ -5,7 +5,6 @@ import argparse
 import concurrent.futures
 import os
 import sys
-from time import sleep
 from typing import TYPE_CHECKING, Any
 
 import boto3
@@ -15,6 +14,8 @@ import sevenbridges as sbg
 import urllib3
 from sevenbridges.errors import SbgError
 from sevenbridges.http.error_handlers import maintenance_sleeper, rate_limit_sleeper
+
+from cbioportal_etl.scripts.url_download_helper import parallel_download, small_download
 
 if TYPE_CHECKING:
     from numpy import ndarray
@@ -34,9 +35,15 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
 
     """
     try:
-        file_obj.download(out, retry=3, )
-    except (Exception, SbgError) as e:
+        file_url = file_obj.download_info().url
+        chunk_size = 32 * 1024 * 1024
+        total_size: int = file_obj.size
+        if total_size <= chunk_size:
+            small_download(file_url, out, retries, delay)
+        else:
+            parallel_download(file_url, out, total_size, num_workers=12)
 
+    except (Exception, SbgError) as e:
         print(f"Failed to download {out} after {retries} attempts", file=sys.stderr)
         dl_err_msg = f"Download failed for {file_obj.id} to location {out}"
         raise Exception(dl_err_msg) from e

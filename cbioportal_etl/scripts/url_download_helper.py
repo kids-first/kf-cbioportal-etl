@@ -1,11 +1,8 @@
+import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import sleep
 
-import sevenbridges as sbg
-import sys
 import requests
-
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 
 
 def download_range(url: str, start: int, end: int, retries=5, delay=3) -> tuple[int, bytes]:
@@ -45,8 +42,16 @@ def download_range(url: str, start: int, end: int, retries=5, delay=3) -> tuple[
     return start, data
 
 
-def parallel_download(url, output_path, total_size, num_workers=8):
+def parallel_download(url: str, output_path: str, total_size: int, num_workers: int = 8) -> None:
+    """Download a file in parallel using multiple threads.
 
+    Args:
+        url (str): The URL to download from.
+        output_path (str): The path to save the downloaded file.
+        total_size (int): The total size of the file in bytes.
+        num_workers (int): The number of parallel threads to use.
+
+    """
     ranges = [
     (start, min(start + chunk_size - 1, total_size - 1))
     for start in range(0, total_size, chunk_size)
@@ -73,17 +78,30 @@ def parallel_download(url, output_path, total_size, num_workers=8):
                 f.seek(start)
                 f.write(data)
 
-    print("Download complete!")
 
+def small_download(url: str, output_path: str, retries: int = 5, delay: int = 3) -> None:
+    """Download a small file with retry logic.
 
-config: sbg.Config = sbg.Config(profile=sys.argv[1])
-api = sbg.Api(config=config)
+    Args:
+        url (str): The URL to download from.
+        output_path (str): The path to save the downloaded file.
+        retries (int): Number of retry attempts on failure.
+        delay (int): Initial delay between retries in seconds.
 
-file_obj = api.files.get(sys.argv[2])
-
-file_url = file_obj.download_info().url
-chunk_size = 32 * 1024 * 1024
-out = file_obj.name
-total_size: int = file_obj.size
-parallel_download(file_url, out, total_size, num_workers=16)
-
+    """
+    for attempt in range(retries):
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            with open(output_path, "wb") as f:
+                f.write(response.content)
+            break
+        except (requests.RequestException, requests.Timeout) as e:  # noqa: PERF203
+            print(f"Error downloading range {output_path}: {e}", file=sys.stderr)
+            if attempt < retries - 1:
+                print(f"Retrying in {delay} seconds...", file=sys.stderr)
+                sleep(delay)
+                delay *= 2  # Exponential backoff
+            else:
+                msg = f"Failed to download range {output_path} after {retries} attempts"
+                raise Exception(msg) from e
