@@ -44,7 +44,7 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
             parallel_download(file_url, out, total_size, num_workers=12)
 
     except (Exception, SbgError) as e:
-        print(f"Failed to download {out} after {retries} attempts", file=sys.stderr)
+        print(f"Failed to download {out} after {retries} attempts from url: {file_url}", file=sys.stderr)
         dl_err_msg = f"Download failed for {file_obj.id} to location {out}"
         raise Exception(dl_err_msg) from e
 
@@ -96,7 +96,7 @@ def download_sbg(
     api: sbg.Api,
     overwrite: bool,
     err_types: dict[str, int],
-):
+) -> dict[str, int]:
     """Download from SBG to file_type dir if SBG profile was given.
 
     Args:
@@ -144,7 +144,7 @@ def download_sbg(
         except Exception as e:
             print(f"Unexpected error for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
     print("Completed downloading files for " + file_type, file=sys.stderr)
-    return 0
+    return err_types
 
 
 def mt_type_download(
@@ -156,7 +156,7 @@ def mt_type_download(
     err_types: dict[str, int],
     sbg_profile: str,
     aws_tbl: str,
-) -> None:
+) -> dict[str, int]:
     """Download files from each desired file type at the same time.
 
     Picks the download protocol based on provided args
@@ -183,13 +183,14 @@ def mt_type_download(
         if aws_tbl:
             download_aws(file_type, key_dict, overwrite, err_types)
         if sbg_profile:
-            download_sbg(file_type, selected, aws_tbl, api, overwrite, err_types)
+            err_types.update(download_sbg(file_type, selected, aws_tbl, api, overwrite, err_types))
     else:
         print(
             f"WARNING: No files of type {file_type} in which file_id and s3_path is not NA. Skipping!",
             file=sys.stderr,
         )
     sys.stderr.flush()
+    return err_types
 
 
 def run_py(args: argparse.Namespace) -> int:
@@ -300,7 +301,7 @@ def run_py(args: argparse.Namespace) -> int:
         sys.exit(1)
 
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
-        {
+        futures ={
             executor.submit(
                 mt_type_download,
                 ftype,
@@ -314,7 +315,8 @@ def run_py(args: argparse.Namespace) -> int:
             ): ftype
             for ftype in file_types_list
         }
-
+        for fut in concurrent.futures.as_completed(futures):
+            err_types.update(fut.result())
     flag: int = 0
     for protocol, count in err_types.items():
         if count:

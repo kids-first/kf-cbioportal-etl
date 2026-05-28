@@ -29,15 +29,17 @@ def download_range(url: str, start: int, end: int, retries=5, delay=3) -> tuple[
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:
                     data.extend(chunk)
+            if attempt > 0:
+                print(f"Successfully downloaded range {start}-{end} on attempt {attempt + 1}", file=sys.stderr)
             break
-        except (requests.RequestException, requests.Timeout) as e:  # noqa: PERF203
+        except (requests.RequestException, requests.Timeout, requests.HTTPError) as e:  # noqa: PERF203
             print(f"Error downloading range {start}-{end}: {e}", file=sys.stderr)
             if attempt < retries - 1:
                 print(f"Retrying in {delay} seconds...", file=sys.stderr)
                 sleep(delay)
                 delay *= 2  # Exponential backoff
             else:
-                msg = f"Failed to download range {start}-{end} after {retries} attempts"
+                msg = f"Failed to download range {start}-{end} after {retries} attempts from url: {url}"
                 raise Exception(msg) from e
     return start, data
 
@@ -95,13 +97,15 @@ def small_download(url: str, output_path: str, retries: int = 5, delay: int = 3)
             response.raise_for_status()
             with open(output_path, "wb") as f:
                 f.write(response.content)
+            if attempt > 0:
+                print(f"Successfully downloaded {output_path} on attempt {attempt + 1}", file=sys.stderr)
             break
-        except (requests.RequestException, requests.Timeout) as e:  # noqa: PERF203
+        except (requests.RequestException, requests.Timeout, requests.HTTPError) as e:  # noqa: PERF203
             print(f"Error downloading range {output_path}: {e}", file=sys.stderr)
             if attempt < retries - 1:
                 print(f"Retrying in {delay} seconds...", file=sys.stderr)
                 sleep(delay)
                 delay *= 2  # Exponential backoff
             else:
-                msg = f"Failed to download range {output_path} after {retries} attempts"
+                msg = f"Failed to download range {output_path} after {retries} attempts from url: {url}"
                 raise Exception(msg) from e
