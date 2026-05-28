@@ -8,11 +8,8 @@ import sys
 from math import ceil
 from typing import TYPE_CHECKING, Any
 
-import boto3
-import botocore
 import pandas as pd
 import sevenbridges as sbg
-import urllib3
 from sevenbridges.errors import SbgError
 from sevenbridges.http.error_handlers import maintenance_sleeper, rate_limit_sleeper
 
@@ -42,11 +39,14 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
         if total_size <= chunk_size:
             small_download(file_url, out, retries, delay)
         else:
+            # set max worker size to ensure it doesn't exceed total file size for range requests
             max_workers: int = min(12, ceil(total_size / chunk_size))
-            parallel_download(file_url, out, total_size, num_workers=max_workers, chunk_size=chunk_size)
+            parallel_download(file_url, out, total_size, num_workers=max_workers,
+                              chunk_size=chunk_size)
 
     except (Exception, SbgError) as e:
-        print(f"Failed to download {out} after {retries} attempts from url: {file_url}", file=sys.stderr)
+        print(f"Failed to download {out} after {retries} attempts from url: {file_url}",
+              file=sys.stderr)
         dl_err_msg = f"Download failed for {file_obj.id} to location {out} with error {e}"
         raise Exception(dl_err_msg) from e
 
@@ -90,23 +90,25 @@ def download_sbg(
                     else:
                         print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
                 else:
-                    print(f"File ID {batch_ids[j]} is not valid. Skipping download.", file=sys.stderr)
+                    print(f"File ID {batch_ids[j]} is not valid. Skipping download.",
+                          file=sys.stderr)
                     err_types[e_type] += 1
         except sbg.SbgError as e:
             if e_type == "sbg download":
                 print(f"Download failed for file {batch_names[j]}: {e}", file=sys.stderr)
             else:
-                print(f"Bulk get failed for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
+                print(f"Bulk get failed for batch starting at index {batch_start_idx}: {e}",
+                      file=sys.stderr)
             err_types[e_type] += 1
         except Exception as e:
-            print(f"Unexpected error for batch starting at index {batch_start_idx}: {e}", file=sys.stderr)
+            print(f"Unexpected error for batch starting at index {batch_start_idx}: {e}",
+                  file=sys.stderr)
     print("Completed downloading files for " + file_type, file=sys.stderr)
     return err_types
 
 
 def mt_type_download(
     file_type: str,
-    key_dict: dict[str, dict[str, Any]],
     selected: pd.DataFrame,
     api: sbg.Api | None,
     overwrite: bool,
@@ -131,7 +133,7 @@ def mt_type_download(
             os.makedirs(file_type, exist_ok=True)
         except Exception as e:
             print(
-                "{} error while making directory for {}".format(e, file_type),
+                f"{e} error while making directory for {file_type}",
                 file=sys.stderr,
             )
         if sbg_profile:
@@ -145,7 +147,32 @@ def mt_type_download(
     return err_types
 
 
+def flag_adjustments(args: argparse.Namespace, selected: pd.DataFrame) -> pd.DataFrame:
+    """Make adjustments to the manifest subset based on provided flags."""
+    # if active only flag set, further subset
+    if args.active_only:
+        print("active only flag given, will limit to that", file=sys.stderr)
+        selected = selected[selected["status"] == "active"]
+    if args.rm_na:
+        print(
+            "Drop na flag given. Will drop rows in which file_id and s3_path are NA",
+            file=sys.stderr,
+        )
+        selected = selected[~(selected["file_id"].isna() & selected["s3_path"].isna())]
+    # if cbio manifest given, limit to that
+    if args.cbio:
+        print(
+            "cBio manifest provided, limiting downloads to matching IDs",
+            file=sys.stderr,
+        )
+        cbio_data = pd.read_csv(args.cbio, sep="\t", na_values=["NA"])
+        specimen_list: ndarray = cbio_data.affected_bs_id.unique()
+        selected = selected[selected["biospecimen_id"].isin(specimen_list)]
+    return selected
+
+
 def run_py(args: argparse.Namespace) -> int:
+    """Run the main logic of the script."""
     # concat multiple possible manifests
     print("Concatenating manifests", file=sys.stderr)
     sys.stderr.flush()
@@ -171,25 +198,7 @@ def run_py(args: argparse.Namespace) -> int:
     print("Subsetting concatenated manifest", file=sys.stderr)
     sys.stderr.flush()
     selected: pd.DataFrame = manifest_concat[manifest_concat["file_type"].isin(file_types_list)]
-    # if active only flag set, further subset
-    if args.active_only:
-        print("active only flag given, will limit to that", file=sys.stderr)
-        selected = selected[selected["status"] == "active"]
-    if args.rm_na:
-        print(
-            "Drop na flag given. Will drop rows in which file_id and s3_path are NA",
-            file=sys.stderr,
-        )
-        selected = selected[~(selected["file_id"].isna() & selected["s3_path"].isna())]
-    # if cbio manifest given, limit to that
-    if args.cbio:
-        print(
-            "cBio manifest provided, limiting downloads to matching IDs",
-            file=sys.stderr,
-        )
-        cbio_data = pd.read_csv(args.cbio, sep="\t", na_values=["NA"])
-        specimen_list: ndarray = cbio_data.affected_bs_id.unique()
-        selected = selected[selected["biospecimen_id"].isin(specimen_list)]
+    selected = flag_adjustments(args, selected)
     # remove vcfs as we only want mafs
     pattern_del: str = ".vcf.gz"
     file_filter: pd.Series[bool] = selected["file_name"].str.contains(pattern_del)
@@ -207,14 +216,10 @@ def run_py(args: argparse.Namespace) -> int:
         sys.exit(1)
     err_types: dict[str, int] = {"sbg get": 0, "sbg download": 0}
     # download files by type
-    check: int = 0
-    key_dict: dict[str, dict[str, Any]] = {}
-
     if args.sbg_profile is not None:
-        check = 1
         config: sbg.Config = sbg.Config(profile=args.sbg_profile)
         api = sbg.Api(config=config, error_handlers=[rate_limit_sleeper, maintenance_sleeper])
-    if not check:
+    else:
         print("Please provide sbg_profile", file=sys.stderr)
         sys.exit(1)
 
@@ -223,7 +228,6 @@ def run_py(args: argparse.Namespace) -> int:
             executor.submit(
                 mt_type_download,
                 ftype,
-                key_dict,
                 selected,
                 api,
                 args.overwrite,
@@ -246,7 +250,8 @@ def run_py(args: argparse.Namespace) -> int:
     return 0
 
 
-def main():
+def main() -> None:
+    """Parse args and run script."""
     parser = argparse.ArgumentParser(description="Get all files for a project.")
     parser.add_argument(
         "-m",
