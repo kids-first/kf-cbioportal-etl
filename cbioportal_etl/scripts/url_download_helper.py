@@ -1,3 +1,8 @@
+"""Helper functions for downloading files from URLs with retry logic and parallelization.
+
+Overall function created from co-pilot prompt, refined and debugged by M. Brown
+"""
+
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from time import sleep
@@ -39,12 +44,12 @@ def download_range(url: str, start: int, end: int, retries=5, delay=3) -> tuple[
                 sleep(delay)
                 delay *= 2  # Exponential backoff
             else:
-                msg = f"Failed to download range {start}-{end} after {retries} attempts from url: {url}"
+                msg = f"Failed to download range {start}-{end} after {retries} attempts from url: {url} because of error: {e}"
                 raise Exception(msg) from e
     return start, data
 
 
-def parallel_download(url: str, output_path: str, total_size: int, num_workers: int = 8) -> None:
+def parallel_download(url: str, output_path: str, total_size: int, num_workers: int = 8, chunk_size: int = 32 * 1024 * 1024) -> None:
     """Download a file in parallel using multiple threads.
 
     Args:
@@ -52,6 +57,7 @@ def parallel_download(url: str, output_path: str, total_size: int, num_workers: 
         output_path (str): The path to save the downloaded file.
         total_size (int): The total size of the file in bytes.
         num_workers (int): The number of parallel threads to use.
+        chunk_size (int): The size of each chunk to download.
 
     """
     ranges = [
@@ -109,3 +115,26 @@ def small_download(url: str, output_path: str, retries: int = 5, delay: int = 3)
             else:
                 msg = f"Failed to download range {output_path} after {retries} attempts from url: {url}"
                 raise Exception(msg) from e
+
+# DEBUG
+# import sevenbridges as sbg
+# from math import ceil
+# from sevenbridges.http.error_handlers import maintenance_sleeper, rate_limit_sleeper
+
+# config: sbg.Config = sbg.Config(profile=sys.argv[1])
+# api = sbg.Api(config=config, error_handlers=[rate_limit_sleeper, maintenance_sleeper])
+
+# file_obj = api.files.get(sys.argv[2])
+
+# file_url = file_obj.download_info().url
+# chunk_size = 32 * 1024 * 1024
+# total_size: int = file_obj.size
+# out = file_obj.name
+# print(f"Total file size: {total_size}, chunk size: {chunk_size}", file=sys.stderr)
+# if total_size <= chunk_size:
+#     small_download(file_url, out, 5, 3)
+# else:
+#     # set max worker size to ensure it doesn't exceed total file size for range requests
+#     max_workers = min(12, ceil(total_size / chunk_size))
+#     parallel_download(file_url, out, total_size, num_workers=max_workers)
+

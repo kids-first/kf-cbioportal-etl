@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Download using a manifest files from AWS or SBG Platform."""
+"""Download using a manifest files from SBG Platform."""
 
 import argparse
 import concurrent.futures
 import os
 import sys
+from math import ceil
 from typing import TYPE_CHECKING, Any
 
 import boto3
@@ -36,63 +37,23 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
     """
     try:
         file_url = file_obj.download_info().url
-        chunk_size = 32 * 1024 * 1024
+        chunk_size: int = 32 * 1024 * 1024
         total_size: int = file_obj.size
         if total_size <= chunk_size:
             small_download(file_url, out, retries, delay)
         else:
-            parallel_download(file_url, out, total_size, num_workers=12)
+            max_workers: int = min(12, ceil(total_size / chunk_size))
+            parallel_download(file_url, out, total_size, num_workers=max_workers, chunk_size=chunk_size)
 
     except (Exception, SbgError) as e:
         print(f"Failed to download {out} after {retries} attempts from url: {file_url}", file=sys.stderr)
-        dl_err_msg = f"Download failed for {file_obj.id} to location {out}"
+        dl_err_msg = f"Download failed for {file_obj.id} to location {out} with error {e}"
         raise Exception(dl_err_msg) from e
-
-
-
-def download_aws(
-    file_type: str, key_dict: dict[str, dict[str, Any]], overwrite: bool, err_types: dict[str, int]
-) -> None:
-    """Download from AWS to file_type dir if AWS table was given.
-
-    Args:
-        file_type: String representation of genomic file type from ETL file
-        key_dict: Dict with AWS key, profile, and s3 paths if applicable
-        overwrite: Flag to overwrite existing files
-        err_types: Dict to track any file download errors
-    """
-    for key in key_dict:
-        current = key_dict[key]["manifest"]
-        dl_client = key_dict[key]["dl_client"]
-        sub_file_list = list(current.loc[current["file_type"] == file_type, "s3_path"])
-        print(
-            f"Grabbing {len(sub_file_list)} files using key {key}",
-            file=sys.stderr,
-        )
-        for loc in sub_file_list:
-            out: str = f"{file_type}/{loc.split('/')[-1]}"
-            if overwrite or not os.path.isfile(out):
-                parse_url = urllib3.util.parse_url(loc)
-                try:
-                    dl_client.download_file(
-                        Bucket=parse_url.host,
-                        Key=parse_url.path.lstrip("/"),
-                        Filename=out,
-                    )
-                except Exception as e:
-                    print(f"{e} could not download from {loc} using key {key}", file=sys.stderr)
-                    sys.stderr.flush()
-                    err_types["aws download"] += 1
-            else:
-                print(f"Skipping {out} it exists and overwrite not set", file=sys.stderr)
-    print("Completed downloading files for " + file_type, file=sys.stderr)
-    sys.stderr.flush()
 
 
 def download_sbg(
     file_type: str,
     selected: pd.DataFrame,
-    aws_tbl: str,
     api: sbg.Api,
     overwrite: bool,
     err_types: dict[str, int],
@@ -105,15 +66,11 @@ def download_sbg(
         api: SBG API object, if applicable
         overwrite: Flag to overwrite existing files
         err_types: Dict to track any file download errors
-        aws_tbl: Table with AWS key info. Will trigger AWS downloads
 
     """
     # get file id file name pairs from manifest
     sub_df = selected.loc[selected["file_type"] == file_type, ["file_id", "file_name", "s3_path"]]
     total_files = len(sub_df)
-
-    if aws_tbl:
-        sub_df = sub_df.loc[sub_df["s3_path"].isna(), ["file_id", "file_name"]]
 
     batch_size = 100
     for batch_start_idx in range(0, len(sub_df), batch_size):
@@ -155,20 +112,17 @@ def mt_type_download(
     overwrite: bool,
     err_types: dict[str, int],
     sbg_profile: str,
-    aws_tbl: str,
 ) -> dict[str, int]:
     """Download files from each desired file type at the same time.
 
     Picks the download protocol based on provided args
     Args:
         file_type: String representation of genomic file type from ETL file
-        key_dict: Dict with AWS key, profile, and s3 paths if applicable
         selected: Dataframe with filtered ETL entries
         api: SBG API object, if applicable
         overwrite: Flag to overwrite existing files
         err_types: Dict to track any file download errors
         sbg_profile: Name of SBG credentials to use from implicit credentials file. Will trigger SBG downloads
-        aws_tbl: Table with AWS key info. Will trigger AWS downloads
 
     """
     if len(selected.loc[selected["file_type"] == file_type]):
@@ -180,10 +134,8 @@ def mt_type_download(
                 "{} error while making directory for {}".format(e, file_type),
                 file=sys.stderr,
             )
-        if aws_tbl:
-            download_aws(file_type, key_dict, overwrite, err_types)
         if sbg_profile:
-            err_types.update(download_sbg(file_type, selected, aws_tbl, api, overwrite, err_types))
+            err_types.update(download_sbg(file_type, selected, api, overwrite, err_types))
     else:
         print(
             f"WARNING: No files of type {file_type} in which file_id and s3_path is not NA. Skipping!",
@@ -253,51 +205,17 @@ def run_py(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         sys.exit(1)
-    err_types: dict[str, int] = {"aws download": 0, "sbg get": 0, "sbg download": 0}
+    err_types: dict[str, int] = {"sbg get": 0, "sbg download": 0}
     # download files by type
     check: int = 0
     key_dict: dict[str, dict[str, Any]] = {}
-    api = None
-    if args.aws_tbl is not None:
-        check = 1
-        # from https://stackoverflow.com/questions/66041582/connection-pool-is-full-warning-while-reading-s3-objects-via-multiple-threads
-        client_config = botocore.config.Config(max_pool_connections=128)
-        # setting up a key dict that, for each aws key, has an associated sesion and manifest to download with
-        bucket_errs = 0
-        with open(args.aws_tbl) as kl:
-            for line in kl:
-                (bucket, key) = line.rstrip("\n").split("\t")
-                if key not in key_dict:
-                    key_dict[key] = {}
-                    key_dict[key]["manifest"] = selected[selected["s3_path"].str.contains(bucket)]
-                    key_dict[key]["session"] = boto3.Session(profile_name=key)
-                    key_dict[key]["dl_client"] = key_dict[key]["session"].client(
-                        "s3", config=client_config
-                    )
-                else:
-                    key_dict[key]["manifest"] = pd.concat(
-                        [
-                            key_dict[key]["manifest"],
-                            selected[selected["s3_path"].str.startswith(bucket)],
-                        ],
-                        ignore_index=True,
-                    )
-                # Test bucket access with that key, if it fails, print error then kill to not waste time
-                parse_url = urllib3.util.parse_url(bucket)
-                try:
-                    key_dict[key]["dl_client"].list_objects(Bucket=parse_url.host)
-                except Exception as e:
-                    bucket_errs = 1
-                    print(e, file=sys.stderr)
-                    print(f"Bucket access ERROR: {bucket}\t{key}", file=sys.stderr)
-        if bucket_errs:
-            sys.exit(1)
+
     if args.sbg_profile is not None:
         check = 1
         config: sbg.Config = sbg.Config(profile=args.sbg_profile)
         api = sbg.Api(config=config, error_handlers=[rate_limit_sleeper, maintenance_sleeper])
     if not check:
-        print("Please provide at least one of aws_tbl or sbg_profile", file=sys.stderr)
+        print("Please provide sbg_profile", file=sys.stderr)
         sys.exit(1)
 
     with concurrent.futures.ThreadPoolExecutor(16) as executor:
@@ -311,7 +229,6 @@ def run_py(args: argparse.Namespace) -> int:
                 args.overwrite,
                 err_types,
                 args.sbg_profile,
-                args.aws_tbl,
             ): ftype
             for ftype in file_types_list
         }
@@ -345,18 +262,11 @@ def main():
         help="csv list of workflow types to download",
     )
     parser.add_argument(
-        "-at",
-        "--aws-tbl",
-        action="store",
-        dest="aws_tbl",
-        help="Table with bucket name and keys to subset on",
-    )
-    parser.add_argument(
         "-sp",
         "--sbg-profile",
         action="store",
         dest="sbg_profile",
-        help="sbg profile name. Leave blank if using AWS instead",
+        help="sbg profile name",
     )
     parser.add_argument(
         "-c",
