@@ -10,7 +10,7 @@ from time import sleep
 import requests
 
 
-def download_range(url: str, start: int, end: int, retries=5, delay=3) -> tuple[int, bytes]:
+def download_range(url: str, start: int, end: int, retries=5, delay=3) -> tuple[int, bytearray]:
     """Download a specific byte range from a URL with retry logic.
 
     Args:
