@@ -5,8 +5,7 @@ import argparse
 import concurrent.futures
 import os
 import sys
-from math import ceil
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import sevenbridges as sbg
@@ -39,9 +38,7 @@ def sbg_download_with_retry(file_obj: sbg.File, out: str, retries: int = 5, dela
         if total_size <= chunk_size:
             small_download(file_url, out, retries, delay)
         else:
-            # set max worker size to ensure it doesn't exceed total file size for range requests
-            max_workers: int = min(12, ceil(total_size / chunk_size))
-            parallel_download(file_url, out, total_size, num_workers=max_workers,
+            parallel_download(file_url, out, total_size, num_workers=12,
                               chunk_size=chunk_size)
 
     except (Exception, SbgError) as e:
