@@ -266,9 +266,9 @@ def run_py(args: argparse.Namespace) -> int:
 
     if not tracker.failed and not tracker.invalid:
         logger.info("All files downloaded successfully with valid IDs!")
-        return 0
+        sys.exit(0)
     logger.error("Some files failed to download or had invalid IDs. Please review the logs for details.")
-    return 1
+    sys.exit(1)
 
 
 def main() -> None:
