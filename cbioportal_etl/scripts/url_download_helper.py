@@ -2,6 +2,7 @@
 
 Overall function created from co-pilot prompt, refined and debugged by M. Brown
 """
+from __future__ import annotations
 
 import logging
 import random
