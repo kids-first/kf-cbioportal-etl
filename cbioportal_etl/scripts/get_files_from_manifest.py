@@ -225,11 +225,11 @@ def run_py(args: argparse.Namespace) -> int:
     selected.to_csv(out_file, sep="\t", mode="w", index=False)
     if args.debug:
         logger.info("Debug flag given. No downloads actually happen, just a manifest subset to preview")
-        sys.exit(0)
+        return 0
     # download files by type
     if args.sbg_profile is None:
-        logger.error("Please provide sbg_profile")
-        sys.exit(1)
+        crit_arg = "Please provide sbg_profile"
+        raise ValueError(crit_arg)
     config: sbg.Config = sbg.Config(profile=args.sbg_profile)
     api = sbg.Api(config=config, error_handlers=[rate_limit_sleeper, maintenance_sleeper])
 
@@ -266,9 +266,9 @@ def run_py(args: argparse.Namespace) -> int:
 
     if not tracker.failed and not tracker.invalid:
         logger.info("All files downloaded successfully with valid IDs!")
-        sys.exit(0)
-    logger.error("Some files failed to download or had invalid IDs. Please review the logs for details.")
-    sys.exit(1)
+        return 0
+    fail_msg = f"{len(tracker.failed)} files failed to download and {len(tracker.invalid)} had invalid IDs. Check logs for details."
+    raise FileNotFoundError(fail_msg)
 
 
 def main() -> None:
