@@ -130,6 +130,12 @@ def main():
         help="Set to change default schema for table searches for dev purposes only",
         default="prod_cbio",
     )
+    common_args.add_argument(
+        "--steps",
+        action="store",
+        dest="steps",
+        help="If running partial csv string of steps",
+    )
 
     # Arguments exclusive to update (step 3 - diff_studies.py)
     update_args = argparse.ArgumentParser(add_help=False)
@@ -162,10 +168,20 @@ def main():
         help="Run update workflow (Steps 1, 2, 3, 4, 5, 6)",
     )
 
+    # Partial command (Partial import updates)
+    subparsers.add_parser(
+        "partial",
+        parents=[common_args],
+        help="Advanced run mode to start from a different point. Enter steps as csv string 1-6.",
+    )
+
     args: argparse.Namespace = parser.parse_args()
 
     if args.command == "import":
         run_etl(args, steps=["1", "2", "4", "5", "6"])
+    elif args.command == "partial":
+        p_steps = args.steps.split(",")
+        run_etl(args, steps=p_steps)
     elif args.command == "update":
         run_etl(args, steps=["1", "2", "3"])
         # If there are new patients to be added, run the rest of the ETL
