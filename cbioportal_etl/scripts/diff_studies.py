@@ -501,12 +501,6 @@ def generate_meta_files(config_file: str, data_dir: str) -> None:
 
 
 def run_py(args):
-    # Create incremental study updates dirs
-    delta_dir: str = f"{args.study}_delta_data"
-    os.makedirs(delta_dir, exist_ok=True)
-    add_dir: str = f"{args.study}_add_data/datasheets"
-    os.makedirs(add_dir, exist_ok=True)
-
     # Set Up URL pulling
     print("Processing data clinical info", file=sys.stderr)
     with open(args.token, "r") as token_file:
@@ -544,7 +538,7 @@ def run_py(args):
         # Also includes the name of the data table that has the relevant information as well as the key in that table to locate the information
         aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
         # get all datasheets
-        datasheet_dir: str = args.datasheets.rstrip("/")
+        datasheet_dir: str = args.datasheets.rstrip("/") if args.datasheets.endswith("/") else args.datasheets
 
         comparisons: dict[str, Config] = {
             "SAMPLE": {
@@ -620,6 +614,9 @@ def run_py(args):
             # report before and after for deltas
             delta_attr_count: dict[str, int] = {}
             if delta_data:
+                delta_dir: str = f"{args.study}_delta_data"
+                os.makedirs(delta_dir, exist_ok=True)
+
                 delta_attr_count = print_and_count_delta_attr(
                     clin_type=comp,
                     delta_data=delta_data,
@@ -634,6 +631,9 @@ def run_py(args):
                 )
 
             if update_only_data:
+                add_dir: str = f"{args.study}_add_data/datasheets"
+                os.makedirs(add_dir, exist_ok=True)
+
                 print_parsed_file(
                     header=update_header,
                     body=update_only_lines,
