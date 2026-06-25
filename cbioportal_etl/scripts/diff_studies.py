@@ -538,7 +538,7 @@ def run_py(args):
         # Also includes the name of the data table that has the relevant information as well as the key in that table to locate the information
         aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
         # get all datasheets
-        datasheet_dir: str = args.datasheets.rstrip("/") if args.datasheets[-1] == "/" else args.datasheets
+        datasheet_dir: str = args.datasheets.rstrip("/") if args.datasheets.endswith("/") else args.datasheets
 
         comparisons: dict[str, Config] = {
             "SAMPLE": {
