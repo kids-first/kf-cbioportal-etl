@@ -17,18 +17,20 @@ import tarfile
 
 import numpy as np
 import pandas as pd
-from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 from scipy import stats
+
+from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
 def load_rsem_file(rsem_file: str, sample: str, rsem_dir: str, expr_type: str) -> pd.DataFrame:
-    """Reads and formats a single RSEM file.
-    
-    Args: 
+    """Read and format a single RSEM file.
+
+    Args:
         rsem_file: Filename of RSEM (example: 'sample.rsem.genes.results.gz')
         sample: Sample ID
         rsem_dir: Directory where RSEM files are located
         expr_type: Type of expression value to extract (TPM or FPKM)
+
     """
     try:
         current = pd.read_csv(os.path.join(rsem_dir, rsem_file), sep="\t", index_col=0)
@@ -50,37 +52,38 @@ if __name__ == "__main__":
         help="Table with cbio project, kf bs ids, cbio IDs, and file names",
     )
     parser.add_argument(
-        "-r", 
-        "--rsem-dir", 
-        action="store", 
-        dest="rsem_dir", 
-        help="rsem file directory"
+        "-r",
+        "--rsem-dir",
+        action="store",
+        dest="rsem_dir",
+        help="rsem file directory",
     )
     parser.add_argument(
         "-et", 
-        "--expression-type", 
-        action="store", 
-        dest="expression_type", 
-        choices=["TPM", "FPKM"], 
-        default="TPM", 
-        help="Which expression value to use: TPM or FPKM. Default is TPM."
+        "--expression-type",
+        action="store",
+        dest="expression_type",
+        choices=["TPM", "FPKM"],
+        default="TPM",
+        help="Which expression value to use: TPM or FPKM. Default is TPM.",
     )
     parser.add_argument(
         "-sc", 
-        "--study-config", 
-        action="store", 
-        dest="study_config", 
-        help="cbio study config file."
+        "--study-config",
+        action="store",
+        dest="study_config",
+        help="cbio study config file.",
     )
     parser.add_argument(
-        "-dmt", 
-        "--default-match-type", 
-        action="store", 
-        dest="default_match_type", 
-        choices=["polyA", "totalRNA", "none"], 
-        default="none", 
-        help="Default match type for samples with unknown RNA library type for z-score calculations. Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score."
-    )    
+        "-dmt",
+        "--default-match-type",
+        action="store",
+        dest="default_match_type",
+        choices=["polyA", "totalRNA", "none"],
+        default="none",
+        help="Default match type for samples with unknown RNA library type for z-score calculations. "
+        "Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score.",
+    )
     args = parser.parse_args()
 
     rsem_dir = args.rsem_dir.rstrip("/")
@@ -88,7 +91,7 @@ if __name__ == "__main__":
     os.makedirs(out_dir, exist_ok=True)
 
     all_file_meta = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
-    rna_subset = all_file_meta[all_file_meta["etl_file_type"] == "rsem"].copy()
+    rna_subset = all_file_meta[all_file_meta["etl_file_type"] == "rsem_gene"].copy()
     rsem_list = rna_subset[["file_name", "cbio_sample_name"]].drop_duplicates().values.tolist()
 
     print("Reading RSEM files...", file=sys.stderr)
@@ -221,12 +224,11 @@ if __name__ == "__main__":
             if not skip_vs_healthy_output and not master_zscore_vs_healthy.empty:
                 healthy_outfile = f"{out_dir}{project}.rsem_merged_vs_healthy_zscore_{args.expression_type}.txt"
                 master_zscore_vs_healthy[sub_samples].to_csv(healthy_outfile, sep="\t", float_format="%.4f")
-            else:
-                if skip_vs_healthy_output:
-                    print(f"Skipping output of vs-healthy z-score for {project} since values are equivalent to intra-cohort z-score", file=sys.stderr)
-                elif master_zscore_vs_healthy.empty:
-                    print(f"Skipping output of vs-healthy z-score for {project} because vs-healthy table is empty", file=sys.stderr)
-                    
+            elif skip_vs_healthy_output:
+                print(f"Skipping output of vs-healthy z-score for {project} since values are equivalent to intra-cohort z-score", file=sys.stderr)
+            elif master_zscore_vs_healthy.empty:
+                print(f"Skipping output of vs-healthy z-score for {project} because vs-healthy table is empty", file=sys.stderr)
+
             intra_outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
             master_zscore_intracohort[sub_samples].to_csv(intra_outfile, sep="\t", float_format="%.4f")
 
