@@ -43,7 +43,7 @@ def load_rsem_file(rsem_file: str, sample: str, rsem_dir: str, expr_type: str) -
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Merge rsem files using cavatica file info.")
+    parser = argparse.ArgumentParser(description="Merge rsem gene files using manifest file info.")
     parser.add_argument(
         "-t",
         "--table",
