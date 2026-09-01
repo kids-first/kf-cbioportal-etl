@@ -208,14 +208,14 @@ def create_case_lists(data_dict: dict[str, int], output_dir: str):
             muts_plus_cna: list[str] = list(set(muts_list) & set(cna_list))
             write_case_list("cases_cnaseq", config_data["cases_cnaseq"], muts_plus_cna, case_dir)
 
-        if data_dict["merged_rsem"]:
+        if data_dict["merged_rsem_gene"]:
             # Get samples from merged rsem file - is a simple gene by sample table
-            rsem_dtypes = config_data["merged_rsem"]["dtypes"]
+            rsem_dtypes = config_data["merged_rsem_gene"]["dtypes"]
             counts_key = next((k for k in rsem_dtypes if k.startswith("counts_")), None)
             if counts_key:
                 rna_fname = f"{output_dir}{rsem_dtypes[counts_key]['cbio_name']}"
             else:
-                print("No counts_fpkm or counts_tpm found in merged_rsem", file=sys.stderr)
+                print("No counts_fpkm or counts_tpm found in merged_rsem_gene", file=sys.stderr)
                 sys.exit(1)
             with open(rna_fname) as rna_file:
                 head: str = next(rna_file)
@@ -303,7 +303,7 @@ try:
         data_keys: dict[str, int] = {
             "merged_mafs": 0,
             "merged_cnvs": 0,
-            "merged_rsem": 0,
+            "merged_rsem_gene": 0,
             "merged_fusion": 0,
         }
         for key in data_keys:

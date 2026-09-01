@@ -73,7 +73,7 @@ def get_file_type(
 
 
 def get_merged(db_cur: psycopg2.extensions.cursor, study: str, tbl_name: str, config_tsv_df: pd.DataFrame, schema: str) -> pd.DataFrame:
-    """Query 'etl_file_type' column, checks for ['cnv', 'rsem', 'fusion', 'maf].
+    """Query 'etl_file_type' column, checks for ['cnv', 'rsem_gene', 'fusion', 'maf].
 
     If exists, create 'merged_' sections
 
@@ -101,7 +101,7 @@ def get_merged(db_cur: psycopg2.extensions.cursor, study: str, tbl_name: str, co
         "cnv": "merged_cnvs",
         "maf": "merged_mafs",
         "fusion": "merged_fusion",
-        "rsem": "merged_rsem",
+        "rsem_gene": "merged_rsem_gene",
     }
 
     for file_type, merged_key in file_type_mapping.items():
@@ -221,7 +221,7 @@ def get_file_loc_defs(db_cur: psycopg2.extensions.cursor, study: str, tbl_name: 
         "ctrlfreec_pval": ("cnvs.pval", "ctrlfreec_pval"),
         "ctrlfreec_bam_seg": ("cnvs.seg", "ctrlfreec_bam_seg"),
         "annofuse_filtered_fusions_tsv": ("fusion", "annofuse_filtered_fusions_tsv"),
-        "RSEM_gene": ("rsem", "RSEM_gene"),
+        "RSEM_gene": ("rsem_gene", "RSEM_gene"),
     }
 
     for file_type, (sub_key, output_value) in mappings.items():

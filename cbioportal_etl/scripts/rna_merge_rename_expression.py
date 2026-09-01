@@ -87,7 +87,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     rsem_dir = args.rsem_dir.rstrip("/")
-    out_dir = "merged_rsem/"
+    out_dir = "merged_rsem_gene/"
     os.makedirs(out_dir, exist_ok=True)
 
     all_file_meta = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})

@@ -230,7 +230,7 @@ def run_py(args):
                 etl_file_types.add(row.get("etl_file_type"))
     # Store a list of run priorities to ensure historically slower jobs kick off first using partial:
     # https://stackoverflow.com/questions/59221490/can-you-store-functions-with-parameters-in-a-list-and-call-them-later-in-python
-    run_priority: list[str] = ["rsem", "mafs", "fusion", "cnvs"]
+    run_priority: list[str] = ["rsem_gene", "mafs", "fusion", "cnvs"]
     run_queue: dict[str, partial] = {}
     run_status: dict[str, subprocess.Popen] = {}
     for key in config_data:
@@ -247,11 +247,11 @@ def run_py(args):
                     script_dir,
                     run_status,
                 )
-            elif data_type == "rsem" and "rsem" in etl_file_types:
+            elif data_type == "rsem_gene" and "rsem_gene" in etl_file_types:
                 print("Both config and manifest have RSEM data. Adding to queue", file=sys.stderr)
-                run_queue["rsem"] = partial(
+                run_queue["rsem_gene"] = partial(
                     process_rsem,
-                    config_data["file_loc_defs"]["rsem"],
+                    config_data["file_loc_defs"]["rsem_gene"],
                     args.manifest,
                     script_dir,
                     run_status,

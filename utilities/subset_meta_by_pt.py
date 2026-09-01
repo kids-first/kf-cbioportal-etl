@@ -41,11 +41,11 @@ with open(sys.argv[1]) as cids:
 datasheet_dir = sys.argv[2]
 os.makedirs("subset/datasheets", exist_ok=True)
 # data clinical patient and sample are always there
-pt_list = subset_file(os.path.join(datasheet_dir, "data_clinical_patient.txt"), "subset/datasheets/data_clinical_patient_subset.txt", 5, cid_list, 1, 0)
-bs_list = subset_file(os.path.join(datasheet_dir, "data_clinical_sample.txt"), "subset/datasheets/data_clinical_sample_subset.txt", 5, pt_list, 0, 3)
+pt_list = subset_file(os.path.join(datasheet_dir, "data_clinical_patient.txt"), "subset/datasheets/data_clinical_patient.txt", 5, cid_list, 1, 0)
+bs_list = subset_file(os.path.join(datasheet_dir, "data_clinical_sample.txt"), "subset/datasheets/data_clinical_sample.txt", 5, pt_list, 0, 3)
 subset_file(sys.argv[3], "subset/cbio_file_name_id.txt", 1, bs_list, 1, 1)
 
 # check datasets dir for all that are non-sample/patient and subset those too
 for fname in os.listdir(datasheet_dir):
     if fname.startswith("data_") and fname.endswith(".txt") and fname not in ["data_clinical_patient.txt", "data_clinical_sample.txt"]:
-        subset_file(os.path.join(datasheet_dir, fname), os.path.join("subset/datasheets", fname.replace(".txt", "_subset.txt")), 1, pt_list, 0, 0)
+        subset_file(os.path.join(datasheet_dir, fname), os.path.join("subset/datasheets", fname), 1, pt_list, 0, 0)
