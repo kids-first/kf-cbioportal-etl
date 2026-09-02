@@ -22,7 +22,6 @@ from scipy import stats
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
-
 def load_rsem_file(rsem_file: str, sample: str, rsem_dir: str, expr_type: str) -> pd.DataFrame:
     """Read and format a single RSEM file.
 
@@ -116,15 +115,17 @@ if __name__ == "__main__":
 
     master_tbl = pd.concat(df_list, axis=1).astype(np.float32).copy()
     master_tbl.reset_index(inplace=True)
-    master_tbl.rename(columns={"transcript_id": "ENTITY_STABLE_ID", "gene_id": "DESCRIPTION"}, inplace=True)
+    master_tbl["ENTITY_STABLE_ID"] = master_tbl["transcript_id"].str.split("_", n=1).str[::-1].str.join("_")
+    master_tbl["DESCRIPTION"] = master_tbl["gene_id"].str.split("_", n=1).str[::-1].str.join("_")
+    master_tbl.drop(columns=["transcript_id", "gene_id"], inplace=True)
     master_tbl.set_index(["ENTITY_STABLE_ID", "DESCRIPTION"], inplace=True)
     log_master_tbl = np.log2(master_tbl + 1)
 
     project_list = rna_subset.cbio_project.unique()
-    print(f"Outputting {args.expression_type} expression results", file=sys.stderr)
+    print(f"Outputting log2 {args.expression_type} + 1 expression results", file=sys.stderr)
     for project in project_list:
         sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
-        master_tbl[sub_samples].to_csv(f"{out_dir}{project}.rsem_merged.{args.expression_type}.txt", sep="\t")
+        log_master_tbl[sub_samples].to_csv(f"{out_dir}{project}.rsem_merged.{args.expression_type}.txt", sep="\t", float_format="%.4f")
 
     print("Calculating z-scores...", file=sys.stderr)
     # Studies with library type column will be processed by library type 
