@@ -9,11 +9,9 @@ Final result also z scored across cohort as log2(FPKM + 1) or as log2(TPM + 1)
 
 import argparse
 import concurrent.futures
-import io
 import json
 import os
 import sys
-import tarfile
 
 import numpy as np
 import pandas as pd
@@ -22,48 +20,69 @@ from scipy import stats
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
-def load_rsem_file(rsem_file: str, sample: str, rsem_dir: str, expr_type: str) -> pd.DataFrame | None:
+def format_df_into_cbio(df_list: list[pd.DataFrame]) -> np.ndarray:
+    """Format the dataframe into cBio format.
+
+    Concat dataframes in list and rename columns and transcript and gene IDs to match required
+    and desired format for generic assay input in cBioPortal.
+
+    Args:
+        df_list: List of dataframes to concatenate and format. All have same index cols
+
+    Returns:
+        np.ndarray: Log2 transformed dataframe with new index and columns
+
+    """
+    format_tbl = pd.concat(df_list, axis=1).astype(np.float32).copy()
+    format_tbl.reset_index(inplace=True)
+    # Create new col to format ENST00000373020.9_TSPAN6-201 as TSPAN6-201_ENST00000373020.9
+    format_tbl["ENTITY_STABLE_ID"] = format_tbl["transcript_id"].str.split("_", n=1).str[::-1].str.join("_")
+    # Create new col to format ENSG00000000003.15_TSPAN6 as TSPAN6_ENSG00000000003.15
+    format_tbl["DESCRIPTION"] = format_tbl["gene_id"].str.split("_", n=1).str[::-1].str.join("_")
+    # Drop old transcript_id and gene_id columns and set new columns as index
+    format_tbl.drop(columns=["transcript_id", "gene_id"], inplace=True)
+    format_tbl.set_index(["ENTITY_STABLE_ID", "DESCRIPTION"], inplace=True)
+    return np.log2(format_tbl + 1)
+
+
+def load_rsem_file(rsem_path: str, sample: str, expr_type: str) -> pd.DataFrame | None:
     """Read and format a single RSEM file.
 
     Args:
-        rsem_file: Filename of RSEM (example: 'sample.rsem.genes.results.gz')
+        rsem_path: Path to RSEM file
         sample: Sample ID
         rsem_dir: Directory where RSEM files are located
         expr_type: Type of expression value to extract (TPM or FPKM)
 
     """
     try:
-        current = pd.read_csv(os.path.join(rsem_dir, rsem_file), sep="\t", index_col=[0,1])
+        current = pd.read_csv(rsem_path, sep="\t", index_col=[0,1])
         subset = current[[expr_type]].copy()
         subset.rename(columns={expr_type: sample}, inplace=True)
         return subset
     except Exception as e:
-        print(f"{e}\nFailed to process {rsem_file}", file=sys.stderr)
+        print(f"{e}\nFailed to process {rsem_path}", file=sys.stderr)
         return None
 
 
-if __name__ == "__main__":
-  main()
+def main():
     parser = argparse.ArgumentParser(description="Merge rsem isoform files using manifest file info.")
     parser.add_argument(
         "-t",
         "--table",
         action="store",
-        dest="table",
         help="Table with cbio project, kf bs ids, cbio IDs, and file names",
     )
     parser.add_argument(
         "-r",
         "--rsem-dir",
         action="store",
-        dest="rsem_dir",
         help="rsem file directory",
     )
     parser.add_argument(
         "-et", 
         "--expression-type",
         action="store",
-        dest="expression_type",
         choices=["TPM", "FPKM"],
         default="TPM",
         help="Which expression value to use: TPM or FPKM. Default is TPM.",
@@ -72,14 +91,12 @@ if __name__ == "__main__":
         "-sc", 
         "--study-config",
         action="store",
-        dest="study_config",
         help="cbio study config file.",
     )
     parser.add_argument(
         "-dmt",
         "--default-match-type",
         action="store",
-        dest="default_match_type",
         choices=["polyA", "totalRNA", "none"],
         default="none",
         help="Default match type for samples with unknown RNA library type for z-score calculations. "
@@ -99,12 +116,9 @@ if __name__ == "__main__":
     seen = set()
     df_list = []
 
-    # for fname, sample in rsem_list:
-    #     if sample not in seen and not seen.add(sample):
-    #         load_rsem_file(fname, sample, rsem_dir, args.expression_type)
     with concurrent.futures.ProcessPoolExecutor() as executor:
         futures = {
-            executor.submit(load_rsem_file, fname, sample, rsem_dir, args.expression_type): sample
+            executor.submit(load_rsem_file, os.path.join(rsem_dir, fname), sample, args.expression_type): sample
             for fname, sample in rsem_list if sample not in seen and not seen.add(sample)
         }
         for i, fut in enumerate(concurrent.futures.as_completed(futures), 1):
@@ -114,13 +128,7 @@ if __name__ == "__main__":
             if i % 50 == 0:
                 print(f"Loaded {i} files", file=sys.stderr)
 
-    master_tbl = pd.concat(df_list, axis=1).astype(np.float32).copy()
-    master_tbl.reset_index(inplace=True)
-    master_tbl["ENTITY_STABLE_ID"] = master_tbl["transcript_id"].str.split("_", n=1).str[::-1].str.join("_")
-    master_tbl["DESCRIPTION"] = master_tbl["gene_id"].str.split("_", n=1).str[::-1].str.join("_")
-    master_tbl.drop(columns=["transcript_id", "gene_id"], inplace=True)
-    master_tbl.set_index(["ENTITY_STABLE_ID", "DESCRIPTION"], inplace=True)
-    log_master_tbl = np.log2(master_tbl + 1)
+    log_master_tbl = format_df_into_cbio(df_list)
 
     project_list = rna_subset.cbio_project.unique()
     print(f"Outputting log2 {args.expression_type} + 1 expression results", file=sys.stderr)
@@ -139,7 +147,6 @@ if __name__ == "__main__":
         config_data = resolve_config_paths(config_data, TOOL_DIR)
 
         zscore_intracohort = []
-        zscore_vs_healthy = []
         # Process samples grouped by library type
         unique_strategies = rna_subset["etl_experiment_strategy"].dropna().unique().tolist()
         if rna_subset["etl_experiment_strategy"].isna().any():
@@ -152,10 +159,7 @@ if __name__ == "__main__":
                 print(f"Processing samples with etl_experiment_strategy {library_type}", file=sys.stderr)
                 group_df = rna_subset[rna_subset["etl_experiment_strategy"] == library_type]
 
-            group_samples = group_df["cbio_sample_name"].drop_duplicates().tolist()
-            if not group_samples:
-                continue
-
+            group_samples = group_df["cbio_sample_name"].tolist()
             group_tbl = log_master_tbl[group_samples].copy()
 
             # Intra-cohort z-score
@@ -168,11 +172,6 @@ if __name__ == "__main__":
 
         master_zscore_intracohort = pd.concat(zscore_intracohort, axis=1).fillna(0).astype(np.float32)
 
-        NONE_TYPES = {"rnaseq", "rna-seq", "rna seq", "none", "nan", ""}
-        raw_value = unique_strategies[0]
-        is_none_type = pd.isna(raw_value) or str(raw_value).strip().lower() in NONE_TYPES
-        all_library_types_none = len(unique_strategies) == 1 and is_none_type
-        skip_vs_healthy_output = all_library_types_none and str(args.default_match_type).strip().lower() in {"none", "", "nan"}
         for project in project_list:
             sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
 
@@ -190,3 +189,6 @@ if __name__ == "__main__":
             outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
             master_zscore_log[sub_samples].to_csv(outfile, sep="\t", float_format="%.4f")
 
+
+if __name__ == "__main__":
+    main()
