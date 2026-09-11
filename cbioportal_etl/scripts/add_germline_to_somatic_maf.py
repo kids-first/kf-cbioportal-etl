@@ -98,7 +98,8 @@ def append_amino_acids_field(hgvs_p: str) -> str:
     return hgvs_p_short
 
 
-def main():
+def main() -> None:
+    """Parse arguments and process germline MAF."""
     parser = argparse.ArgumentParser(
         description="Clean up and append germline MAF to somatic MAF for cBioPortal import"
     )
@@ -126,15 +127,35 @@ def main():
 
     args = parser.parse_args()
     TOOL_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+    germ_data_dict: dict[str, list] = {}
     with open(args.exported) as f:
         germline_reader: csv.reader._reader = csv.reader(f, delimiter="\t")
         header = next(germline_reader)
+        header.extend(NEW_FIELDS)
+        print("\t".join(header))
+        # get indices of fields used to inform fields to be calculated
+        sample_id_idx = header.index("Matched_Norm_Sample_Barcode")
+        ref_idx = header.index("Reference_Allele")
+        alt_idx = header.index("Match_Norm_Seq_Allele1")
+        hgvs_p_idx = header.index("HGVSp")
+        csq_idx = header.index("Consequence")
+        for data in germline_reader:
+            # add new fields to data
+            var_type, inframe = append_variant_type_field(data[ref_idx], data[alt_idx])
+            data.append(append_amino_acids_field(data[hgvs_p_idx]))
+            data.append(var_type)
+            data.append(append_variant_class(data[csq_idx], var_type, inframe))
+            # add to dict by sample id
+            sample_id = data[sample_id_idx]
+            if sample_id not in germ_data_dict:
+                germ_data_dict[sample_id] = []
+            germ_data_dict[sample_id].append(data)
+            # debug, print out data
+            print("\t".join(data))
 
-
-    with open(args.config_file) as f:
-        config_data = json.load(f)
-    config_data: dict = resolve_config_paths(config_data, TOOL_DIR)
+    # with open(args.config_file) as f:
+    #     config_data = json.load(f)
+    # config_data: dict = resolve_config_paths(config_data, TOOL_DIR)
 
 
 if __name__ == "__main__":
@@ -221,4 +242,6 @@ if __name__ == "__main__":
         "5'Flank": {"upstream_gene_variant"},
         "3'Flank": {"downstream_gene_variant"},
     }
+
+    NEW_FIELDS = ["HGVSp_Short", "Variant_Type", "Variant_Classification"]
     main()
