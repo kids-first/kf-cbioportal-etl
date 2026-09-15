@@ -166,9 +166,7 @@ def main() -> None:
                 for tum_id in matched_ids[data[sample_id_idx]]:
                     data_reorg = []
                     for field, idx in h_dict.items():
-                        if field == "Hugo_Symbol" and data[header.index("Hugo_Symbol")] == "":
-                            print(f"Warning: Hugo_Symbol is empty for {data} in germline MAF", file=sys.stderr)
-                        elif idx is not None:
+                        if idx is not None:
                             data_reorg.append(data[idx])
                         elif field == "Tumor_Sample_Barcode":
                             data_reorg.append(tum_id)

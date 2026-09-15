@@ -13,10 +13,15 @@ valid_locus as (
 	left outer join radiant.gnomad_genomes_v3 ggv on ggv.locus_id = occ.locus_id
 	where ggv.af is NULL or ggv.af < 0.01 and occ.`filter` = "PASS"
 )
-
-SELECT DISTINCT 
-	c.symbol as SYMBOL,  
-	c.symbol as Hugo_Symbol,
+SELECT DISTINCT
+	CASE 
+		when c.symbol = "" then c.transcript_id
+		else c.symbol
+	END as SYMBOL,
+	CASE 
+		when c.symbol = "" then c.transcript_id
+		else c.symbol
+	END as Hugo_Symbol,
 	vl.aliquot  AS Matched_Norm_Sample_Barcode,
 	'.' as Center,
 	'GRCh38' as NCBI_Build,
