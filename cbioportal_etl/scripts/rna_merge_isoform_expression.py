@@ -35,14 +35,15 @@ def format_df_into_cbio(df_list: list[pd.DataFrame]) -> np.ndarray:
     """
     format_tbl = pd.concat(df_list, axis=1).astype(np.float32).copy()
     format_tbl.reset_index(inplace=True)
-    # Create new col to format ENST00000373020.9_TSPAN6-201 as TSPAN6-201_ENST00000373020.9
-    format_tbl["ENTITY_STABLE_ID"] = format_tbl["transcript_id"].str.split("_", n=1).str[::-1].str.join("_")
-    # Create new col to format ENSG00000000003.15_TSPAN6 as TSPAN6_ENSG00000000003.15
-    format_tbl["DESCRIPTION"] = format_tbl["gene_id"].str.split("_", n=1).str[::-1].str.join("_")
-    # Drop old transcript_id and gene_id columns and set new columns as index
-    format_tbl.drop(columns=["transcript_id", "gene_id"], inplace=True)
-    format_tbl.set_index(["ENTITY_STABLE_ID", "DESCRIPTION"], inplace=True)
-    return np.log2(format_tbl + 1)
+    # Make the NAME transcript_id except swap tx name and ID
+    parts = format_tbl["transcript_id"].str.split("_", n=1, expand=True)
+    format_tbl["NAME"] = parts[1] + "_" + parts[0]
+    # just basically set the gene name as description, and the transcript ID as the stable entity ID
+    format_tbl.rename(columns={"gene_id": "DESCRIPTION", "transcript_id": "ENTITY_STABLE_ID"}, inplace=True)
+    format_tbl.set_index(["ENTITY_STABLE_ID", "NAME", "DESCRIPTION"], inplace=True)
+    # drop rows where all values are 0, then log2 transform the data
+    format_tbl = format_tbl.loc[~(format_tbl == 0).all(axis=1)]
+    return np.log2(format_tbl + 1).round(4)
 
 
 def load_rsem_file(rsem_path: str, sample: str, expr_type: str) -> pd.DataFrame | None:
@@ -134,7 +135,7 @@ def main():
     print(f"Outputting log2 {args.expression_type} + 1 expression results", file=sys.stderr)
     for project in project_list:
         sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
-        log_master_tbl[sub_samples].to_csv(f"{out_dir}{project}.rsem_merged.{args.expression_type}.txt", sep="\t", float_format="%.4f")
+        log_master_tbl[sub_samples].to_csv(f"{out_dir}{project}.rsem_merged.{args.expression_type}.txt", sep="\t")
 
     print("Calculating z-scores...", file=sys.stderr)
     # Studies with library type column will be processed by library type 
@@ -170,24 +171,24 @@ def main():
             intracohort_df = pd.DataFrame(zscore_vals, index=group_tbl.index, columns=group_tbl.columns).fillna(0)
             zscore_intracohort.append(intracohort_df)
 
-        master_zscore_intracohort = pd.concat(zscore_intracohort, axis=1).fillna(0).astype(np.float32)
+        master_zscore_intracohort = pd.concat(zscore_intracohort, axis=1).fillna(0).astype(np.float32).round(4)
 
         for project in project_list:
             sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
 
             intra_outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
-            master_zscore_intracohort[sub_samples].to_csv(intra_outfile, sep="\t", float_format="%.4f")
+            master_zscore_intracohort[sub_samples].to_csv(intra_outfile, sep="\t")
 
     else:
         # Studies without library type columns will use intra-cohort z-score
         print("No etl_experiment_strategy column found, using intra-cohort z-score", file=sys.stderr)
         zscore_vals = stats.zscore(log_master_tbl, axis=1, nan_policy='omit')
-        master_zscore_log = pd.DataFrame(zscore_vals, index=log_master_tbl.index, columns=log_master_tbl.columns).fillna(0).astype(np.float32)
+        master_zscore_log = pd.DataFrame(zscore_vals, index=log_master_tbl.index, columns=log_master_tbl.columns).fillna(0).astype(np.float32).round(4)
 
         for project in project_list:
             sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
             outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
-            master_zscore_log[sub_samples].to_csv(outfile, sep="\t", float_format="%.4f")
+            master_zscore_log[sub_samples].to_csv(outfile, sep="\t")
 
 
 if __name__ == "__main__":
