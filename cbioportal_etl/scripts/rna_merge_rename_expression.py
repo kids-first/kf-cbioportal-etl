@@ -87,11 +87,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     rsem_dir = args.rsem_dir.rstrip("/")
-    out_dir = "merged_rsem_gene/"
+    out_dir = "merged_rsem/"
     os.makedirs(out_dir, exist_ok=True)
 
     all_file_meta = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
-    rna_subset = all_file_meta[all_file_meta["etl_file_type"] == "rsem_gene"].copy()
+    rna_subset = all_file_meta[all_file_meta["etl_file_type"] == "rsem"].copy()
     rsem_list = rna_subset[["file_name", "cbio_sample_name"]].drop_duplicates().values.tolist()
 
     print("Reading RSEM files...", file=sys.stderr)
@@ -174,10 +174,7 @@ if __name__ == "__main__":
                 print(f"Processing samples with etl_experiment_strategy {library_type}", file=sys.stderr)
                 group_df = rna_subset[rna_subset["etl_experiment_strategy"] == library_type]
 
-            group_samples = group_df["cbio_sample_name"].drop_duplicates().tolist()
-            if not group_samples:
-                continue
-
+            group_samples = group_df["cbio_sample_name"].tolist()
             group_tbl = log_master_tbl[group_samples].copy()
 
             # Intra-cohort z-score
