@@ -62,6 +62,24 @@ def setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> pd.D
     return dna_sv_subset
 
 
+def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
+
+    concat_sv_df["Class"] = concat_sv_df["SV_type"].replace(sv_type_class_dict)
+    concat_sv_df["SV_chrom"] = "chr" + concat_sv_df["SV_chrom"].astype(str)
+    concat_sv_df["Breakpoint_Type"] = np.where(
+        concat_sv_df["INFO"].fillna("").str.contains("IMPRECISE"),
+        "IMPRECISE",
+        "PRECISE",
+    )
+    concat_sv_df["Site2_Effect_On_Frame"] = np.where(
+        concat_sv_df["Frameshift"].fillna("").str.contains("yes"),
+        "Frameshift",
+        "",
+    )
+    concat_sv_df.rename(columns=rename_dict, inplace=True)
+    return concat_sv_df[desired]
+
+
 def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
     """Use data frame subset on DNA SV files to find and merge result files.
 
@@ -72,17 +90,6 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
         Collapsed and formatted dataframe, list of desired fields
 
     """
-    desired: list[str] = [
-        "SV_chrom",
-        "SV_start",
-        "SV_length",
-        "SV_type",
-        "INFO",
-        "FORMAT",
-        "CytoBand",
-        "Gene_name",
-        "Frameshift",
-    ]
     flist: pd.Series[str] = sv_metadata.file_name
     frame_list = []
     try:
@@ -93,7 +100,7 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
             )
             # drop entries where Annotation_mode is not "split" (i.e. per-gene)
             ann_file: pd.DataFrame = ann_file.loc[ann_file["Annotation_mode"] == "split"]
-            ann_file = ann_file.assign(Sample=sv_metadata.iloc[i].cbio_sample_name)
+            ann_file = ann_file.assign(Sample_Id=sv_metadata.iloc[i].cbio_sample_name)
             # at this step, get the tumor BS ID
             # parse FORMAT for PR and SR and assign values cBio columns
             # drop the tumor and normal BS ID cols
@@ -118,12 +125,10 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
         pdb.set_trace()
         sys.exit(1)
     concat_frame: pd.DataFrame = pd.concat(frame_list)
-    pdb.set_trace()
-    hold = 1
+    del frame_list
+    concat_frame = rename_and_format_cols(concat_sv_df=concat_frame)
+
     return concat_frame
-    # concat_frame = filter_and_format_annots(sample_renamed_df=concat_frame, drop_low=True)
-    # del frame_list
-    # fusion_data: pd.DataFrame = concat_frame[desired]
 
 
 def main():
@@ -155,9 +160,43 @@ def main():
     args = parser.parse_args()
 
     dna_sv_subset: pd.DataFrame = setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table)
-    pdb.set_trace()
+    project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
+
+    for project in project_list:
+        cbio_sv_fname = args.out_dir + project + ".svs.txt"
+        cbio_sv_df.set_index("Sample_Id", inplace=True)
+        cbio_sv_df.to_csv(cbio_sv_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
 
 
 if __name__ == "__main__":
+    desired: list[str] = [
+        "Sample_Id",
+        "Site1_Chromosome",
+        "Site1_Position",
+        "SV_Length",
+        "Class",
+        "Breakpoint_Type",
+        "Tumor_Paired_End_Read_Count",
+        "Tumor_Split_Read_Count",
+        "Site1_Contig",
+        "Site1_Hugo_Symbol",
+        "Site2_Effect_On_Frame",
+
+    ]
+    rename_dict: dict[str, str] = {
+        "AnnotSV_ID": "Event_Info",
+        "SV_chrom": "Site1_Chromosome",
+        "Tx_start": "Site1_Position",
+        "SV_length": "SV_Length",
+        "CytoBand": "Site1_Contig",
+        "Gene_name": "Site1_Hugo_Symbol",
+    }
+    sv_type_class_dict: dict[str, str] = {
+        "DEL": "Deletion",
+        "DUP": "Duplication",
+        "INV": "Inversion",
+        "INS": "Insertion",
+        "BND": "Breakend"
+    }
     main()
