@@ -77,6 +77,7 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
         "",
     )
     concat_sv_df.rename(columns=rename_dict, inplace=True)
+    concat_sv_df = concat_sv_df.astype({"Site1_Position": int, "SV_Length": "Int64"})
     return concat_sv_df[desired]
 
 
@@ -162,6 +163,11 @@ def main():
     dna_sv_subset: pd.DataFrame = setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table)
     project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
+    # set some defaults
+    cbio_sv_df["SV_Status"] = "SOMATIC"
+    cbio_sv_df["NCBI_Build"] = "GRCh38"
+    cbio_sv_df["DNA_Support"] = "Yes"
+
 
     for project in project_list:
         cbio_sv_fname = args.out_dir + project + ".svs.txt"
@@ -182,6 +188,7 @@ if __name__ == "__main__":
         "Site1_Contig",
         "Site1_Hugo_Symbol",
         "Site2_Effect_On_Frame",
+        "Event_Info",
 
     ]
     rename_dict: dict[str, str] = {
@@ -197,6 +204,6 @@ if __name__ == "__main__":
         "DUP": "Duplication",
         "INV": "Inversion",
         "INS": "Insertion",
-        "BND": "Breakend"
+        "BND": "Breakend",
     }
     main()
