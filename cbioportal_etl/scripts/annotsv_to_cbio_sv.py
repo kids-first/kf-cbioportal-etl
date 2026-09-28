@@ -11,7 +11,6 @@ import sys
 
 import numpy as np
 import pandas as pd
-import pdb
 
 
 def setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> pd.DataFrame:
@@ -63,7 +62,7 @@ def setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> pd.D
 
 
 def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
-
+    """Rename columns and parse data."""
     concat_sv_df["Class"] = concat_sv_df["SV_type"].replace(sv_type_class_dict)
     concat_sv_df["SV_chrom"] = "chr" + concat_sv_df["SV_chrom"].astype(str)
     concat_sv_df["Breakpoint_Type"] = np.where(
@@ -123,13 +122,10 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
             frame_list.append(ann_file)
     except Exception as e:
         print(f"{e}", file=sys.stderr)
-        pdb.set_trace()
         sys.exit(1)
     concat_frame: pd.DataFrame = pd.concat(frame_list)
     del frame_list
-    concat_frame = rename_and_format_cols(concat_sv_df=concat_frame)
-
-    return concat_frame
+    return rename_and_format_cols(concat_sv_df=concat_frame)
 
 
 def main():

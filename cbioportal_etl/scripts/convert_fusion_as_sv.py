@@ -14,6 +14,42 @@ import numpy as np
 import pandas as pd
 
 
+def setup_outdir_metadata(mode, out_dir, table) -> pd.DataFrame:
+    """Subset metadata based on run mode.
+
+    Args:
+        mode: openX if from am openPBTA/pedcan project, standard piplines, or DGD
+        out_dir: Name of output directorry to make
+        table: cBio formatted metadata table
+
+    Returns:
+        Subsetted dataframe
+
+    """
+    if mode not in {"openX", "kfprod", "dgd"}:
+        print(
+            f"-m mode argument must be one of openX, kfprod, or dgd. It is case sensitive. You put {mode}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    os.makedirs(out_dir, exist_ok=True)
+
+    # deal only with RNA metadata
+    r_ext: str = "fusion"
+    if mode == "openX":
+        r_ext = "rsem"
+    elif mode == "dgd":
+        r_ext = "DGD_FUSION"
+    # ensure sample name is imported as str
+    all_file_meta: pd.DataFrame = pd.read_csv(table, sep="\t", dtype={"cbio_sample_name": str})
+    rna_subset =  all_file_meta.loc[all_file_meta["etl_file_type"] == r_ext]
+    if rna_subset is None:
+        r_ext = "rsem"
+        rna_subset = all_file_meta.loc[all_file_meta["etl_file_type"] == r_ext]
+    # reset index so that references work later while iterating
+    return rna_subset.reset_index(drop=True)
+
+
 def collapse_and_format(fusion_data: pd.DataFrame) -> pd.DataFrame:
     """Collapse same call be different caller into same line.
 
@@ -194,26 +230,26 @@ def init_cbio_master(
         if "JunctionReadCount" in openx_data.columns:
             openx_data = collapse_and_format(openx_data)
         return openx_data, present
-    else:
-        flist: pd.Series[str] = rna_metadata.file_name
-        frame_list = []
-        try:
-            for i in range(0, len(flist), 1):
-                # concat annofuse file, rename Sample Column according to cBio name
-                ann_file: pd.DataFrame = pd.read_csv(
-                    f"{fusion_results}/{flist[i]}", sep="\t", keep_default_na=False, na_values=[""]
-                )
-                ann_file = ann_file.assign(Sample=rna_metadata.at[i, "cbio_sample_name"])
-                frame_list.append(ann_file)
-        except Exception as e:
-            print(f"{e}", file=sys.stderr)
-            sys.exit(1)
-        concat_frame: pd.DataFrame = pd.concat(frame_list)
-        concat_frame = filter_and_format_annots(sample_renamed_df=concat_frame, drop_low=True)
-        del frame_list
-        fusion_data: pd.DataFrame = concat_frame[desired]
-        del concat_frame
-        return collapse_and_format(fusion_data), desired
+
+    flist: pd.Series[str] = rna_metadata.file_name
+    frame_list = []
+    try:
+        for i in range(0, len(flist), 1):
+            # concat annofuse file, rename Sample Column according to cBio name
+            ann_file: pd.DataFrame = pd.read_csv(
+                f"{fusion_results}/{flist[i]}", sep="\t", keep_default_na=False, na_values=[""]
+            )
+            ann_file = ann_file.assign(Sample=rna_metadata.at[i, "cbio_sample_name"])
+            frame_list.append(ann_file)
+    except Exception as e:
+        print(f"{e}", file=sys.stderr)
+        sys.exit(1)
+    concat_frame: pd.DataFrame = pd.concat(frame_list)
+    concat_frame = filter_and_format_annots(sample_renamed_df=concat_frame, drop_low=True)
+    del frame_list
+    fusion_data: pd.DataFrame = concat_frame[desired]
+    del concat_frame
+    return collapse_and_format(fusion_data), desired
 
 
 def main():
@@ -241,8 +277,8 @@ def main():
         "--out-dir",
         action="store",
         dest="out_dir",
-        default="merged_fusion/",
-        help="Result output dir. Default is merged_fusion",
+        default="merged_sv",
+        help="Result output dir. Default is merged_sv",
     )
     parser.add_argument(
         "-m",
@@ -262,30 +298,10 @@ def main():
     )
 
     args = parser.parse_args()
-    if args.mode != "openX" and args.mode != "kfprod" and args.mode != "dgd":
-        print(
-            f"-m mode argument must be one of openX, kfprod, or dgd. It is case sensitive. You put {args.mode}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    out_dir = args.out_dir
-    os.makedirs(out_dir, exist_ok=True)
 
-    # deal only with RNA metadata
-    r_ext: str = "fusion"
-    if args.mode == "openX":
-        r_ext = "rsem"
-    elif args.mode == "dgd":
-        r_ext = "DGD_FUSION"
-    # ensure sample name is imported as str
-    all_file_meta: pd.DataFrame = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
     # ext used in pbta vs openpedcan varies
-    rna_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["etl_file_type"] == r_ext]
-    if rna_subset is None:
-        r_ext = "rsem"
-        rna_subset = all_file_meta.loc[all_file_meta["etl_file_type"] == r_ext]
-    # reset index so that references work later while iterating
-    rna_subset = rna_subset.reset_index(drop=True)
+    rna_subset: pd.DataFrame = setup_outdir_metadata(args.mode, args.out_dir, args.table)
+
     project_list: np.ndarray = rna_subset.cbio_project.unique()
     cbio_master, present_cols = init_cbio_master(args.fusion_results, args.mode, rna_subset)
 
@@ -305,20 +321,11 @@ def main():
         "Fusion_anno": "External_Annotation",
         "Caller": "Comments",
     }
-    present_rename = {}
-    for old, new in rename_dict.items():
-        if old in present_cols:
-            present_rename[old] = new
+    present_rename = {old: new for old, new in rename_dict.items() if old in present_cols}
     cbio_master.rename(columns=present_rename, inplace=True)
     # Fill in some defaults
     cbio_master["Class"] = "FUSION"
     cbio_master["SV_Status"] = "SOMATIC"
-    cbio_master["Site1_Ensembl_Transcript_Id"] = ""
-    cbio_master["Site1_Entrez_Gene_Id"] = ""
-    cbio_master["Site1_Exon"] = ""
-    cbio_master["Site2_Ensembl_Transcript_Id"] = ""
-    cbio_master["Site2_Entrez_Gene_Id"] = ""
-    cbio_master["Site2_Exon"] = ""
     cbio_master["NCBI_Build"] = "GRCh38"
     cbio_master["Connection_Type"] = "5to3"
     cbio_master["RNA_Support"] = "Yes"
@@ -381,7 +388,7 @@ def main():
         sub_sample_list = list(
             rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
-        fus_fname = out_dir + project + ".fusions.txt"
+        fus_fname = args.out_dir + project + ".svs.txt"
         fus_tbl: pd.DataFrame = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]
         fus_tbl.fillna("NA", inplace=True)
         if not args.append:
