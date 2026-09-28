@@ -16,7 +16,7 @@ def subset_file(in_file: str, out_file: str, num_header_lines: int, check_set: s
         in_file (str): Input file path.
         out_file (str): Output file path.
         num_header_lines (int): Number of header lines to copy to the output file.
-        check_set (list): List of values to check against a specific column.
+        check_set (set): Set of values to check against a specific column.
         check_index (int): Index of the column to check for values in check_set.
         add_index (int): Index of the column from which to extract values for the return set.
 

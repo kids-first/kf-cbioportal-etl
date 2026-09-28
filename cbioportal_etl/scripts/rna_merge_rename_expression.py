@@ -217,17 +217,13 @@ if __name__ == "__main__":
         all_library_types_none = len(unique_strategies) == 1 and is_none_type
         skip_vs_healthy_output = all_library_types_none and str(args.default_match_type).strip().lower() in {"none", "", "nan"}
         for project in project_list:
+            if skip_vs_healthy_output or master_zscore_vs_healthy.empty:
+                error_suffix = "values are equivalent to intra-cohort z-score" if skip_vs_healthy_output else "vs-healthy table is empty"
+                print(f"Skipping output of vs-healthy z-score for {project} because {error_suffix}", file=sys.stderr)
+                continue
             sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
-            if not skip_vs_healthy_output and not master_zscore_vs_healthy.empty:
-                healthy_outfile = f"{out_dir}{project}.rsem_merged_vs_healthy_zscore_{args.expression_type}.txt"
-                master_zscore_vs_healthy[sub_samples].to_csv(healthy_outfile, sep="\t", float_format="%.4f")
-            elif skip_vs_healthy_output:
-                print(f"Skipping output of vs-healthy z-score for {project} since values are equivalent to intra-cohort z-score", file=sys.stderr)
-            elif master_zscore_vs_healthy.empty:
-                print(f"Skipping output of vs-healthy z-score for {project} because vs-healthy table is empty", file=sys.stderr)
-
-            intra_outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
-            master_zscore_intracohort[sub_samples].to_csv(intra_outfile, sep="\t", float_format="%.4f")
+            healthy_outfile = f"{out_dir}{project}.rsem_merged_vs_healthy_zscore_{args.expression_type}.txt"
+            master_zscore_vs_healthy[sub_samples].to_csv(healthy_outfile, sep="\t", float_format="%.4f")
 
     else:
         # Studies without library type columns will use intra-cohort z-score
