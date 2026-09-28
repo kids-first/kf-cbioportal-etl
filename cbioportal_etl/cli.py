@@ -3,12 +3,18 @@
 import argparse
 import os
 import sys
+from importlib.metadata import version
 
 from cbioportal_etl.steps import run_etl
 
 
 def main():
     parser = argparse.ArgumentParser(description="CBio ETL Command Line Tool")
+    parser.add_argument(
+    "--version",
+    action="version",
+    version=version("cbio-etl"),
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     common_args = argparse.ArgumentParser(add_help=False)
