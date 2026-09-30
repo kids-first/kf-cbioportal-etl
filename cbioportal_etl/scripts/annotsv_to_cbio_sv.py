@@ -63,6 +63,36 @@ def setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> pd.D
 
 def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
     """Rename columns and parse data."""
+    desired: list[str] = [
+        "Sample_Id",
+        "Site1_Chromosome",
+        "Site1_Position",
+        "SV_Length",
+        "Class",
+        "Breakpoint_Type",
+        "Tumor_Paired_End_Read_Count",
+        "Tumor_Split_Read_Count",
+        "Site1_Contig",
+        "Site1_Hugo_Symbol",
+        "Site2_Effect_On_Frame",
+        "Event_Info",
+
+    ]
+    rename_dict: dict[str, str] = {
+        "AnnotSV_ID": "Event_Info",
+        "SV_chrom": "Site1_Chromosome",
+        "Tx_start": "Site1_Position",
+        "SV_length": "SV_Length",
+        "CytoBand": "Site1_Contig",
+        "Gene_name": "Site1_Hugo_Symbol",
+    }
+    sv_type_class_dict: dict[str, str] = {
+        "DEL": "Deletion",
+        "DUP": "Duplication",
+        "INV": "Inversion",
+        "INS": "Insertion",
+        "BND": "Breakend",
+    }
     concat_sv_df["Class"] = concat_sv_df["SV_type"].replace(sv_type_class_dict)
     concat_sv_df["SV_chrom"] = "chr" + concat_sv_df["SV_chrom"].astype(str)
     concat_sv_df["Breakpoint_Type"] = np.where(
@@ -77,6 +107,10 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
     )
     concat_sv_df.rename(columns=rename_dict, inplace=True)
     concat_sv_df = concat_sv_df.astype({"Site1_Position": int, "SV_Length": "Int64"})
+    # set some defaults
+    concat_sv_df["SV_Status"] = "SOMATIC"
+    concat_sv_df["NCBI_Build"] = "GRCh38"
+    concat_sv_df["DNA_Support"] = "Yes"
     return concat_sv_df[desired]
 
 
@@ -159,10 +193,6 @@ def main():
     dna_sv_subset: pd.DataFrame = setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table)
     project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
-    # set some defaults
-    cbio_sv_df["SV_Status"] = "SOMATIC"
-    cbio_sv_df["NCBI_Build"] = "GRCh38"
-    cbio_sv_df["DNA_Support"] = "Yes"
 
 
     for project in project_list:
@@ -172,34 +202,4 @@ def main():
 
 
 if __name__ == "__main__":
-    desired: list[str] = [
-        "Sample_Id",
-        "Site1_Chromosome",
-        "Site1_Position",
-        "SV_Length",
-        "Class",
-        "Breakpoint_Type",
-        "Tumor_Paired_End_Read_Count",
-        "Tumor_Split_Read_Count",
-        "Site1_Contig",
-        "Site1_Hugo_Symbol",
-        "Site2_Effect_On_Frame",
-        "Event_Info",
-
-    ]
-    rename_dict: dict[str, str] = {
-        "AnnotSV_ID": "Event_Info",
-        "SV_chrom": "Site1_Chromosome",
-        "Tx_start": "Site1_Position",
-        "SV_length": "SV_Length",
-        "CytoBand": "Site1_Contig",
-        "Gene_name": "Site1_Hugo_Symbol",
-    }
-    sv_type_class_dict: dict[str, str] = {
-        "DEL": "Deletion",
-        "DUP": "Duplication",
-        "INV": "Inversion",
-        "INS": "Insertion",
-        "BND": "Breakend",
-    }
     main()

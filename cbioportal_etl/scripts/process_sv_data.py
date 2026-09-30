@@ -12,6 +12,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+from annotsv_to_cbio_sv import init_cbio_sv_df, setup_outdir_metadata
 
 
 
@@ -36,9 +37,8 @@ def main():
         required=False,
     )
     parser.add_argument(
-        "-s",
-        "--sv-results",
-        action="store",
+        "--sv_results",
+        action="store_true",
         help="DNA SV results from annotSV",
         required=False,
     )
@@ -56,18 +56,19 @@ def main():
         action="store",
         dest="mode",
         help="describe source, openX or kfprod or dgd",
-        required=True,
+        required=False,
     )
     parser.add_argument(
         "-a",
         "--append",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         dest="append",
         help="Flag to append, meaning print to STDOUT and skip header",
         required=False,
     )
 
     args = parser.parse_args()
+    print(args.sv_results)
     if args.fusion_results is None and args.sv_results is None:
         print(
             "Either --fusion-results and/or --sv-results must be specified.",
@@ -111,7 +112,17 @@ def main():
         "External_Annotation",
         "Comments",
     ]
+    if args.sv_results:
+        link_input_dir = "annotSV_results"
+        dna_sv_subset: pd.DataFrame = setup_outdir_metadata(link_input_dir, args.out_dir, args.table)
+        project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
+        cbio_sv_df: pd.DataFrame = init_cbio_sv_df(link_input_dir, dna_sv_subset)
 
+
+        for project in project_list:
+            cbio_sv_fname = os.path.join(args.out_dir, project + ".svs.txt")
+            cbio_sv_df.set_index("Sample_Id", inplace=True)
+            cbio_sv_df.to_csv(cbio_sv_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
 
 if __name__ == "__main__":
     main()

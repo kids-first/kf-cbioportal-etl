@@ -50,10 +50,92 @@ def setup_outdir_metadata(mode, out_dir, table) -> pd.DataFrame:
     return rna_subset.reset_index(drop=True)
 
 
+def final_order_cols(fusion_data_collapsed: pd.DataFrame, present_cols: list[str], mode:str) -> pd.DataFrame:
+    # Get relevant columns
+    fusion_data_collapsed.set_index("Sample", inplace=True)
+    fusion_data_collapsed.reset_index(inplace=True)
+    # openX and annoFuse have different, cols
+    rename_dict: dict[str, str] = {
+        "Sample": "Sample_Id",
+        "Gene1A": "Site1_Hugo_Symbol",
+        "Gene1B": "Site2_Hugo_Symbol",
+        "Fusion_Type": "Site2_Effect_On_Frame",
+        "JunctionReadCount": "Tumor_Read_Count",
+        "SpanningFragCount": "Tumor_Split_Read_Count",
+        "annots": "Annotation",
+        "FusionName": "Event_Info",
+        "Fusion_anno": "External_Annotation",
+        "Caller": "Comments",
+    }
+    present_rename = {old: new for old, new in rename_dict.items() if old in present_cols}
+    fusion_data_collapsed.rename(columns=present_rename, inplace=True)
+    # Fill in some defaults
+    fusion_data_collapsed["Class"] = "FUSION"
+    fusion_data_collapsed["SV_Status"] = "SOMATIC"
+    fusion_data_collapsed["NCBI_Build"] = "GRCh38"
+    fusion_data_collapsed["Connection_Type"] = "5to3"
+    fusion_data_collapsed["RNA_Support"] = "Yes"
+    # Split some columns that have 2 cols worth of info
+    if mode != "dgd":
+        fusion_data_collapsed[["Site1_Chromosome", "Site1_Position"]] = fusion_data_collapsed.LeftBreakpoint.str.split(
+            ":", expand=True
+        )
+        fusion_data_collapsed[["Site2_Chromosome", "Site2_Position"]] = fusion_data_collapsed.RightBreakpoint.str.split(
+            ":", expand=True
+        )
+    else:
+        fusion_data_collapsed["Site1_Chromosome"] = ""
+        fusion_data_collapsed["Site1_Position"] = ""
+        fusion_data_collapsed["Site2_Chromosome"] = ""
+        fusion_data_collapsed["Site2_Position"] = ""
+    # Reformat values to fit needs to be ALL CAPS, replace - with _, remove weird chars
+    if amode != "dgd":
+        fusion_data_collapsed["Site2_Effect_On_Frame"] = fusion_data_collapsed["Site2_Effect_On_Frame"].str.upper()
+        fusion_data_collapsed["Site2_Effect_On_Frame"] = fusion_data_collapsed["Site2_Effect_On_Frame"].str.replace(
+            "-", "_"
+        )
+    else:
+        fusion_data_collapsed["Site2_Effect_On_Frame"] = ""
+    # Drop unneeded cols
+    fusion_data_collapsed.drop(["LeftBreakpoint", "RightBreakpoint"], axis=1, inplace=True)
+
+    # Reorder table
+    order_list: list[str] = [
+        "Sample_Id",
+        "SV_Status",
+        "Site1_Hugo_Symbol",
+        "Site1_Entrez_Gene_Id",
+        "Site1_Ensembl_Transcript_Id",
+        "Site1_Exon",
+        "Site1_Chromosome",
+        "Site1_Position",
+        "Site2_Hugo_Symbol",
+        "Site2_Entrez_Gene_Id",
+        "Site2_Ensembl_Transcript_Id",
+        "Site2_Exon",
+        "Site2_Chromosome",
+        "Site2_Position",
+        "Site2_Effect_On_Frame",
+        "NCBI_Build",
+        "Tumor_Read_Count",
+        "Tumor_Split_Read_Count",
+        "Annotation",
+        "RNA_Support",
+        "Connection_Type",
+        "Event_Info",
+        "Class",
+        "External_Annotation",
+        "Comments",
+    ]
+    # again, ensure only present columns are ordered
+    present_order: list[str] = [col for col in order_list if col in fusion_data_collapsed]
+    return fusion_data_collapsed[present_order]
+
+
 def collapse_and_format(fusion_data: pd.DataFrame) -> pd.DataFrame:
     """Collapse same call be different caller into same line.
 
-    Use ceiling of mean values of read and frag counts
+    Use ceiling of mean values of read and frag counts, then reduce to desired columns
     Args:
         fusion_data: Fusion data dataframe
     Returns:
@@ -172,8 +254,7 @@ def filter_and_format_annots(sample_renamed_df: pd.DataFrame, drop_low: bool) ->
 
 
 def init_cbio_master(
-    fusion_results: str, mode: str, rna_metadata: pd.DataFrame
-) -> tuple[pd.DataFrame, list[str]]:
+    fusion_results: str, mode: str, rna_metadata: pd.DataFrame) -> pd.DataFrame:
     """Use data frame subset on RNA fusion files to find and merge result files.
 
     Args:
@@ -229,7 +310,7 @@ def init_cbio_master(
         # only if read counts there, collapse
         if "JunctionReadCount" in openx_data.columns:
             openx_data = collapse_and_format(openx_data)
-        return openx_data, present
+        return final_order_cols(openx_data, present, mode)
 
     flist: pd.Series[str] = rna_metadata.file_name
     frame_list = []
@@ -249,7 +330,7 @@ def init_cbio_master(
     del frame_list
     fusion_data: pd.DataFrame = concat_frame[desired]
     del concat_frame
-    return collapse_and_format(fusion_data), desired
+    return final_order_cols(fusion_data, desired, mode)
 
 
 def main():
@@ -277,7 +358,7 @@ def main():
         "--out-dir",
         action="store",
         dest="out_dir",
-        default="merged_sv",
+        default="merged_sv/",
         help="Result output dir. Default is merged_sv",
     )
     parser.add_argument(
@@ -303,92 +384,13 @@ def main():
     rna_subset: pd.DataFrame = setup_outdir_metadata(args.mode, args.out_dir, args.table)
 
     project_list: np.ndarray = rna_subset.cbio_project.unique()
-    cbio_master, present_cols = init_cbio_master(args.fusion_results, args.mode, rna_subset)
+    cbio_master = init_cbio_master(args.fusion_results, args.mode, rna_subset)
 
-    # Get relevant columns
-    cbio_master.set_index("Sample", inplace=True)
-    cbio_master.reset_index(inplace=True)
-    # openX and annoFuse have different, cols
-    rename_dict: dict[str, str] = {
-        "Sample": "Sample_Id",
-        "Gene1A": "Site1_Hugo_Symbol",
-        "Gene1B": "Site2_Hugo_Symbol",
-        "Fusion_Type": "Site2_Effect_On_Frame",
-        "JunctionReadCount": "Tumor_Read_Count",
-        "SpanningFragCount": "Tumor_Split_Read_Count",
-        "annots": "Annotation",
-        "FusionName": "Event_Info",
-        "Fusion_anno": "External_Annotation",
-        "Caller": "Comments",
-    }
-    present_rename = {old: new for old, new in rename_dict.items() if old in present_cols}
-    cbio_master.rename(columns=present_rename, inplace=True)
-    # Fill in some defaults
-    cbio_master["Class"] = "FUSION"
-    cbio_master["SV_Status"] = "SOMATIC"
-    cbio_master["NCBI_Build"] = "GRCh38"
-    cbio_master["Connection_Type"] = "5to3"
-    cbio_master["RNA_Support"] = "Yes"
-    # Split some columns that have 2 cols worth of info
-    if args.mode != "dgd":
-        cbio_master[["Site1_Chromosome", "Site1_Position"]] = cbio_master.LeftBreakpoint.str.split(
-            ":", expand=True
-        )
-        cbio_master[["Site2_Chromosome", "Site2_Position"]] = cbio_master.RightBreakpoint.str.split(
-            ":", expand=True
-        )
-    else:
-        cbio_master["Site1_Chromosome"] = ""
-        cbio_master["Site1_Position"] = ""
-        cbio_master["Site2_Chromosome"] = ""
-        cbio_master["Site2_Position"] = ""
-    # Reformat values to fit needs to be ALL CAPS, replace - with _, remove weird chars
-    if args.mode != "dgd":
-        cbio_master["Site2_Effect_On_Frame"] = cbio_master["Site2_Effect_On_Frame"].str.upper()
-        cbio_master["Site2_Effect_On_Frame"] = cbio_master["Site2_Effect_On_Frame"].str.replace(
-            "-", "_"
-        )
-    else:
-        cbio_master["Site2_Effect_On_Frame"] = ""
-    # Drop unneeded cols
-    cbio_master.drop(["LeftBreakpoint", "RightBreakpoint"], axis=1, inplace=True)
-
-    # Reorder table
-    order_list: list[str] = [
-        "Sample_Id",
-        "SV_Status",
-        "Site1_Hugo_Symbol",
-        "Site1_Entrez_Gene_Id",
-        "Site1_Ensembl_Transcript_Id",
-        "Site1_Exon",
-        "Site1_Chromosome",
-        "Site1_Position",
-        "Site2_Hugo_Symbol",
-        "Site2_Entrez_Gene_Id",
-        "Site2_Ensembl_Transcript_Id",
-        "Site2_Exon",
-        "Site2_Chromosome",
-        "Site2_Position",
-        "Site2_Effect_On_Frame",
-        "NCBI_Build",
-        "Tumor_Read_Count",
-        "Tumor_Split_Read_Count",
-        "Annotation",
-        "RNA_Support",
-        "Connection_Type",
-        "Event_Info",
-        "Class",
-        "External_Annotation",
-        "Comments",
-    ]
-    # again, ensure only present columns are ordered
-    present_order: list[str] = [col for col in order_list if col in cbio_master]
-    cbio_master = cbio_master[present_order]
     for project in project_list:
         sub_sample_list = list(
             rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
-        fus_fname = args.out_dir + project + ".svs.txt"
+        fus_fname = os.path.join(args.out_dir, project + ".svs.txt")
         fus_tbl: pd.DataFrame = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]
         fus_tbl.fillna("NA", inplace=True)
         if not args.append:
