@@ -77,39 +77,6 @@ def main():
     out_dir = args.out_dir
     os.makedirs(out_dir, exist_ok=True)
 
-    # Reorder table
-    order_list: list[str] = [
-        "Sample_Id",
-        "SV_Status",
-        "Site1_Hugo_Symbol",
-        "Site1_Entrez_Gene_Id",
-        "Site1_Ensembl_Transcript_Id",
-        "Site1_Exon",
-        "Site1_Chromosome",
-        "Site1_Contig",
-        "Site1_Position",
-        "Site2_Hugo_Symbol",
-        "Site2_Entrez_Gene_Id",
-        "Site2_Ensembl_Transcript_Id",
-        "Site2_Exon",
-        "Site2_Chromosome",
-        "Site2_Position",
-        "Site2_Effect_On_Frame",
-        "NCBI_Build",
-        "Tumor_Read_Count",
-        "Tumor_Split_Read_Count",
-        "Tumor_Paired_End_Read_Count",
-        "Annotation",
-        "DNA_Support",
-        "RNA_Support",
-        "SV_Length",
-        "Connection_Type",
-        "Breakpoint_Type",
-        "Event_Info",
-        "Class",
-        "External_Annotation",
-        "Comments",
-    ]
     sv_results, fusion_results = args.sv_results, args.fusion_results
     if sv_results:
         print("DNA SV flag given, processing", file=sys.stderr)

@@ -77,8 +77,12 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
         "Tumor_Paired_End_Read_Count",
         "Event_Info",
         "Breakpoint_Type",
+        "Annotation",
         "DNA_Support",
         "SV_Length",
+        "Normal_Paired_End_Read_Count",
+        "Normal_Split_Read_Count",
+        "Comments",
     ]
     rename_dict: dict[str, str] = {
         "AnnotSV_ID": "Event_Info",
@@ -112,7 +116,30 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
     concat_sv_df["SV_Status"] = "SOMATIC"
     concat_sv_df["NCBI_Build"] = "GRCh38"
     concat_sv_df["DNA_Support"] = "Yes"
+    concat_sv_df["Comments"] = "Manta"
     return concat_sv_df[desired]
+
+
+def make_annotation(row: pd.Series) -> str:
+    """Parse ClinGen HI, TS and ACMG_Class to make a single annotation."""
+    parts = []
+
+    hi = row["HI"]
+    ts = row["TS"]
+
+    if pd.notna(hi) and hi != "":
+        if pd.notna(ts) and ts != "":
+            parts.append(f"ClinGen Haploinsufficiency,Triplosensitivity={hi},{ts}")
+        else:
+            parts.append(f"ClinGen Haploinsufficiency={hi}")
+    elif pd.notna(ts) and ts != "":
+        parts.append(f"ClinGen Triplosensitivity={ts}")
+
+    acmg = str(row["ACMG_class"]).removeprefix("full=")
+    if acmg and acmg not in {"NA", "nan"}:
+        parts.append(f"ACMG_class={acmg}")
+
+    return ";".join(parts)
 
 
 def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
@@ -141,19 +168,28 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
             # drop the tumor and normal BS ID cols
             affected_id: str = sv_metadata.iloc[i].affected_bs_id
             reference_id: str = sv_metadata.iloc[i].reference_bs_id
-            read_support = ann_file[affected_id].str.split(":", expand=True)
-            ann_file["Tumor_Paired_End_Read_Count"] = (
-                read_support[0].str.split(",").str[1].astype("Int64")
-            )
+            affected_read_support = ann_file[affected_id].str.split(":", expand=True)
+            reference_read_support = ann_file[reference_id].str.split(":", expand=True)
+            ann_file["Tumor_Paired_End_Read_Count"] = affected_read_support[0].str.split(",").str[1].astype("Int64")
+            ann_file["Normal_Paired_End_Read_Count"] = reference_read_support[0].str.split(",").str[1].astype("Int64")
             # some files have 0 SR entries at all, so we need to handle that case
-            if 1 in read_support.columns:
+            if 1 in affected_read_support.columns:
                 ann_file["Tumor_Split_Read_Count"] = pd.to_numeric(
-                read_support[1].str.split(",").str[1],
-                errors="coerce",
+                    affected_read_support[1].str.split(",").str[1],
+                    errors="coerce",
+                ).astype("Int64")
+                ann_file["Normal_Split_Read_Count"] = pd.to_numeric(
+                    reference_read_support[1].str.split(",").str[1],
+                    errors="coerce",
                 ).astype("Int64")
             else:
                 ann_file["Tumor_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
+                ann_file["Normal_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
             ann_file = ann_file.drop(columns=[affected_id, reference_id])
+            # Create Annotation column parsing HI, TS, ACMG_class
+            ann_file["HI"] = pd.to_numeric(ann_file["HI"], errors="coerce").astype("Int64")
+            ann_file["TS"] = pd.to_numeric(ann_file["TS"], errors="coerce").astype("Int64")
+            ann_file["Annotation"] = ann_file.apply(make_annotation, axis=1)
             frame_list.append(ann_file)
     except Exception as e:
         print(f"{e}", file=sys.stderr)
