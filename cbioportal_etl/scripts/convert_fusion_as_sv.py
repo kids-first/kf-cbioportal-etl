@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 
-def setup_outdir_metadata(mode, out_dir, table) -> pd.DataFrame:
+def fusion_setup_outdir_metadata(mode, out_dir, table) -> pd.DataFrame:
     """Subset metadata based on run mode.
 
     Args:
@@ -51,6 +51,7 @@ def setup_outdir_metadata(mode, out_dir, table) -> pd.DataFrame:
 
 
 def final_order_cols(fusion_data_collapsed: pd.DataFrame, present_cols: list[str], mode:str) -> pd.DataFrame:
+    """Rename columns set defaults."""
     # Get relevant columns
     fusion_data_collapsed.set_index("Sample", inplace=True)
     fusion_data_collapsed.reset_index(inplace=True)
@@ -89,7 +90,7 @@ def final_order_cols(fusion_data_collapsed: pd.DataFrame, present_cols: list[str
         fusion_data_collapsed["Site2_Chromosome"] = ""
         fusion_data_collapsed["Site2_Position"] = ""
     # Reformat values to fit needs to be ALL CAPS, replace - with _, remove weird chars
-    if amode != "dgd":
+    if mode != "dgd":
         fusion_data_collapsed["Site2_Effect_On_Frame"] = fusion_data_collapsed["Site2_Effect_On_Frame"].str.upper()
         fusion_data_collapsed["Site2_Effect_On_Frame"] = fusion_data_collapsed["Site2_Effect_On_Frame"].str.replace(
             "-", "_"
@@ -162,7 +163,7 @@ def collapse_and_format(fusion_data: pd.DataFrame) -> pd.DataFrame:
     collapsed_list: list = []
 
     for g in fusion_data.groupby(by="groupby_key"):
-        values, df_group = g
+        _values, df_group = g
         df_group["Caller"] = ",".join(set(df_group["Caller"].tolist()))
         df_group["JunctionReadCount"] = df_group["JunctionReadCount"].mean()
         df_group["SpanningFragCount"] = df_group["SpanningFragCount"].mean()
@@ -327,10 +328,9 @@ def init_cbio_master(
         sys.exit(1)
     concat_frame: pd.DataFrame = pd.concat(frame_list)
     concat_frame = filter_and_format_annots(sample_renamed_df=concat_frame, drop_low=True)
+    concat_frame = collapse_and_format(concat_frame)
     del frame_list
-    fusion_data: pd.DataFrame = concat_frame[desired]
-    del concat_frame
-    return final_order_cols(fusion_data, desired, mode)
+    return final_order_cols(concat_frame, desired, mode)
 
 
 def main():
@@ -381,7 +381,7 @@ def main():
     args = parser.parse_args()
 
     # ext used in pbta vs openpedcan varies
-    rna_subset: pd.DataFrame = setup_outdir_metadata(args.mode, args.out_dir, args.table)
+    rna_subset: pd.DataFrame = fusion_setup_outdir_metadata(args.mode, args.out_dir, args.table)
 
     project_list: np.ndarray = rna_subset.cbio_project.unique()
     cbio_master = init_cbio_master(args.fusion_results, args.mode, rna_subset)

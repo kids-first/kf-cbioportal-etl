@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 
-def setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> pd.DataFrame:
+def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> pd.DataFrame:
     """Create output dir and link input dir if they don't exist, then subset metadata for DNA SV files.
 
     Output dir will store the merged SV files, and link_input_dir will store symlinks to the annotSV results for processing.
@@ -65,18 +65,20 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
     """Rename columns and parse data."""
     desired: list[str] = [
         "Sample_Id",
-        "Site1_Chromosome",
-        "Site1_Position",
-        "SV_Length",
-        "Class",
-        "Breakpoint_Type",
-        "Tumor_Paired_End_Read_Count",
-        "Tumor_Split_Read_Count",
-        "Site1_Contig",
+        "SV_Status",
         "Site1_Hugo_Symbol",
+        "Site1_Chromosome",
+        "Site1_Contig",
+        "Site1_Position",
         "Site2_Effect_On_Frame",
+        "NCBI_Build",
+        "Class",
+        "Tumor_Split_Read_Count",
+        "Tumor_Paired_End_Read_Count",
         "Event_Info",
-
+        "Breakpoint_Type",
+        "DNA_Support",
+        "SV_Length",
     ]
     rename_dict: dict[str, str] = {
         "AnnotSV_ID": "Event_Info",
@@ -94,7 +96,6 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
         "BND": "Breakend",
     }
     concat_sv_df["Class"] = concat_sv_df["SV_type"].replace(sv_type_class_dict)
-    concat_sv_df["SV_chrom"] = "chr" + concat_sv_df["SV_chrom"].astype(str)
     concat_sv_df["Breakpoint_Type"] = np.where(
         concat_sv_df["INFO"].fillna("").str.contains("IMPRECISE"),
         "IMPRECISE",
@@ -190,7 +191,7 @@ def main():
     )
     args = parser.parse_args()
 
-    dna_sv_subset: pd.DataFrame = setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table)
+    dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table)
     project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
 
