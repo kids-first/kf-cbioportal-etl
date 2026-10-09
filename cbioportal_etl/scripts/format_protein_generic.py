@@ -56,7 +56,7 @@ def main():
     prot_data: pd.DataFrame = pd.read_csv(
         args.protein_file, sep="\t", keep_default_na=False, na_values=[""]
     )
-    rename_index: dict[str, str] = {"id.short": "ENTITY_STABLE_ID", "gene_transcript_protein_ENSEMBL": "DESCRIPTION"}
+    rename_index: dict[str, str] = {"id": "ENTITY_STABLE_ID", "id.short": "NAME", "gene_transcript_protein_ENSEMBL": "DESCRIPTION"}
     prot_data.rename(columns=rename_index, inplace=True)
     cbio_sample_name: list[str] = prot_subset["cbio_sample_name"].to_list()
     # until we have BS IDs, will use collection event IDs splitting cBio IDs
@@ -64,7 +64,7 @@ def main():
     # rename as cBio
     rename_cols: dict[str, str] = dict(zip(collect_event_id, cbio_sample_name, strict=True))
     prot_data.rename(columns=rename_cols, inplace=True)
-    prot_data.set_index(["ENTITY_STABLE_ID", "DESCRIPTION"], inplace=True)
+    prot_data.set_index(["ENTITY_STABLE_ID", "NAME", "DESCRIPTION"], inplace=True)
     # take log2
     prot_data = np.log2(prot_data[cbio_sample_name] + 1).round(4)
     out_fname: str = os.path.join(out_dir, f"{project_list[0]}_{args.protein_mod}_protein.txt")
