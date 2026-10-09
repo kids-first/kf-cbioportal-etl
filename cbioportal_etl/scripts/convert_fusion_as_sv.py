@@ -68,14 +68,17 @@ def final_order_cols(fusion_data_collapsed: pd.DataFrame, present_cols: list[str
         "Fusion_anno": "External_Annotation",
         "Caller": "Comments",
     }
-    present_rename = {old: new for old, new in rename_dict.items() if old in present_cols}
-    fusion_data_collapsed.rename(columns=present_rename, inplace=True)
+    fusion_data_collapsed.rename(columns=rename_dict, inplace=True)
     # Fill in some defaults
     fusion_data_collapsed["Class"] = "FUSION"
     fusion_data_collapsed["SV_Status"] = "SOMATIC"
     fusion_data_collapsed["NCBI_Build"] = "GRCh38"
     fusion_data_collapsed["Connection_Type"] = "5to3"
     fusion_data_collapsed["RNA_Support"] = "Yes"
+    fusion_data_collapsed["Site1_Chromosome"] = ""
+    fusion_data_collapsed["Site1_Position"] = ""
+    fusion_data_collapsed["Site2_Chromosome"] = ""
+    fusion_data_collapsed["Site2_Position"] = ""
     # Split some columns that have 2 cols worth of info
     if mode != "dgd":
         fusion_data_collapsed[["Site1_Chromosome", "Site1_Position"]] = fusion_data_collapsed.LeftBreakpoint.str.split(
@@ -84,19 +87,14 @@ def final_order_cols(fusion_data_collapsed: pd.DataFrame, present_cols: list[str
         fusion_data_collapsed[["Site2_Chromosome", "Site2_Position"]] = fusion_data_collapsed.RightBreakpoint.str.split(
             ":", expand=True
         )
-    else:
-        fusion_data_collapsed["Site1_Chromosome"] = ""
-        fusion_data_collapsed["Site1_Position"] = ""
-        fusion_data_collapsed["Site2_Chromosome"] = ""
-        fusion_data_collapsed["Site2_Position"] = ""
+
     # Reformat values to fit needs to be ALL CAPS, replace - with _, remove weird chars
+    fusion_data_collapsed["Site2_Effect_On_Frame"] = ""
     if mode != "dgd":
         fusion_data_collapsed["Site2_Effect_On_Frame"] = fusion_data_collapsed["Site2_Effect_On_Frame"].str.upper()
         fusion_data_collapsed["Site2_Effect_On_Frame"] = fusion_data_collapsed["Site2_Effect_On_Frame"].str.replace(
             "-", "_"
         )
-    else:
-        fusion_data_collapsed["Site2_Effect_On_Frame"] = ""
     # Drop unneeded cols
     fusion_data_collapsed.drop(["LeftBreakpoint", "RightBreakpoint"], axis=1, inplace=True)
 

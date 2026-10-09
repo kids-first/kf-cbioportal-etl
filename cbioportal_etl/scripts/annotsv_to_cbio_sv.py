@@ -40,11 +40,9 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> p
     print(f"Symlinking SV files from {sv_dirs_in} to {link_input_dir}", file=sys.stderr)
     sym_errs: int = 0
     for dirname in sv_dirs_in.split(","):
-        if os.path.exists(dirname):
-            abs_path: str = os.path.abspath(dirname)
-        else:
-            print(f"Input SV dir {dirname} does not exist. Check if files were downloaded to the correct location", file=sys.stderr)
-            sys.exit(2)
+        if not os.path.exists(dirname):
+            raise ValueError(f"Input SV dir {dirname} does not exist. Check if files were downloaded to the correct location")
+        abs_path: str = os.path.abspath(dirname)
         try:
             for fname in os.listdir(dirname):
                 src: str = os.path.join(abs_path, fname)
@@ -124,16 +122,18 @@ def make_annotation(row: pd.Series) -> str:
     """Parse ClinGen HI, TS and ACMG_Class to make a single annotation."""
     parts = []
 
-    hi = row["HI"]
-    ts = row["TS"]
-
-    if pd.notna(hi) and hi != "":
-        if pd.notna(ts) and ts != "":
-            parts.append(f"ClinGen Haploinsufficiency,Triplosensitivity={hi},{ts}")
-        else:
-            parts.append(f"ClinGen Haploinsufficiency={hi}")
-    elif pd.notna(ts) and ts != "":
-        parts.append(f"ClinGen Triplosensitivity={ts}")
+    CLINGEN_COLUMNS = {
+        "HI": "Haploinsufficiency",
+        "TS": "Triplosensitivity",
+    }
+    clingen_hits = [
+        (label, row[column])
+        for column, label in CLINGEN_COLUMNS.items()
+        if pd.notna(row[column]) and row[column] != ""
+    ]
+    if clingen_hits:
+        labels, values = zip(*clingen_hits)
+        parts.append(f"ClinGen {','.join(labels)}={','.join(values)}")
 
     acmg = str(row["ACMG_class"]).removeprefix("full=")
     if acmg and acmg not in {"NA", "nan"}:
@@ -152,39 +152,37 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
         Collapsed and formatted dataframe, list of desired fields
 
     """
-    flist: pd.Series[str] = sv_metadata.file_name
     frame_list = []
     try:
-        for i in range(0, len(flist), 1):
+        for metadata in sv_metadata.itertuples():
             # concat annot SV file, rename Sample Column according to cBio name
             ann_file: pd.DataFrame = pd.read_csv(
-                f"{sv_results}/{flist.iloc[i]}", sep="\t", keep_default_na=False, na_values=[""]
+                f"{sv_results}/{metadata.file_name}",
+                sep="\t", keep_default_na=False, na_values=[""]
             )
             # drop entries where Annotation_mode is not "split" (i.e. per-gene)
             ann_file: pd.DataFrame = ann_file.loc[ann_file["Annotation_mode"] == "split"]
-            ann_file = ann_file.assign(Sample_Id=sv_metadata.iloc[i].cbio_sample_name)
+            ann_file = ann_file.assign(Sample_Id=metadata.cbio_sample_name)
             # at this step, get the tumor BS ID
             # parse FORMAT for PR and SR and assign values cBio columns
             # drop the tumor and normal BS ID cols
-            affected_id: str = sv_metadata.iloc[i].affected_bs_id
-            reference_id: str = sv_metadata.iloc[i].reference_bs_id
-            affected_read_support = ann_file[affected_id].str.split(":", expand=True)
-            reference_read_support = ann_file[reference_id].str.split(":", expand=True)
+            affected_read_support = ann_file[metadata.affected_bs_id].str.split(":", expand=True)
+            reference_read_support = ann_file[metadata.reference_bs_id].str.split(":", expand=True)
             ann_file["Tumor_Paired_End_Read_Count"] = affected_read_support[0].str.split(",").str[1].astype("Int64")
             ann_file["Normal_Paired_End_Read_Count"] = reference_read_support[0].str.split(",").str[1].astype("Int64")
-            # some files have 0 SR entries at all, so we need to handle that case
-            if 1 in affected_read_support.columns:
+            ann_file["Tumor_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
+            ann_file["Normal_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
+            
+            if len(affected_read_support.columns) > 1:
                 ann_file["Tumor_Split_Read_Count"] = pd.to_numeric(
                     affected_read_support[1].str.split(",").str[1],
                     errors="coerce",
                 ).astype("Int64")
+            
                 ann_file["Normal_Split_Read_Count"] = pd.to_numeric(
                     reference_read_support[1].str.split(",").str[1],
                     errors="coerce",
                 ).astype("Int64")
-            else:
-                ann_file["Tumor_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
-                ann_file["Normal_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
             ann_file = ann_file.drop(columns=[affected_id, reference_id])
             # Create Annotation column parsing HI, TS, ACMG_class
             ann_file["HI"] = pd.to_numeric(ann_file["HI"], errors="coerce").astype("Int64")
