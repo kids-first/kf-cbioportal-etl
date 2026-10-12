@@ -82,6 +82,10 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
         "Site1_Chromosome",
         "Site1_Contig",
         "Site1_Position",
+        "Site2_Hugo_Symbol",
+        "Site2_Chromosome",
+        "Site2_Contig",
+        "Site2_Position",
         "Site2_Effect_On_Frame",
         "NCBI_Build",
         "Class",
@@ -100,7 +104,8 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
         "AnnotSV_ID": "Event_Info",
         "SV_chrom": "Site1_Chromosome",
         "Tx_start": "Site1_Position",
-        "SV_length": "SV_Length",
+        "Tx_end": "Site2_Position",
+        "Overlapped_tx_length": "SV_Length",
         "CytoBand": "Site1_Contig",
         "Gene_name": "Site1_Hugo_Symbol",
     }
@@ -123,7 +128,16 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
         "",
     )
     concat_sv_df.rename(columns=rename_dict, inplace=True)
-    concat_sv_df = concat_sv_df.astype({"Site1_Position": int, "SV_Length": "Int64"})
+    concat_sv_df["Site2_Chromosome"] = concat_sv_df["Site1_Chromosome"]
+    concat_sv_df["Site2_Hugo_Symbol"] = concat_sv_df["Site1_Hugo_Symbol"]
+    concat_sv_df["Site2_Contig"] = concat_sv_df["Site1_Contig"]
+    # split contigs that have a delimeter signifying two values
+    mask = concat_sv_df["Site1_Contig"].str.contains("-", na=False)
+    split_vals = concat_sv_df.loc[mask, "Site1_Contig"].str.split("-", n=1, expand=True)
+    concat_sv_df.loc[mask, "Site1_Contig"] = split_vals[0]
+    concat_sv_df.loc[mask, "Site2_Contig"] = split_vals[1]
+
+    concat_sv_df = concat_sv_df.astype({"Site1_Position": int, "Site2_Position": int, "SV_Length": "Int64"})
     # set some defaults
     concat_sv_df["SV_Status"] = "SOMATIC"
     concat_sv_df["NCBI_Build"] = "GRCh38"
@@ -181,7 +195,8 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
                 sep="\t", keep_default_na=False, na_values=[""]
             )
             # drop entries where Annotation_mode is not "split" (i.e. per-gene)
-            ann_file: pd.DataFrame = ann_file.loc[ann_file["Annotation_mode"] == "split"]
+            # and not breakend (cuurently too complicated to parse)
+            ann_file: pd.DataFrame = ann_file.loc[(ann_file["Annotation_mode"] == "split") & (ann_file["SV_type"] != "BND")]
             ann_file = ann_file.assign(Sample_Id=metadata.cbio_sample_name)
             # at this step, get the tumor BS ID
             # parse FORMAT for PR and SR and assign values cBio columns
