@@ -6,14 +6,21 @@ Focuses on the "split" rows of the Annotation_mode to get per-gene SV data
 
 import argparse
 import csv
+import logging
 import os
 import sys
 
 import numpy as np
 import pandas as pd
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
-def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> pd.DataFrame:
+
+def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, skip: bool) -> pd.DataFrame:
     """Create output dir and link input dir if they don't exist, then subset metadata for DNA SV files.
 
     Output dir will store the merged SV files, and link_input_dir will store symlinks to the annotSV results for processing.
@@ -26,6 +33,7 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> p
         Pandas dataframe with DNA SV-specific metadata
 
     """
+    logger = logging.getLogger(__name__)
     # create output dir and link input dir if they don't exist
     os.makedirs(link_input_dir, exist_ok=True)
     os.makedirs(out_dir, exist_ok=True)
@@ -37,30 +45,36 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str) -> p
     dna_sv_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["etl_file_type"] == ext]
     # Create symlinks to mafs in one place for ease of processing
     sv_dirs_in: str = ",".join(dna_sv_subset.file_type.unique().tolist())
-    print(f"Symlinking SV files from {sv_dirs_in} to {link_input_dir}", file=sys.stderr)
-    sym_errs: int = 0
-    for dirname in sv_dirs_in.split(","):
-        if not os.path.exists(dirname):
-            raise ValueError(f"Input SV dir {dirname} does not exist. Check if files were downloaded to the correct location")
-        abs_path: str = os.path.abspath(dirname)
-        try:
-            for fname in os.listdir(dirname):
-                src: str = os.path.join(abs_path, fname)
-                dest: str = os.path.join(link_input_dir, fname)
-                os.symlink(src, dest)
-        except Exception as e:
-            print(e, file=sys.stderr)
-            print(f"Could not sym link {fname} in {dirname}", file=sys.stderr)
-            sym_errs += 1
-    # If symlink errors, stop here as data will be incomplete
-    if sym_errs:
-        print(f"Could not sym link {sym_errs} files, exiting!", file=sys.stderr)
-        sys.exit(2)
+    if skip:
+        logger.info("Skipping symlinking SV files from %s to %s", sv_dirs_in, link_input_dir)
+    else:
+        logger.info("Symlinking SV files from %s to %s", sv_dirs_in, link_input_dir)
+        sym_errs: int = 0
+        for dirname in sv_dirs_in.split(","):
+            if not os.path.exists(dirname):
+                input_err= f"Input SV dir {dirname} does not exist. Check if files were downloaded to the correct location"
+                raise ValueError(input_err)
+            abs_path: str = os.path.abspath(dirname)
+            try:
+                for fname in os.listdir(dirname):
+                    src: str = os.path.join(abs_path, fname)
+                    dest: str = os.path.join(link_input_dir, fname)
+                    os.symlink(src, dest)
+            except Exception as e:
+                logger.error(e)
+                logger.exception("Could not sym link %s in %s", fname, dirname)
+                sym_errs += 1
+        # If symlink errors, stop here as data will be incomplete
+        if sym_errs:
+            logger.error("Could not sym link %d files, exiting!", sym_errs)
+            sys.exit(2)
     return dna_sv_subset
 
 
 def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
     """Rename columns and parse data."""
+    logger = logging.getLogger(__name__)
+    logger.info("Renaming and formatting annotSV columns for cBio SV output")
     desired: list[str] = [
         "Sample_Id",
         "SV_Status",
@@ -120,24 +134,28 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
 
 def make_annotation(row: pd.Series) -> str:
     """Parse ClinGen HI, TS and ACMG_Class to make a single annotation."""
-    parts = []
+    try:
+        parts = []
 
-    CLINGEN_COLUMNS = {
-        "HI": "Haploinsufficiency",
-        "TS": "Triplosensitivity",
-    }
-    clingen_hits = [
-        (label, row[column])
-        for column, label in CLINGEN_COLUMNS.items()
-        if pd.notna(row[column]) and row[column] != ""
-    ]
-    if clingen_hits:
-        labels, values = zip(*clingen_hits)
-        parts.append(f"ClinGen {','.join(labels)}={','.join(values)}")
+        CLINGEN_COLUMNS = {
+            "HI": "Haploinsufficiency",
+            "TS": "Triplosensitivity",
+        }
+        clingen_hits = [
+            (label, row[column])
+            for column, label in CLINGEN_COLUMNS.items()
+            if pd.notna(row[column]) and row[column] != ""
+        ]
+        if clingen_hits:
+            labels, values = zip(*clingen_hits)
+            parts.append(f"ClinGen {','.join(labels)}={','.join(map(str, values))}")
 
-    acmg = str(row["ACMG_class"]).removeprefix("full=")
-    if acmg and acmg not in {"NA", "nan"}:
-        parts.append(f"ACMG_class={acmg}")
+        acmg = str(row["ACMG_class"]).removeprefix("full=")
+        if acmg and acmg not in {"NA", "nan"}:
+            parts.append(f"ACMG_class={acmg}")
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.exception("Error making annotation for row %s", row.name)
 
     return ";".join(parts)
 
@@ -152,6 +170,8 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
         Collapsed and formatted dataframe, list of desired fields
 
     """
+    logger = logging.getLogger(__name__)
+    logger.info("Processing %d annotSV files from %s", len(sv_metadata), sv_results)
     frame_list = []
     try:
         for metadata in sv_metadata.itertuples():
@@ -172,25 +192,25 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
             ann_file["Normal_Paired_End_Read_Count"] = reference_read_support[0].str.split(",").str[1].astype("Int64")
             ann_file["Tumor_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
             ann_file["Normal_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
-            
+
             if len(affected_read_support.columns) > 1:
                 ann_file["Tumor_Split_Read_Count"] = pd.to_numeric(
                     affected_read_support[1].str.split(",").str[1],
                     errors="coerce",
                 ).astype("Int64")
-            
+
                 ann_file["Normal_Split_Read_Count"] = pd.to_numeric(
                     reference_read_support[1].str.split(",").str[1],
                     errors="coerce",
                 ).astype("Int64")
-            ann_file = ann_file.drop(columns=[affected_id, reference_id])
+            ann_file = ann_file.drop(columns=[metadata.affected_bs_id, metadata.reference_bs_id])
             # Create Annotation column parsing HI, TS, ACMG_class
             ann_file["HI"] = pd.to_numeric(ann_file["HI"], errors="coerce").astype("Int64")
             ann_file["TS"] = pd.to_numeric(ann_file["TS"], errors="coerce").astype("Int64")
             ann_file["Annotation"] = ann_file.apply(make_annotation, axis=1)
             frame_list.append(ann_file)
-    except Exception as e:
-        print(f"{e}", file=sys.stderr)
+    except Exception:
+        logger.exception("Error processing annotSV files from %s", sv_results)
         sys.exit(1)
     concat_frame: pd.DataFrame = pd.concat(frame_list)
     del frame_list
@@ -223,9 +243,16 @@ def main():
         default="merged_sv/",
         help="Result output dir. Default is merged_sv",
     )
+    parser.add_argument(
+        "-s",
+        "--skip-symlink",
+        action="store_true",
+        help="Flag to skip sym links if repeating the process with the same input files",
+        required=False,
+    )
     args = parser.parse_args()
 
-    dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table)
+    dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table, args.skip_symlink)
     project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
 

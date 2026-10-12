@@ -65,6 +65,13 @@ def main():
         help="Flag to append, meaning print to STDOUT and skip header",
         required=False,
     )
+    parser.add_argument(
+        "-s",
+        "--skip-symlink",
+        action="store_true",
+        help="Flag to skip sym links if repeating the process with the same input files",
+        required=False,
+    )
 
     args = parser.parse_args()
     if args.fusion_results is None and args.sv_results is None:
@@ -82,7 +89,7 @@ def main():
         print("DNA SV flag given, processing", file=sys.stderr)
         # get DNA SV results if any
         link_input_dir = "annotSV_results"
-        dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(link_input_dir, args.out_dir, args.table)
+        dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(link_input_dir, args.out_dir, args.table, args.skip_symlink)
         cbio_sv_df: pd.DataFrame = init_cbio_sv_df(link_input_dir, dna_sv_subset)
     if fusion_results:
         print("RNA fusion data given, processing", file=sys.stderr)
