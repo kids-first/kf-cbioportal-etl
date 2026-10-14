@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""
-Helper script to append DGD data to an existing merged maf file.
+"""Helper script to append DGD data to an existing merged maf file.
+
 Uses filter_entry to filter out undesired calls like in other mafs
 """
-import sys
 import argparse
+import sys
+
 from get_file_metadata_helper import get_file_metadata
 from maf_merge import filter_entry
 

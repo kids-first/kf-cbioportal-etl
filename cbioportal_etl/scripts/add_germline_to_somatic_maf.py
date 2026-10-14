@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 """Read in exported germline table, convert to MAF, add to existing somatic MAF."""
 
-import _csv
 import argparse
 import csv
-import os
 import sys
-
-from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
 
 def append_variant_type_field(ref_allele, alt_allele):
@@ -90,10 +86,40 @@ def append_variant_class(effect: str, var_type: str, inframe: int) -> str:
 
 def append_amino_acids_field(hgvs_p: str) -> str:
     """Convert 3-letter amino acid codes to 1-letter codes."""
+    aa_3_to_1 = {
+        "Ala": "A",
+        "Arg": "R",
+        "Asn": "N",
+        "Asp": "D",
+        "Asx": "B",
+        "Cys": "C",
+        "Glu": "E",
+        "Gln": "Q",
+        "Glx": "Z",
+        "Gly": "G",
+        "His": "H",
+        "Ile": "I",
+        "Leu": "L",
+        "Lys": "K",
+        "Met": "M",
+        "Phe": "F",
+        "Pro": "P",
+        "Ser": "S",
+        "Thr": "T",
+        "Trp": "W",
+        "Tyr": "Y",
+        "Val": "V",
+        "Xxx": "X",
+        "Ter":  "*",
+    }
+    if hgvs_p is None or hgvs_p == "":
+        return ""
     hgvs_p_short = hgvs_p
-    for find, replace in AA_3_TO_1.items():
-        hgvs_p_short = hgvs_p_short.replace(find, replace)
-
+    try:
+        for find, replace in aa_3_to_1.items():
+            hgvs_p_short = hgvs_p_short.replace(find, replace)
+    except Exception as e:
+        print(f"Error converting amino acids for {hgvs_p}: {e}", file=sys.stderr)
     return hgvs_p_short
 
 
@@ -118,7 +144,6 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    TOOL_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     # Build a map of cBio IDs to assign to matched normal, then append
     matched_ids: dict[str, set] = {}

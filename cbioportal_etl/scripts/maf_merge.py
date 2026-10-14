@@ -2,7 +2,7 @@
 """Merge MAF Files.
 
 Merge and filter MAF files to create an output with a singular header and
-variants not nor,ally suitable for cBio removed
+variants not normally suitable for cBio removed
 
 """
 
@@ -38,11 +38,13 @@ def filter_entry(
     entry: line from input MAF file
     tum_id: ID to change Tumor_Sample_Barcode to
     norm_id: ID to change Matched_Norm_Sample_Barcode to
-    entry_indices: Named tuple with teh following:
+    entry_indices: Named tuple with the following:
         Index position for Tumor_Sample_Barcode ID in entry as list,
         Index position for Matched_Norm_Sample_Barcode ID in entry as list,
         Index position of Variant_Classification in entry as list,
         Index position of Hugo_Symbol in entry as list
+    maf_exc: Dict with Variant_Classification exclusionary terms
+    
     """
     data: list = entry.rstrip("\n").split("\t")
     # Want to allow TERT promoter as exception to exclusion rules
