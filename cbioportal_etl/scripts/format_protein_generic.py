@@ -46,6 +46,13 @@ def main():
         default="merged_prot",
         help="Result output dir. Default is merged_prot",
     )
+    parser.add_argument(
+        "-l",
+        "--log2-transform",
+        action="store_true",
+        help="Flag to log2 transform the data",
+        required=False,
+    )
 
     args = parser.parse_args()
     out_dir = args.out_dir
@@ -66,7 +73,10 @@ def main():
     prot_data.rename(columns=rename_cols, inplace=True)
     prot_data.set_index(["ENTITY_STABLE_ID", "NAME", "DESCRIPTION"], inplace=True)
     # take log2
-    prot_data = np.log2(prot_data[cbio_sample_name] + 1).round(4)
+    if args.log2_transform:
+        prot_data = np.log2(prot_data[cbio_sample_name] + 1).round(4)
+    else:
+        prot_data = prot_data[cbio_sample_name].round(4)
     out_fname: str = os.path.join(out_dir, f"{project_list[0]}_{args.protein_mod}_protein.txt")
     prot_data.to_csv(
                 out_fname, sep="\t", index=True, quoting=csv.QUOTE_NONE, header=True
