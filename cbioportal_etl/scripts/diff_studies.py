@@ -19,9 +19,7 @@ import truststore
 
 
 class Config(TypedDict):
-    """
-    Class to type run configuration for the standard diff anaylsis (current_only, delta, update_only)
-    """
+    """Class to type run configuration for the standard diff anaylsis (current_only, delta, update_only)."""
 
     attr_implicit: list[str]
     attr_skip: list[str]
@@ -42,6 +40,7 @@ def parse_file(
         header: List of strings containing all lines with a header symbol and the column name line
         columns: List of strings containing the column name line split by tab
         body: List of strings containing all non-header lines in the file
+
     """
     with open(file_path, "rt") as fh:
         all_lines = fh.readlines()
@@ -69,6 +68,7 @@ def print_parsed_file(header: list[str] | None, body: list[str], out_filename: s
         out_filename: string name for output file
     Return:
         None: prints a file and returns nothing
+
     """
     with open(out_filename, "wt") as out_file:
         if header:
@@ -135,7 +135,7 @@ def output_clinical_changes(
     for attr, count in attr_cts.items():
         print(f"{attr} has {count} change(s)")
     # Print extra newline for readability
-    print("")
+    print()
 
 
 def split_data_file(
@@ -143,6 +143,7 @@ def split_data_file(
     column_names: list[str],
     key: str,
     aggr_list: list,
+    strip_dict: dict[str, dict[str, str]],
     current_data: dict[str, dict[str, str]],
     shared_attrs: set[str],
 ) -> tuple[
@@ -191,6 +192,10 @@ def split_data_file(
                     new_lines.append(entry)
                     skip = True
                     print(f"SPECIMEN_ID change for sample {key_value}. It will be dropped and re-added")
+        # values loaded with prefix, but returnd without need prefix stripped before comparison
+        for strip_attr, strip_map in strip_dict.items():
+            if strip_attr in entry_dict:
+                entry_dict[strip_attr] = strip_map.get(entry_dict[strip_attr], entry_dict[strip_attr])
         if skip:
             continue
         if key_value in current_data:
@@ -537,6 +542,9 @@ def run_py(args):
         # For each comparison it has implicit and skip attributes
         # Also includes the name of the data table that has the relevant information as well as the key in that table to locate the information
         aggregate_vals: list[str] = ["SPECIMEN_ID", "EXPERIMENT_STRATEGY"]
+        strip_dict: dict[str, dict[str, str]] = {
+            "OS_STATUS": {"0:LIVING": "LIVING", "1:DECEASED": "DECEASED"},
+        }
         # get all datasheets
         datasheet_dir: str = args.datasheets.rstrip("/") if args.datasheets.endswith("/") else args.datasheets
 
@@ -603,6 +611,7 @@ def run_py(args):
                     column_names=update_columns,
                     key=comparisons[comp]["data_table_key"],
                     aggr_list=aggregate_vals,
+                    strip_dict=strip_dict,
                     current_data=current_data,
                     shared_attrs=shared_attr,
                 )
