@@ -7,14 +7,19 @@ ARRIBA annot is used with ceiling of mean for counts used
 
 import argparse
 import csv
-import os
-import sys
+import logging
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
-def fusion_setup_outdir_metadata(mode, out_dir, table) -> pd.DataFrame:
+def fusion_setup_outdir_metadata(mode: str, out_dir: str, table: str) -> pd.DataFrame:
     """Subset metadata based on run mode.
 
     Args:
@@ -26,7 +31,7 @@ def fusion_setup_outdir_metadata(mode, out_dir, table) -> pd.DataFrame:
         Subsetted dataframe
 
     """
-    os.makedirs(out_dir, exist_ok=True)
+    Path(out_dir).mkdir(exist_ok=True, parents=True)
 
     # deal only with RNA metadata
     r_ext: str = "fusion"
@@ -134,8 +139,9 @@ def collapse_and_format(fusion_data: pd.DataFrame) -> pd.DataFrame:
     Returns:
         Collapsed dataframe
     """
+    logger = logging.getLogger(__name__)
     # Sort as a cheat to easily select preferred annot later
-    print("Sorting for collapse by caller and counts", file=sys.stderr)
+    logger.info("Sorting for collapse by caller and counts")
     fusion_data = fusion_data.sort_values(["Sample", "LeftBreakpoint", "RightBreakpoint", "Caller"])
     # Merge rows that have the exact same fusion from different callers - thanks Natasha!
     key_cols: list[str] = [
@@ -147,7 +153,7 @@ def collapse_and_format(fusion_data: pd.DataFrame) -> pd.DataFrame:
         "FusionName",
         "Fusion_anno",
     ]
-    print("Grouping for collapse and counts", file=sys.stderr)
+    logger.info("Grouping for collapse and counts")
     fusion_data["groupby_key"] = fusion_data.apply(
         lambda row: "\t".join([str(row[col]) for col in key_cols]), axis=1
     )
@@ -179,8 +185,9 @@ def collapse_and_format(fusion_data: pd.DataFrame) -> pd.DataFrame:
 
 def openx_annot_bug(fusion_data: pd.DataFrame) -> pd.DataFrame:
     """Merge same fusion calls with annotation split across multiple lines."""
+    logger = logging.getLogger(__name__)
     # Sort as a cheat to easily select preferred annot later
-    print("Sorting for collapse bug fix", file=sys.stderr)
+    logger.info("Sorting for collapse bug fix")
     fusion_data = fusion_data.sort_values(["Sample", "LeftBreakpoint", "RightBreakpoint", "Caller"])
     # Merge rows that have the exact same fusion from different callers - thanks Natasha!
     key_cols: list[str] = [
@@ -193,14 +200,14 @@ def openx_annot_bug(fusion_data: pd.DataFrame) -> pd.DataFrame:
         "Fusion_anno",
     ]
     remain_cols: list[str] = list(set(fusion_data.columns.to_list()) - set(key_cols))
-    print("Grouping for collapse bug fix", file=sys.stderr)
+    logger.info("Grouping for collapse bug fix")
     fusion_data["groupby_key"] = fusion_data.apply(
         lambda row: "\t".join([str(row[col]) for col in key_cols]),
         axis=1,
     )
     # "JunctionReadCount","SpanningFragCount","annots"
     collapsed_list: list = []
-    print("Collapsing annotations for bug fix", file=sys.stderr)
+    logger.info("Collapsing annotations for bug fix")
     for g in fusion_data.groupby(by="groupby_key"):
         _values, df_group = g
         df_group["Caller"] = ",".join(set(df_group["Caller"].tolist()))
@@ -211,7 +218,7 @@ def openx_annot_bug(fusion_data: pd.DataFrame) -> pd.DataFrame:
     fusion_data_collapsed = pd.concat(collapsed_list)
     del collapsed_list
     fusion_data_collapsed["Caller"] = fusion_data_collapsed["Caller"].str.upper()
-    print("Bug fix completed", file=sys.stderr)
+    logger.info("Bug fix completed")
     return fusion_data_collapsed
 
 
@@ -226,18 +233,19 @@ def filter_and_format_annots(sample_renamed_df: pd.DataFrame, drop_low: bool) ->
         Filtered and formatted dataframe
 
     """
+    logger = logging.getLogger(__name__)
     if drop_low:
         sample_renamed_df = sample_renamed_df[sample_renamed_df.Confidence != "low"]
     else:
         # not drop low is a OpenX feature, apply repeat annotation bug fix
-        print("Applying OpenX annot bug fix", file=sys.stderr)
+        logger.info("Applying OpenX annot bug fix")
         sample_renamed_df = openx_annot_bug(sample_renamed_df)
     sample_renamed_df["annots"] = (
         sample_renamed_df.apply(
             lambda row: "Gene1: "
-            + ",".join(set(list(row["Gene1A_anno"].split(", "))))
+            + ",".join(set(row["Gene1A_anno"].split(", ")))
             + "; Gene2: "
-            + ",".join(set(list(row["Gene1B_anno"].split(", ")))),
+            + ",".join(set(row["Gene1B_anno"].split(", "))),
             axis=1,
         )
         + ";"
@@ -278,9 +286,8 @@ def init_cbio_master(
                 fusion_results, sep="\t", keep_default_na=False, na_values=[""]
             )
         except Exception as e:
-            print(e, file=sys.stderr)
-            print(f"Could not open file {fusion_results}, make sure this file exists!")
-            sys.exit(2)
+            missing = "Could not open file %s, make sure this file exists!", fusion_results
+            raise FileNotFoundError(missing) from e
         # Merge so that sample names can be cBio names - thanks Natasha!
         merged: pd.DataFrame = pd.merge(
             openx_data,
@@ -305,19 +312,18 @@ def init_cbio_master(
             openx_data = collapse_and_format(openx_data)
         return final_order_cols(openx_data, present, mode)
 
-    flist: pd.Series[str] = rna_metadata.file_name
     frame_list = []
     try:
-        for i in range(0, len(flist), 1):
+        for metadata in rna_metadata.itertuples():
             # concat annofuse file, rename Sample Column according to cBio name
             ann_file: pd.DataFrame = pd.read_csv(
-                f"{fusion_results}/{flist[i]}", sep="\t", keep_default_na=False, na_values=[""]
+                f"{fusion_results}/{metadata.file_name}", sep="\t", keep_default_na=False, na_values=[""]
             )
-            ann_file = ann_file.assign(Sample=rna_metadata.at[i, "cbio_sample_name"])
+            ann_file = ann_file.assign(Sample=metadata.cbio_sample_name)
             frame_list.append(ann_file)
     except Exception as e:
-        print(f"{e}", file=sys.stderr)
-        sys.exit(1)
+        merge_err = "Could not appaned dataframes and rename sample ID"
+        raise RuntimeError(merge_err) from e
     concat_frame: pd.DataFrame = pd.concat(frame_list)
     concat_frame = filter_and_format_annots(sample_renamed_df=concat_frame, drop_low=True)
     concat_frame = collapse_and_format(concat_frame)
@@ -325,9 +331,10 @@ def init_cbio_master(
     return final_order_cols(concat_frame, desired, mode)
 
 
-def main():
+def main() -> None:
+    """Convert openX fusion or list of annoFuse files to cBio format."""
     parser = argparse.ArgumentParser(
-        description="Convert openPBTA fusion table OR list of annofuse files to cbio format."
+        description="Convert openX fusion table OR list of annofuse files to cbio format."
     )
     parser.add_argument(
         "-t",
@@ -383,7 +390,7 @@ def main():
         sub_sample_list = list(
             rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
-        fus_fname = os.path.join(args.out_dir, project + ".svs.txt")
+        fus_fname: Path = Path(args.out_dir) / project + ".svs.txt"
         fus_tbl: pd.DataFrame = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]
         fus_tbl.fillna("NA", inplace=True)
         if not args.append:

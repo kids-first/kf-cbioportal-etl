@@ -7,8 +7,7 @@ Focuses on the "split" rows of the Annotation_mode to get per-gene SV data
 import argparse
 import csv
 import logging
-import os
-import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -29,14 +28,15 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, skip
         link_input_dir: Directory to store symlinks to annotSV results
         out_dir: Directory to store merged SV results
         table: Table with cbio project, kf bs ids, cbio IDs, and file names
+        skip: Flag to skip symlinking if repeating the process with the same input files
     Returns:
         Pandas dataframe with DNA SV-specific metadata
 
     """
     logger = logging.getLogger(__name__)
     # create output dir and link input dir if they don't exist
-    os.makedirs(link_input_dir, exist_ok=True)
-    os.makedirs(out_dir, exist_ok=True)
+    Path(link_input_dir).mkdir(exist_ok=True, parents=True)
+    Path(out_dir).mkdir(exist_ok=True, parents=True)
 
     # deal only with SV metadata
     ext = "sv"
@@ -51,23 +51,22 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, skip
         logger.info("Symlinking SV files from %s to %s", sv_dirs_in, link_input_dir)
         sym_errs: int = 0
         for dirname in sv_dirs_in.split(","):
-            if not os.path.exists(dirname):
+            if not Path(dirname).exists():
                 input_err= f"Input SV dir {dirname} does not exist. Check if files were downloaded to the correct location"
                 raise ValueError(input_err)
-            abs_path: str = os.path.abspath(dirname)
+            abs_path: Path = Path(dirname).resolve()
             try:
-                for fname in os.listdir(dirname):
-                    src: str = os.path.join(abs_path, fname)
-                    dest: str = os.path.join(link_input_dir, fname)
-                    os.symlink(src, dest)
+                for fname in Path(dirname).iterdir():
+                    src: str = str(abs_path / fname)
+                    dest: str = str(Path(link_input_dir) / fname)
+                    Path(dest).symlink_to(src)
             except Exception as e:
-                logger.error(e)
                 logger.exception("Could not sym link %s in %s", fname, dirname)
                 sym_errs += 1
         # If symlink errors, stop here as data will be incomplete
         if sym_errs:
-            logger.error("Could not sym link %d files, exiting!", sym_errs)
-            sys.exit(2)
+            sym_err_msg = "Could not sym link %d files, exiting!", sym_errs
+            raise FileNotFoundError(sym_err_msg)
     return dna_sv_subset
 
 
@@ -151,17 +150,17 @@ def make_annotation(row: pd.Series) -> str:
     try:
         parts = []
 
-        CLINGEN_COLUMNS = {
+        clingen_columns = {
             "HI": "Haploinsufficiency",
             "TS": "Triplosensitivity",
         }
         clingen_hits = [
             (label, row[column])
-            for column, label in CLINGEN_COLUMNS.items()
+            for column, label in clingen_columns.items()
             if pd.notna(row[column]) and row[column] != ""
         ]
         if clingen_hits:
-            labels, values = zip(*clingen_hits)
+            labels, values = zip(*clingen_hits, strict=True)
             parts.append(f"ClinGen {','.join(labels)}={','.join(map(str, values))}")
 
         acmg = str(row["ACMG_class"]).removeprefix("full=")
@@ -224,17 +223,18 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
             ann_file["TS"] = pd.to_numeric(ann_file["TS"], errors="coerce").astype("Int64")
             ann_file["Annotation"] = ann_file.apply(make_annotation, axis=1)
             frame_list.append(ann_file)
-    except Exception:
-        logger.exception("Error processing annotSV files from %s", sv_results)
-        sys.exit(1)
+    except Exception as e:
+        file_process_err = "Error processing annotSV files from %s", sv_results
+        raise RuntimeError(file_process_err) from e
     concat_frame: pd.DataFrame = pd.concat(frame_list)
     del frame_list
     return concat_frame
 
 
-def main():
+def main() -> None:
+    """Convert annotSV results to cBio SV format."""
     parser = argparse.ArgumentParser(
-        description="Convert annotSV results to cbio format."
+        description="Convert annotSV results to cbio format.",
     )
     parser.add_argument(
         "-t",
