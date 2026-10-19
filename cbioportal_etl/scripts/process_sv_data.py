@@ -12,9 +12,11 @@ import sys
 
 import numpy as np
 import pandas as pd
-from annotsv_to_cbio_sv import init_cbio_sv_df, sv_setup_outdir_metadata
-from convert_fusion_as_sv import fusion_setup_outdir_metadata, init_cbio_master
-import pdb
+from annotsv_to_cbio_sv import init_cbio_sv_df, rename_and_format_cols, sv_setup_outdir_metadata
+from convert_fusion_as_sv import (
+    fusion_setup_outdir_metadata,
+    init_cbio_master,
+)
 
 
 def main():
@@ -91,6 +93,7 @@ def main():
         link_input_dir = "annotSV_results"
         dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(link_input_dir, args.out_dir, args.table, args.skip_symlink)
         cbio_sv_df: pd.DataFrame = init_cbio_sv_df(link_input_dir, dna_sv_subset)
+        cbio_sv_df = rename_and_format_cols(concat_sv_df=cbio_sv_df)
     if fusion_results:
         print("RNA fusion data given, processing", file=sys.stderr)
         # Get RNA Fusion results if any

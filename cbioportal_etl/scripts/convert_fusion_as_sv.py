@@ -26,12 +26,6 @@ def fusion_setup_outdir_metadata(mode, out_dir, table) -> pd.DataFrame:
         Subsetted dataframe
 
     """
-    if mode not in {"openX", "kfprod", "dgd"}:
-        print(
-            f"-m mode argument must be one of openX, kfprod, or dgd. It is case sensitive. You put {mode}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
     os.makedirs(out_dir, exist_ok=True)
 
     # deal only with RNA metadata
@@ -364,7 +358,8 @@ def main():
         "--mode",
         action="store",
         dest="mode",
-        help="describe source, openX or kfprod or dgd",
+        help="describe source",
+        choices=["openX", "kfprod", "dgd"],
         required=True,
     )
     parser.add_argument(
