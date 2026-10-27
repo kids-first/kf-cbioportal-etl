@@ -101,3 +101,7 @@ See [OpenPedCan README](COLLABORATIONS/openTARGETS/README.md)
 
 ### OpenPBTA
 See [OpenPBTA README](COLLABORATIONS/openPBTA/README.md)
+
+# Feature Development
+Some light documentation on new ETL scripts not yet implemented can be found [here](docs/FEATURE_DEVELOPMENT.md).
+These are primarily for test projects and subject to change and removal as seen fit.
