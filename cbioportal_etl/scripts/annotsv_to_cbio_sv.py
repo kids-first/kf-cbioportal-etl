@@ -44,29 +44,28 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, skip
     all_file_meta: pd.DataFrame = pd.read_csv(table, sep="\t", dtype={"cbio_sample_name": str})
     dna_sv_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["etl_file_type"] == ext]
     # Create symlinks to mafs in one place for ease of processing
-    sv_dirs_in: str = ",".join(dna_sv_subset.file_type.unique().tolist())
+    sv_dirs: list[str] = dna_sv_subset.file_type.unique().tolist()
+    logger.info(f"{'Skipping ' if skip else ''}Symlinking SV files from {','.join(sv_dirs)} to {link_input_dir}")
     if skip:
-        logger.info("Skipping symlinking SV files from %s to %s", sv_dirs_in, link_input_dir)
-    else:
-        logger.info("Symlinking SV files from %s to %s", sv_dirs_in, link_input_dir)
-        sym_errs: int = 0
-        for dirname in sv_dirs_in.split(","):
-            if not Path(dirname).exists():
-                input_err= f"Input SV dir {dirname} does not exist. Check if files were downloaded to the correct location"
-                raise ValueError(input_err)
-            abs_path: Path = Path(dirname).resolve()
-            try:
-                for fname in Path(dirname).iterdir():
-                    src: str = str(abs_path / fname)
-                    dest: str = str(Path(link_input_dir) / fname)
-                    Path(dest).symlink_to(src)
-            except Exception as e:
-                logger.exception("Could not sym link %s in %s", fname, dirname)
-                sym_errs += 1
-        # If symlink errors, stop here as data will be incomplete
-        if sym_errs:
-            sym_err_msg = "Could not sym link %d files, exiting!", sym_errs
-            raise FileNotFoundError(sym_err_msg)
+        sv_dirs = []
+    sym_errs: int = 0
+    for dirname in sv_dirs:
+        if not Path(dirname).exists():
+            input_err= f"Input SV dir {dirname} does not exist. Check if files were downloaded to the correct location"
+            raise ValueError(input_err)
+        abs_path: Path = Path(dirname).resolve()
+        try:
+            for fname in Path(dirname).iterdir():
+                src: str = str(abs_path / fname)
+                dest: str = str(Path(link_input_dir) / fname)
+                Path(dest).symlink_to(src)
+        except Exception as e:
+            logger.exception("Could not sym link %s in %s", fname, dirname)
+            sym_errs += 1
+    # If symlink errors, stop here as data will be incomplete
+    if sym_errs:
+        sym_err_msg = "Could not sym link %d files, exiting!", sym_errs
+        raise FileNotFoundError(sym_err_msg)
     return dna_sv_subset
 
 
