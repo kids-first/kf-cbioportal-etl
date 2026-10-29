@@ -45,13 +45,11 @@ def main() -> None:
         "--fusion-results",
         action="store",
         help="annoFuse results dir OR openX merged fusion file",
-        required=False,
     )
     parser.add_argument(
         "--sv-results",
         action=argparse.BooleanOptionalAction,
         help="DNA SV results from annotSV",
-        required=False,
     )
     parser.add_argument(
         "-o",
@@ -66,21 +64,18 @@ def main() -> None:
         action="store",
         choices=["openX", "kfprod", "dgd"],
         help="describe source",
-        required=False,
     )
     parser.add_argument(
         "-a",
         "--append",
         action=argparse.BooleanOptionalAction,
         help="Flag to append, meaning print to STDOUT and skip header",
-        required=False,
     )
     parser.add_argument(
         "-s",
         "--skip-symlink",
         action=argparse.BooleanOptionalAction,
         help="Flag to skip sym links if repeating the process with the same input files",
-        required=False,
     )
 
     args = parser.parse_args()
@@ -111,15 +106,14 @@ def main() -> None:
 
         cbio_fusion_df = init_cbio_master(args.fusion_results, args.mode, rna_fusion_subset)
         merged_metadata_subset = rna_fusion_subset
-        project_list: np.ndarray = rna_fusion_subset.cbio_project.unique()
         merged_df = cbio_fusion_df
 
     if args.sv_results and args.fusion_results:
         logger.info("Both DNA SV and RNA fusion given, merging data frames")
         merged_metadata_subset = pd.concat([dna_sv_subset, rna_fusion_subset])
-        project_list: np.ndarray = merged_metadata_subset.cbio_project.unique()
         merged_df: pd.DataFrame = pd.concat([cbio_sv_df, cbio_fusion_df])
 
+    project_list: np.ndarray = merged_metadata_subset.cbio_project.unique()
     for project in project_list:
         logger.info("Outputting final SV results for %s", project)
         sub_sample_list = list(
