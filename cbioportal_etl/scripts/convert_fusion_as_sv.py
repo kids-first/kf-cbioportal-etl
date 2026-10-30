@@ -42,9 +42,12 @@ def fusion_setup_outdir_metadata(mode: str, out_dir: str, table: str) -> pd.Data
     # ensure sample name is imported as str
     all_file_meta: pd.DataFrame = pd.read_csv(table, sep="\t", dtype={"cbio_sample_name": str})
     rna_subset =  all_file_meta.loc[all_file_meta["etl_file_type"] == r_ext]
-    if rna_subset is None:
+    if rna_subset is None and r_ext != "rsem":
         r_ext = "rsem"
         rna_subset = all_file_meta.loc[all_file_meta["etl_file_type"] == r_ext]
+    else:
+        no_meta_err = f"No metadata obtained using category {r_ext}"
+        raise KeyError(no_meta_err)
     # reset index so that references work later while iterating
     return rna_subset.reset_index(drop=True)
 
@@ -94,9 +97,6 @@ def final_order_cols(fusion_data_collapsed: pd.DataFrame, present_cols: list[str
         fusion_data_collapsed["Site2_Effect_On_Frame"] = fusion_data_collapsed["Site2_Effect_On_Frame"].str.replace(
             "-", "_"
         )
-    # Drop unneeded cols
-    fusion_data_collapsed.drop(["LeftBreakpoint", "RightBreakpoint"], axis=1, inplace=True)
-
     # Reorder table
     order_list: list[str] = [
         "Sample_Id",
