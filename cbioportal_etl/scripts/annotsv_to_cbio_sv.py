@@ -146,28 +146,24 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
 
 def make_annotation(row: pd.Series) -> str:
     """Parse ClinGen HI, TS and ACMG_Class to make a single annotation."""
-    try:
-        parts = []
+    parts = []
 
-        clingen_columns = {
-            "HI": "Haploinsufficiency",
-            "TS": "Triplosensitivity",
-        }
-        clingen_hits = [
-            (label, row[column])
-            for column, label in clingen_columns.items()
-            if pd.notna(row[column]) and row[column] != ""
-        ]
-        if clingen_hits:
-            labels, values = zip(*clingen_hits, strict=True)
-            parts.append(f"ClinGen {','.join(labels)}={','.join(map(str, values))}")
+    clingen_columns = {
+        "HI": "Haploinsufficiency",
+        "TS": "Triplosensitivity",
+    }
+    clingen_hits = [
+        (label, row[column])
+        for column, label in clingen_columns.items()
+        if pd.notna(row[column]) and row[column] != ""
+    ]
+    if clingen_hits:
+        labels, values = zip(*clingen_hits, strict=True)
+        parts.append(f"ClinGen {','.join(labels)}={','.join(map(str, values))}")
 
-        acmg = str(row["ACMG_class"]).removeprefix("full=")
-        if acmg and acmg not in {"NA", "nan"}:
-            parts.append(f"ACMG_class={acmg}")
-    except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.exception("Error making annotation for row %s", row.name)
+    acmg = str(row["ACMG_class"]).removeprefix("full=")
+    if acmg and acmg not in {"NA", "nan"}:
+        parts.append(f"ACMG_class={acmg}")
 
     return ";".join(parts)
 
@@ -185,46 +181,52 @@ def init_cbio_sv_df(sv_results: str, sv_metadata: pd.DataFrame) -> pd.DataFrame:
     logger = logging.getLogger(__name__)
     logger.info("Processing %d annotSV files from %s", len(sv_metadata), sv_results)
     frame_list = []
-    try:
-        for metadata in sv_metadata.itertuples():
-            # concat annot SV file, rename Sample Column according to cBio name
+    for metadata in sv_metadata.itertuples():
+        # concat annot SV file, rename Sample Column according to cBio name
+        try:
             ann_file: pd.DataFrame = pd.read_csv(
                 f"{sv_results}/{metadata.file_name}",
                 sep="\t", keep_default_na=False, na_values=[""]
             )
-            # drop entries where Annotation_mode is not "split" (i.e. per-gene)
-            # and not breakend (cuurently too complicated to parse)
-            ann_file: pd.DataFrame = ann_file.loc[(ann_file["Annotation_mode"] == "split") & (ann_file["SV_type"] != "BND")]
-            ann_file = ann_file.assign(Sample_Id=metadata.cbio_sample_name)
-            # at this step, get the tumor BS ID
-            # parse FORMAT for PR and SR and assign values cBio columns
-            # drop the tumor and normal BS ID cols
-            affected_read_support = ann_file[metadata.affected_bs_id].str.split(":", expand=True)
-            reference_read_support = ann_file[metadata.reference_bs_id].str.split(":", expand=True)
-            ann_file["Tumor_Paired_End_Read_Count"] = affected_read_support[0].str.split(",").str[1].astype("Int64")
-            ann_file["Normal_Paired_End_Read_Count"] = reference_read_support[0].str.split(",").str[1].astype("Int64")
-            ann_file["Tumor_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
-            ann_file["Normal_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
+        except Exception as e:
+            file_process_err = "Could not open files %s in %s", metadata.file_name, sv_results
+            raise FileNotFoundError(file_process_err) from e
+        # validate keys/columns are there before proceeding
+        required_cols: set[str] = {"Annotation_mode", str(metadata.affected_bs_id),
+                                   str(metadata.reference_bs_id), "SV_type" }
+        if not required_cols.issubset(set(ann_file.columns)):
+            key_err = f"Required columns {",".join(set(required_cols).difference(ann_file.columns))} are missing dataframe"
+            raise KeyError(key_err)
+        # drop entries where Annotation_mode is not "split" (i.e. per-gene)
+        # and not breakend (currently too complicated to parse)
+        ann_file: pd.DataFrame = ann_file.loc[(ann_file["Annotation_mode"] == "split") & (ann_file["SV_type"] != "BND")]
+        ann_file = ann_file.assign(Sample_Id=metadata.cbio_sample_name)
+        # at this step, get the tumor BS ID
+        # parse FORMAT for PR and SR and assign values cBio columns
+        # drop the tumor and normal BS ID cols
+        affected_read_support = ann_file[metadata.affected_bs_id].str.split(":", expand=True)
+        reference_read_support = ann_file[metadata.reference_bs_id].str.split(":", expand=True)
+        ann_file["Tumor_Paired_End_Read_Count"] = affected_read_support[0].str.split(",").str[1].astype("Int64")
+        ann_file["Normal_Paired_End_Read_Count"] = reference_read_support[0].str.split(",").str[1].astype("Int64")
+        ann_file["Tumor_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
+        ann_file["Normal_Split_Read_Count"] = pd.Series(pd.NA, index=ann_file.index, dtype="Int64")
 
-            if len(affected_read_support.columns) > 1:
-                ann_file["Tumor_Split_Read_Count"] = pd.to_numeric(
-                    affected_read_support[1].str.split(",").str[1],
-                    errors="coerce",
-                ).astype("Int64")
+        if len(affected_read_support.columns) > 1:
+            ann_file["Tumor_Split_Read_Count"] = pd.to_numeric(
+                affected_read_support[1].str.split(",").str[1],
+                errors="coerce",
+            ).astype("Int64")
 
-                ann_file["Normal_Split_Read_Count"] = pd.to_numeric(
-                    reference_read_support[1].str.split(",").str[1],
-                    errors="coerce",
-                ).astype("Int64")
-            ann_file = ann_file.drop(columns=[metadata.affected_bs_id, metadata.reference_bs_id])
-            # Create Annotation column parsing HI, TS, ACMG_class
-            ann_file["HI"] = pd.to_numeric(ann_file["HI"], errors="coerce").astype("Int64")
-            ann_file["TS"] = pd.to_numeric(ann_file["TS"], errors="coerce").astype("Int64")
-            ann_file["Annotation"] = ann_file.apply(make_annotation, axis=1)
-            frame_list.append(ann_file)
-    except Exception as e:
-        file_process_err = "Error processing annotSV files from %s", sv_results
-        raise RuntimeError(file_process_err) from e
+            ann_file["Normal_Split_Read_Count"] = pd.to_numeric(
+                reference_read_support[1].str.split(",").str[1],
+                errors="coerce",
+            ).astype("Int64")
+        ann_file = ann_file.drop(columns=[metadata.affected_bs_id, metadata.reference_bs_id])
+        # Create Annotation column parsing HI, TS, ACMG_class
+        ann_file["HI"] = pd.to_numeric(ann_file["HI"], errors="coerce").astype("Int64")
+        ann_file["TS"] = pd.to_numeric(ann_file["TS"], errors="coerce").astype("Int64")
+        ann_file["Annotation"] = ann_file.apply(make_annotation, axis=1)
+        frame_list.append(ann_file)
     concat_frame: pd.DataFrame = pd.concat(frame_list)
     del frame_list
     return concat_frame

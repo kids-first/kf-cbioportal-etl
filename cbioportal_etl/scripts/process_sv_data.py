@@ -47,9 +47,9 @@ def main() -> None:
         help="annoFuse results dir OR openX merged fusion file",
     )
     parser.add_argument(
-        "--sv-results",
+        "--process-sv-results",
         action=argparse.BooleanOptionalAction,
-        help="DNA SV results from annotSV",
+        help="DNA SV results from annotSV exist in table and you wish to process them",
     )
     parser.add_argument(
         "-o",
@@ -80,7 +80,7 @@ def main() -> None:
 
     args = parser.parse_args()
     # ensure dependent args are set
-    if not (args.fusion_results or args.sv_results):
+    if not (args.fusion_results or args.process_sv_results):
         parser.error("Either --fusion-results and/or --sv-results must be specified.")
     if args.fusion_results and not args.mode:
         parser.error("Need to set -m mode when processing fusion data. Opts are kfprod, openX, dgd.")
@@ -88,7 +88,7 @@ def main() -> None:
     out_dir = args.out_dir
     Path(out_dir).mkdir(exist_ok=True, parents=True)
 
-    if args.sv_results:
+    if args.process_sv_results:
         logger.info("DNA SV flag given, processing")
         # get DNA SV results if any
         link_input_dir = "annotSV_results"
@@ -108,7 +108,7 @@ def main() -> None:
         merged_metadata_subset = rna_fusion_subset
         merged_df = cbio_fusion_df
 
-    if args.sv_results and args.fusion_results:
+    if args.process_sv_results and args.fusion_results:
         logger.info("Both DNA SV and RNA fusion given, merging data frames")
         merged_metadata_subset = pd.concat([dna_sv_subset, rna_fusion_subset])
         merged_df: pd.DataFrame = pd.concat([cbio_sv_df, cbio_fusion_df])
