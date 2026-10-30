@@ -119,7 +119,7 @@ def main() -> None:
         sub_sample_list = list(
             merged_metadata_subset.loc[merged_metadata_subset["cbio_project"] == project, "cbio_sample_name"]
         )
-        out_fname = Path(args.out_dir) / (project + ".svs.txt")
+        out_fname: Path = Path(args.out_dir) / (project + ".svs.txt")
         subset_merged_df: pd.DataFrame = merged_df[merged_df.Sample_Id.isin(sub_sample_list)]
         if not args.append:
             subset_merged_df.set_index("Sample_Id", inplace=True)

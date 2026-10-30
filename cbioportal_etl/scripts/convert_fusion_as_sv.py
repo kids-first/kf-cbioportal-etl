@@ -390,7 +390,7 @@ def main() -> None:
         sub_sample_list = list(
             rna_subset.loc[rna_subset["cbio_project"] == project, "cbio_sample_name"]
         )
-        fus_fname: Path = Path(args.out_dir) / project + ".svs.txt"
+        fus_fname: Path = Path(args.out_dir) / (project + ".svs.txt")
         fus_tbl: pd.DataFrame = cbio_master[cbio_master.Sample_Id.isin(sub_sample_list)]
         fus_tbl.fillna("NA", inplace=True)
         if not args.append:
