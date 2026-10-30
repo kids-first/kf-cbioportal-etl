@@ -260,7 +260,7 @@ parser = argparse.ArgumentParser(
     " It is assumed you are at the dir level of all input data files"
 )
 parser.add_argument(
-    "-o", "--output_dir", action="store", dest="out_dir", help="output directory name"
+    "-o", "--out_dir", action="store", default="processed", help="output directory name"
 )
 parser.add_argument(
     "-c",
@@ -268,6 +268,7 @@ parser.add_argument(
     action="store",
     dest="config_file",
     help="json config file with meta information; see REFS/case_meta_config.json example",
+    required=True
 )
 parser.add_argument(
     "-ad",
@@ -307,8 +308,7 @@ try:
             "merged_fusion": 0,
         }
         for key in data_keys:
-            merged_dir = config_data[key]["dir"]
-            if key in config_data and merged_dir != "" and os.path.isdir(merged_dir):
+            if key in config_data and os.path.isdir(config_data[key]["dir"]):
                 data_keys[key] = 1
                 process_meta_data(config_data[key], cur_dir, canc_study_id)
                 print(f"Creating meta data files and links for {key}", file=sys.stderr)
