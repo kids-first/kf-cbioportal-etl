@@ -36,14 +36,12 @@ def main() -> None:
     parser.add_argument(
         "-t",
         "--table",
-        action="store",
         help="Table with cbio project, kf bs ids, cbio IDs, and file names",
         required=True,
     )
     parser.add_argument(
         "-f",
         "--fusion-results",
-        action="store",
         help="annoFuse results dir OR openX merged fusion file",
     )
     parser.add_argument(
@@ -54,14 +52,12 @@ def main() -> None:
     parser.add_argument(
         "-o",
         "--out-dir",
-        action="store",
         default="merged_sv",
         help="Result output dir. Default is merged_fusion",
     )
     parser.add_argument(
         "-m",
         "--mode",
-        action="store",
         choices=["openX", "kfprod", "dgd"],
         help="describe source",
     )
@@ -77,6 +73,14 @@ def main() -> None:
         action=argparse.BooleanOptionalAction,
         help="Flag to skip sym links if repeating the process with the same input files",
     )
+    parser.add_argument(
+        "-l",
+        "--link-input-dir",
+        action="store",
+        help="DNA SV directory name to store annotSV symlinks",
+        default="annotSV_results/",
+    )
+
 
     args = parser.parse_args()
     # ensure dependent args are set
@@ -91,9 +95,9 @@ def main() -> None:
     if args.process_sv_results:
         logger.info("DNA SV flag given, processing")
         # get DNA SV results if any
-        link_input_dir = "annotSV_results"
-        dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(link_input_dir, args.out_dir, args.table, args.skip_symlink)
-        cbio_sv_df: pd.DataFrame = init_cbio_sv_df(link_input_dir, dna_sv_subset)
+        dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir,
+                                                               args.table, args.skip_symlink)
+        cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
         cbio_sv_df = rename_and_format_cols(concat_sv_df=cbio_sv_df)
         merged_metadata_subset = dna_sv_subset
         project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
@@ -117,7 +121,8 @@ def main() -> None:
     for project in project_list:
         logger.info("Outputting final SV results for %s", project)
         sub_sample_list = list(
-            merged_metadata_subset.loc[merged_metadata_subset["cbio_project"] == project, "cbio_sample_name"]
+            merged_metadata_subset.loc[merged_metadata_subset["cbio_project"] == project,
+                                       "cbio_sample_name"],
         )
         out_fname: Path = Path(args.out_dir) / (project + ".svs.txt")
         subset_merged_df: pd.DataFrame = merged_df[merged_df.Sample_Id.isin(sub_sample_list)]

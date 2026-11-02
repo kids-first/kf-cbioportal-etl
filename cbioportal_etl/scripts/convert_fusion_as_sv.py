@@ -339,32 +339,24 @@ def main() -> None:
     parser.add_argument(
         "-t",
         "--table",
-        action="store",
-        dest="table",
         help="Table with cbio project, kf bs ids, cbio IDs, and file names",
         required=True,
     )
     parser.add_argument(
         "-f",
         "--fusion-results",
-        action="store",
-        dest="fusion_results",
         help="annoFuse results dir OR openX merged fusion file",
         required=True,
     )
     parser.add_argument(
         "-o",
         "--out-dir",
-        action="store",
-        dest="out_dir",
         default="merged_sv/",
         help="Result output dir. Default is merged_sv",
     )
     parser.add_argument(
         "-m",
         "--mode",
-        action="store",
-        dest="mode",
         help="describe source",
         choices=["openX", "kfprod", "dgd"],
         required=True,
@@ -373,7 +365,6 @@ def main() -> None:
         "-a",
         "--append",
         action="store_true",
-        dest="append",
         help="Flag to append, meaning print to STDOUT and skip header",
         required=False,
     )

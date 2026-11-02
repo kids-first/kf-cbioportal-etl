@@ -249,22 +249,18 @@ def main() -> None:
     parser.add_argument(
         "-t",
         "--table",
-        action="store",
         help="Table with cbio project, kf bs ids, cbio IDs, and file names",
         required=True,
     )
     parser.add_argument(
         "-l",
         "--link-input-dir",
-        action="store",
         help="DNA SV directory name to store annotSV symlinks",
         default="annotSV_results/",
     )
     parser.add_argument(
         "-o",
         "--out-dir",
-        action="store",
-        dest="out_dir",
         default="merged_sv/",
         help="Result output dir. Default is merged_sv",
     )
