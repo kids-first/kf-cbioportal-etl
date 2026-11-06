@@ -96,7 +96,7 @@ def main() -> None:
         logger.info("DNA SV flag given, processing")
         # get DNA SV results if any
         dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir,
-                                                               args.table, args.skip_symlink)
+                                                               args.table, "sv", args.skip_symlink)
         cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
         cbio_sv_df = rename_and_format_cols(concat_sv_df=cbio_sv_df)
         merged_metadata_subset = dna_sv_subset

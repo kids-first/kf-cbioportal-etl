@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 
 
-def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, skip: bool) -> pd.DataFrame:
+def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, ftype: str, skip: bool) -> pd.DataFrame:
     """Create output dir and link input dir if they don't exist, then subset metadata for DNA SV files.
 
     Output dir will store the merged SV files, and link_input_dir will store symlinks to the annotSV results for processing.
@@ -28,6 +28,7 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, skip
         link_input_dir: Directory to store symlinks to annotSV results
         out_dir: Directory to store merged SV results
         table: Table with cbio project, kf bs ids, cbio IDs, and file names
+        ftype: File type to filter for
         skip: Flag to skip symlinking if repeating the process with the same input files
     Returns:
         Pandas dataframe with DNA SV-specific metadata
@@ -39,13 +40,13 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, skip
     Path(out_dir).mkdir(exist_ok=True, parents=True)
 
     # deal only with SV metadata
-    ext = "sv"
     # ensure sample name is imported as str
     all_file_meta: pd.DataFrame = pd.read_csv(table, sep="\t", dtype={"cbio_sample_name": str})
-    dna_sv_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["etl_file_type"] == ext]
+    dna_sv_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["etl_file_type"] == ftype]
     # Create symlinks to mafs in one place for ease of processing
     sv_dirs: list[str] = dna_sv_subset.file_type.unique().tolist()
-    logger.info(f"{'Skipping ' if skip else ''}Symlinking SV files from {','.join(sv_dirs)} to {link_input_dir}")
+    link_msg = f"{'Skipping ' if skip else ''}Symlinking SV files from {','.join(sv_dirs)} to {link_input_dir}"
+    logger.info(link_msg)
     if skip:
         sv_dirs = []
     sym_errs: int = 0
@@ -273,7 +274,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table, args.skip_symlink)
+    dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table, "sv", args.skip_symlink)
     project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
     cbio_sv_df = rename_and_format_cols(concat_sv_df=cbio_sv_df)
