@@ -43,7 +43,7 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, ftyp
     # ensure sample name is imported as str
     all_file_meta: pd.DataFrame = pd.read_csv(table, sep="\t", dtype={"cbio_sample_name": str})
     dna_sv_subset: pd.DataFrame = all_file_meta.loc[all_file_meta["etl_file_type"] == ftype]
-    # Create symlinks to mafs in one place for ease of processing
+    # Create symlinks to scattered inputs in one place for ease of processing
     sv_dirs: list[str] = dna_sv_subset.file_type.unique().tolist()
     link_msg = f"{'Skipping ' if skip else ''}Symlinking SV files from {','.join(sv_dirs)} to {link_input_dir}"
     logger.info(link_msg)
@@ -56,12 +56,11 @@ def sv_setup_outdir_metadata(link_input_dir: str, out_dir: str, table: str, ftyp
             raise ValueError(input_err)
         abs_path: Path = Path(dirname).resolve()
         try:
-            for fname in Path(dirname).iterdir():
-                src: str = str(abs_path / fname)
-                dest: str = str(Path(link_input_dir) / fname)
+            for src in abs_path.iterdir():
+                dest: str = str(Path(link_input_dir) / src.parts[-1])
                 Path(dest).symlink_to(src)
-        except Exception as e:
-            logger.exception("Could not sym link %s in %s", fname, dirname)
+        except Exception:
+            logger.exception("Could not sym link %s in %s", src, dirname)
             sym_errs += 1
     # If symlink errors, stop here as data will be incomplete
     if sym_errs:
@@ -274,7 +273,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table, "sv", args.skip_symlink)
+    dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir,
+                                                           args.table, "sv", args.skip_symlink)
     project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
     cbio_sv_df = rename_and_format_cols(concat_sv_df=cbio_sv_df)

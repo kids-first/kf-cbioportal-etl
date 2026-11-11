@@ -6,11 +6,11 @@ Multiple files per sample comprise different splice types
 
 import argparse
 import csv
-from importlib.metadata import metadata
 import logging
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-import numpy as np
+if TYPE_CHECKING:
+    import numpy as np
 import pandas as pd
 from annotsv_to_cbio_sv import sv_setup_outdir_metadata
 
@@ -20,6 +20,59 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
+
+
+def eval_effect_on_frame(row: pd.Series) -> str:
+    """Evaluate event info for each row of rmats file.
+
+    Args:
+        row: Pandas series with rmats row data
+
+    Returns:
+        Event info string for cBio SV file
+
+    """
+    site2_effect_on_frame = "NA"
+    if row["Class"] != "RETAINED_INTRON":
+        site2_effect_on_frame = "In_frame" if not row["SV_Length"] % 3  else "Frameshift"
+    return site2_effect_on_frame
+
+
+
+def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
+    """Rename and format columns for cBio SV file.
+
+    Args:
+        concat_sv_df: Pandas dataframe with concatenated rmats data
+    Returns:
+        Formatted dataframe for cBio SV file
+    """
+    logger = logging.getLogger(__name__)
+    logger.info("Renaming and formatting annotSV columns for cBio SV output")
+    desired: list[str] = [
+        "Sample_Id",
+        "SV_Status",
+        "Site1_Hugo_Symbol",
+        "Site1_Chromosome",
+        "Site1_Position",
+        "Site1_Region",
+        "Site2_Hugo_Symbol",
+        "Site2_Chromosome",
+        "Site2_Position",
+        "Site2_Region",
+        "Site2_Effect_On_Frame",
+        "NCBI_Build",
+        "Class",
+        "Tumor_Read_Count",
+        "Event_Info",
+        "Annotation",
+        "DNA_Support",
+        "SV_Length",
+        "Comments",
+    ]
+
+    concat_sv_df["Site2_Effect_On_Frame"] = concat_sv_df.apply(eval_effect_on_frame, axis=1)
+    # need to add custom RMATS. cols for IJC, SJC, IncLevel, copy flanking base pair info to Annotation
 
 
 def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.DataFrame:
@@ -35,18 +88,19 @@ def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.Da
     logger = logging.getLogger(__name__)
     logger.info("Processing %d rmats files from %s", len(splice_metadata), splice_results)
 
-    event_types: dict = {"alternative_3_prime_splice_sites": "ALT_3SS",
-                         "alternative_5_prime_splice_sites": "ALT_5SS",
-                         "retained_introns": "RETAINED_INTRON",
-                         "skipped_exons": "SKIPPED_EXON",
+    # track two values - one is part of file name, other is desired column value for cBio SV file
+    event_types: dict[str, list[str]] = {"alternative_3_prime_splice_sites": ["filtered.A3SS", "ALT_3SS"],
+                         "alternative_5_prime_splice_sites": ["filtered.A5SS", "ALT_5SS"],
+                         "retained_introns": ["filtered.RI", "RETAINED_INTRON"],
+                         "skipped_exons": ["filtered.SE", "SKIPPED_EXON"],
                          }
     frame_list = []
     for metadata in splice_metadata.itertuples():
         # get event type from file_type, as columns slightly different and will inform cbio entries
         event_type = None
-        for file_type, event_code in event_types.items():
-            if file_type in metadata.file_name:
-                event_type = event_code
+        for _file_type, event_code in event_types.items():
+            if event_code[0] in metadata.file_name:
+                event_type = event_code[1]
                 break
         if event_type is None:
             value_err = f"Could not find valid event type for {metadata.file_name}"
@@ -56,7 +110,7 @@ def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.Da
             fname = f"{splice_results}/{metadata.file_name}"
             rmats_file: pd.DataFrame = pd.read_csv(
                 fname,
-                sep="\t", keep_default_na=False, na_values=[""]
+                sep="\t", keep_default_na=False, na_values=[""],
             )
         except Exception as e:
             file_process_err = "Could not open files %s in %s", metadata.file_name, splice_results
@@ -69,12 +123,12 @@ def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.Da
         site2_position = rmats_file["longExonEnd"] if event_type in ("ALT_3SS", "ALT_5SS") \
                     else rmats_file["exonEnd"] if event_type == "SKIPPED_EXON" \
                         else rmats_file["riExonEnd"]
-        sv_length = site2_position.to_numpy() - site1_position.to_numpy()
-        site2_effect_on_frame = "NA"
-        if event_type != "RETAINED_INTRON":
-            site2_effect_on_frame = "In_frame" if not sv_length % 3  else "Frameshift"
+        tumor_read_count = rmats_file["IJC_SAMPLE_1"] + rmats_file["SJC_SAMPLE_1"]
+        sv_length = site2_position - site1_position
+
         # assignment fest
         rmats_file = rmats_file.assign(Sample_Id=metadata.cbio_sample_name,
+                                       SV_Status="SOMATIC",
                                        Site1_Hugo_Symbol = rmats_file["geneSymbol"],
                                        Site1_Chromosome=rmats_file["chr"],
                                        Site1_Position=site1_position,
@@ -84,9 +138,11 @@ def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.Da
                                        Site2_Position=site2_position,
                                        Site2_Region=region,
                                        Class=event_type,
-                                       Site2_Effect_on_Frame=site2_effect_on_frame,
+                                       Tumor_Read_Count=tumor_read_count,
+                                       SV_Length=sv_length,
+                                       RNA_Support="Yes",
+                                       NCBI_Build="GRCh38"
                                        )
-
         frame_list.append(rmats_file)
     concat_frame: pd.DataFrame = pd.concat(frame_list)
     del frame_list
@@ -130,3 +186,7 @@ def main() -> None:
                                                             args.table, "splice", args.skip_symlink)
     project_list: np.ndarray = rna_splice_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, rna_splice_subset)
+    cbio_sv_df = rename_and_format_cols(concat_sv_df=cbio_sv_df)
+
+if __name__ == "__main__":
+    main()
