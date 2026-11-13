@@ -7,6 +7,7 @@ Multiple files per sample comprise different splice types
 import argparse
 import csv
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -38,14 +39,59 @@ def eval_effect_on_frame(row: pd.Series) -> str:
     return site2_effect_on_frame
 
 
+def process_annot_cols(row: pd.Series, cols: list[str]) -> tuple[str, str]:
+    """Process annotation columns for each row of rmats file.
 
-def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
+    Args:
+        row: Pandas series with rmats row data
+        cols: List of cols to pull values from
+    Returns:
+        Annotation string for cBio SV file
+
+    """
+    annotation = ""
+    for col in cols:
+        annotation += f"{col}: {row[col]};"
+    event_info = f"{row["Site1_Hugo_Symbol"]}_{row["Class"]}_{row["chr"]}:{row["Site1_Position"]}-{row["Site2_Position"]}"
+    return annotation, event_info
+
+
+def populate_annotation_event_info(rmats_file_df: pd.DataFrame,
+                                   event_type: str) -> tuple[pd.Series, pd.Series, list[str]]:
+    """Populate annotation column based on event type.
+
+    Args:
+        rmats_file_df: Pandas dataframe with rmats file data
+        event_type: Type of splice event
+
+    Returns:
+        Series with populated annotation column, series with populated event info column, and list of cols to drop later
+
+    """
+    cols_for_annotate: dict[str, list[str]] = {
+        "ALT_3SS": ["shortES", "shortEE", "flankingES", "flankingEE"],
+        "ALT_5SS": ["shortES", "shortEE", "flankingES", "flankingEE"],
+        "RETAINED_INTRON": ["upstreamES", "upstreamEE", "downstreamES", "downstreamEE"],
+        "SKIPPED_EXON": ["upstreamES", "upstreamEE", "downstreamES", "downstreamEE"],
+    }
+    rmats_file_df[["Annotation", "Event_Info"]] = rmats_file_df.apply(
+        lambda row: process_annot_cols(row, cols_for_annotate[event_type]),
+        axis=1,
+        result_type="expand",
+    )
+    return rmats_file_df["Annotation"], rmats_file_df["Event_Info"], cols_for_annotate[event_type]
+
+
+def rename_and_format_cols(concat_sv_df: pd.DataFrame, comment: str) -> pd.DataFrame:
     """Rename and format columns for cBio SV file.
 
     Args:
         concat_sv_df: Pandas dataframe with concatenated rmats data
+        comment: Comment to add to the comments column
+
     Returns:
         Formatted dataframe for cBio SV file
+
     """
     logger = logging.getLogger(__name__)
     logger.info("Renaming and formatting annotSV columns for cBio SV output")
@@ -66,13 +112,26 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame) -> pd.DataFrame:
         "Tumor_Read_Count",
         "Event_Info",
         "Annotation",
-        "DNA_Support",
+        "RNA_Support",
         "SV_Length",
         "Comments",
+        "RMATS.strand",
+        "RMATS.IJC_SAMPLE_1",
+        "RMATS.SJC_SAMPLE_1",
+        "RMATS.IncLevel1",
     ]
+    rename_dict: dict[str, str] = {
+        "strand": "RMATS.strand",
+        "IJC_SAMPLE_1": "RMATS.IJC_SAMPLE_1",
+        "SJC_SAMPLE_1": "RMATS.SJC_SAMPLE_1",
+        "IncLevel1": "RMATS.IncLevel1",
+    }
 
+    concat_sv_df = concat_sv_df.rename(columns=rename_dict)
     concat_sv_df["Site2_Effect_On_Frame"] = concat_sv_df.apply(eval_effect_on_frame, axis=1)
-    # need to add custom RMATS. cols for IJC, SJC, IncLevel, copy flanking base pair info to Annotation
+    concat_sv_df.rename(columns=rename_dict, inplace=True)
+    concat_sv_df = concat_sv_df.assign(Comments=comment)
+    return concat_sv_df[desired]
 
 
 def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.DataFrame:
@@ -94,8 +153,13 @@ def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.Da
                          "retained_introns": ["filtered.RI", "RETAINED_INTRON"],
                          "skipped_exons": ["filtered.SE", "SKIPPED_EXON"],
                          }
+    # for cleanup later
+    to_drop = ["ID", "GeneID", "longExonStart_0base", "longExonEnd", "exonStart_0base", "exonEnd",
+               "riExonStart_0base", "riExonEnd", "gene_id", "geneSymbol", "chr", "IJC_SAMPLE_2",
+               "SJC_SAMPLE_2", "IncLevel2", "SkipFormLen", "Pvalue", "FDR", "IncLevelDifference"]
     frame_list = []
-    for metadata in splice_metadata.itertuples():
+    n = 25
+    for i, metadata in enumerate(splice_metadata.itertuples(), start=1):
         # get event type from file_type, as columns slightly different and will inform cbio entries
         event_type = None
         for _file_type, event_code in event_types.items():
@@ -125,7 +189,6 @@ def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.Da
                         else rmats_file["riExonEnd"]
         tumor_read_count = rmats_file["IJC_SAMPLE_1"] + rmats_file["SJC_SAMPLE_1"]
         sv_length = site2_position - site1_position
-
         # assignment fest
         rmats_file = rmats_file.assign(Sample_Id=metadata.cbio_sample_name,
                                        SV_Status="SOMATIC",
@@ -143,7 +206,12 @@ def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.Da
                                        RNA_Support="Yes",
                                        NCBI_Build="GRCh38"
                                        )
+        rmats_file["Annotation"], rmats_file["Event_Info"], more_cols_to_drop = populate_annotation_event_info(rmats_file, event_type)
+        # clean up columns to keep df smaller that are not currently needed
+        rmats_file.drop(columns=to_drop + more_cols_to_drop, inplace=True, errors="ignore")
         frame_list.append(rmats_file)
+        if i % n == 0:
+            logger.info("Processed %d of %d rmats files", i, len(splice_metadata))
     concat_frame: pd.DataFrame = pd.concat(frame_list)
     del frame_list
     return concat_frame
@@ -179,6 +247,11 @@ def main() -> None:
         help="Flag to skip sym links if repeating the process with the same input files",
         required=False,
     )
+    parser.add_argument(
+        "--comment",
+        help="rMATS and GENCODE version information to add to the comments column in the cBio SV file",
+        default="rMATS v4.1.2, GENCODE v39",
+    )
 
     args = parser.parse_args()
 
@@ -186,7 +259,14 @@ def main() -> None:
                                                             args.table, "splice", args.skip_symlink)
     project_list: np.ndarray = rna_splice_subset.cbio_project.unique()
     cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, rna_splice_subset)
-    cbio_sv_df = rename_and_format_cols(concat_sv_df=cbio_sv_df)
+    comment = args.comment
+    cbio_sv_df = rename_and_format_cols(cbio_sv_df, comment)
+
+    for project in project_list:
+        cbio_sv_fname: Path = Path(args.out_dir) / (project + ".svs.txt")
+        cbio_sv_df.set_index("Sample_Id", inplace=True)
+        cbio_sv_df.to_csv(cbio_sv_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
+
 
 if __name__ == "__main__":
     main()
