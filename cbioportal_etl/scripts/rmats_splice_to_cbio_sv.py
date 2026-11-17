@@ -13,14 +13,6 @@ import numpy as np
 import pandas as pd
 from annotsv_to_cbio_sv import sv_setup_outdir_metadata
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-
-
-
 EVENT_TYPES = {  # file name token -> cBio Class
     "filtered.A3SS": "ALT_3SS",
     "filtered.A5SS": "ALT_5SS",
@@ -55,37 +47,6 @@ def make_annotation_event_info(df: pd.DataFrame, event_type: str) -> tuple[pd.Se
     return annotation, event_info
 
 
-def populate_annotation_event_info(rmats_file_df: pd.DataFrame,
-                                   event_type: str) -> tuple[pd.Series, pd.Series, list[str]]:
-    """Populate annotation column based on event type.
-
-    Args:
-        rmats_file_df: Pandas dataframe with rmats file data
-        event_type: Type of splice event
-
-    Returns:
-        Series with populated annotation column, series with populated event info column, and list of cols to drop later
-
-    """
-    cols_for_annotate: dict[str, list[str]] = {
-        "ALT_3SS": ["shortES", "shortEE", "flankingES", "flankingEE"],
-        "ALT_5SS": ["shortES", "shortEE", "flankingES", "flankingEE"],
-        "RETAINED_INTRON": ["upstreamES", "upstreamEE", "downstreamES", "downstreamEE"],
-        "SKIPPED_EXON": ["upstreamES", "upstreamEE", "downstreamES", "downstreamEE"],
-    }
-    annotation = pd.Series("", index=rmats_file_df.index, dtype=object)
-    for col in cols_for_annotate[event_type]:
-        annotation += f"{col}: " + rmats_file_df[col].astype(str) + ";"
-    event_info = (
-        rmats_file_df["Site1_Hugo_Symbol"].astype(str)
-        + "_" + rmats_file_df["Class"].astype(str)
-        + "_" + rmats_file_df["chr"].astype(str)
-        + ":" + rmats_file_df["Site1_Position"].astype(str)
-        + "-" + rmats_file_df["Site2_Position"].astype(str)
-    )
-    return annotation, event_info, cols_for_annotate[event_type]
-
-
 def rename_and_format_cols(concat_sv_df: pd.DataFrame, comment: str) -> pd.DataFrame:
     """Rename and format columns for cBio SV file.
 
@@ -97,8 +58,6 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame, comment: str) -> pd.DataF
         Formatted dataframe for cBio SV file
 
     """
-    logger = logging.getLogger(__name__)
-    logger.info("Renaming and formatting rMATS dataframe columns for cBio SV output")
     desired: list[str] = [
         "cbio_project",
         "Sample_Id",
@@ -141,20 +100,10 @@ def rename_and_format_cols(concat_sv_df: pd.DataFrame, comment: str) -> pd.DataF
     return df.assign(Comments=comment)[desired]
 
 
-def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.DataFrame:
-    """Use data frame subset on rMATS splice files to find and merge result files.
-
-    Args:
-        splice_results: rMATs splice results dir
-        splice_metadata: Pandas dataframe with rMATs splice-specific metadata
-    Returns:
-        Collapsed and formatted dataframe, list of desired fields
-
-    """
+def iter_rmats_frames(splice_results: str, splice_metadata: pd.DataFrame):
+    """Yield (cbio_project, unformatted_df), one rMATS file at a time."""
     logger = logging.getLogger(__name__)
     logger.info("Processing %d rmats files from %s", len(splice_metadata), splice_results)
-
-    frame_list = []
     n = 25
     for i, metadata in enumerate(splice_metadata.itertuples(), start=1):
         event_type = next(
@@ -199,12 +148,17 @@ def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.Da
         rmats_file = rmats_file.drop(
             columns=[start_col, end_col, "geneSymbol", "chr", *ANNOTATION_COLS[event_type]]
         )
-        frame_list.append(rmats_file)
+        yield metadata.cbio_project, rmats_file
         if i % n == 0:
             logger.info("Processed %d of %d rmats files", i, len(splice_metadata))
-    concat_frame: pd.DataFrame = pd.concat(frame_list, ignore_index=True)
-    del frame_list
-    return concat_frame
+
+
+def init_cbio_sv_df(splice_results: str, splice_metadata: pd.DataFrame) -> pd.DataFrame:
+    """Return all rMATS files as one unformatted dataframe (memory-heavy; kept for callers)."""
+    return pd.concat(
+        (df for _, df in iter_rmats_frames(splice_results, splice_metadata)),
+        ignore_index=True,
+    )
 
 
 def main() -> None:
@@ -243,20 +197,26 @@ def main() -> None:
         default="rMATS v4.1.2, GENCODE v39",
     )
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+)
     args = parser.parse_args()
 
     rna_splice_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir,
                                                             args.table, "splice", args.skip_symlink)
-    cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, rna_splice_subset)
-    comment = args.comment
-    cbio_sv_df = rename_and_format_cols(cbio_sv_df, comment)
 
-    for project, proj_df in cbio_sv_df.groupby("cbio_project"):
-        out = Path(args.out_dir) / f"{project}.svs.txt"
-        proj_df.drop(columns="cbio_project").set_index("Sample_Id").to_csv(
-            out, sep="\t", quoting=csv.QUOTE_NONE
+    written: set[str] = set()
+    for project, rmats_df in iter_rmats_frames(args.link_input_dir, rna_splice_subset):
+        cbio_df = rename_and_format_cols(rmats_df, args.comment).drop(columns="cbio_project")
+        first = project not in written
+        cbio_df.to_csv(
+            Path(args.out_dir) / f"{project}.svs.txt",
+            sep="\t", index=False, quoting=csv.QUOTE_NONE,
+            mode="w" if first else "a", header=first,
         )
-
+        written.add(project)
 
 if __name__ == "__main__":
     main()
