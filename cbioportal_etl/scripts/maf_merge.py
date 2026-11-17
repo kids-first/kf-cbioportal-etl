@@ -2,15 +2,15 @@
 """Merge MAF Files.
 
 Merge and filter MAF files to create an output with a singular header and
-variants not nor,ally suitable for cBio removed
+variants not normally suitable for cBio removed
 
 """
 
 import argparse
-import concurrent.futures
 import json
 import os
 import sys
+from operator import itemgetter
 from typing import IO, NamedTuple
 
 import pandas as pd
@@ -43,6 +43,12 @@ def filter_entry(
         Index position for Matched_Norm_Sample_Barcode ID in entry as list,
         Index position of Variant_Classification in entry as list,
         Index position of Hugo_Symbol in entry as list
+    maf_exc: Dictionary of variant classifications to exclude from output
+
+    Returns:
+    list of entry values with Tumor_Sample_Barcode and Matched_Norm_Sample_Barcode changed to
+      cbio IDs and ENTREZ ID dropped, or None if entry is to be excluded
+
     """
     data: list = entry.rstrip("\n").split("\t")
     # Want to allow TERT promoter as exception to exclusion rules
@@ -56,62 +62,40 @@ def filter_entry(
 
 
 def process_maf(
-    maf_fn: str, new_maf: IO, maf_exc: dict[str, int], tum_id: str, norm_id: str
-) -> None:
-    """Iterate over maf file, skipping header lines since the files are being merged.
+        maf_fn: str,
+        new_maf: IO,
+        maf_exc: dict[str, int],
+        tum_id: str,
+        norm_id: str,
+        print_header: list[str]) -> None:
+    """Process a single MAF file, filtering out unwanted entries and writing to new MAF."""
+    # read in ~ 1MB at a time
+    with open(maf_fn, buffering=1 << 20) as cur_maf:
+        next(cur_maf)  # first line, skipped as in the original
+        cur_header = next(cur_maf).rstrip("\n").split("\t")
+        col = {name: i for i, name in enumerate(cur_header)}
+        tid_idx = col["Tumor_Sample_Barcode"]
+        nid_idx = col["Matched_Norm_Sample_Barcode"]
+        v_idx = col["Variant_Classification"]
+        h_idx = col["Hugo_Symbol"]
 
-    With possibility of mixed source, search headers
+        # Output columns missing from this file get index -1, which points at the
+        # "" appended to each row below.
+        pick = itemgetter(*[col.get(name, -1) for name in print_header])
+        split_n = max(v_idx, h_idx) + 1
+        write = new_maf.write
 
-    Args:
-    maf_fn: Input MAF filename
-    new_maf: Output maf file handle
-    maf_exc: Dict with Variant_Classification exclusionary terms
-    tum_id: ID to change Tumor_Sample_Barcode to
-    norm_id: ID to change Matched_Norm_Sample_Barcode to
-
-    """
-    with open(maf_fn) as cur_maf:
-        next(cur_maf)
-        head: str = next(cur_maf)
-
-        cur_header: list = head.rstrip("\n").split("\t")
-        h_dict: dict[str, int | None] = {}
-        for item in print_header:
-            if item in cur_header:
-                h_dict[item] = cur_header.index(item)
-            else:
-                h_dict[item] = None
-
-        entry_indices = EntryIndices(
-            cur_header.index("Tumor_Sample_Barcode"),
-            cur_header.index("Matched_Norm_Sample_Barcode"),
-            cur_header.index("Variant_Classification"),
-            cur_header.index("Hugo_Symbol"),
-        )
-
-        with concurrent.futures.ThreadPoolExecutor(16) as executor:
-            results: set[Future[list[str] | None]] = {
-                executor.submit(
-                    filter_entry,
-                    entry,
-                    tum_id,
-                    norm_id,
-                    entry_indices,
-                    maf_exc,
-                )
-                for entry in cur_maf
-            }
-            for result in concurrent.futures.as_completed(results):
-                filtered: list[str] | None = result.result()
-                if filtered is not None:
-                    to_print: list[str] = []
-                    for item in print_header:
-                        if h_dict[item] is not None:
-                            to_print.append(filtered[h_dict[item]])
-                        else:
-                            to_print.append("")
-
-                    new_maf.write("\t".join(to_print) + "\n")
+        for line in cur_maf:
+            # Cheap partial split first: only the leading fields are needed to decide.
+            head = line.split("\t", split_n)
+            vc = head[v_idx]
+            if vc in maf_exc and not (vc == "5'Flank" and head[h_idx] == "TERT"):
+                continue
+            row = line.rstrip("\n").split("\t")
+            row[tid_idx] = tum_id
+            row[nid_idx] = norm_id
+            row.append("")
+            write("\t".join(pick(row)) + "\n")
 
 
 def process_tbl(study: str, file_meta_dict: list[list], print_head: str) -> None:
@@ -134,13 +118,12 @@ def process_tbl(study: str, file_meta_dict: list[list], print_head: str) -> None
                     f"Found relevant maf to process for {cbio_tum_id} {cbio_norm_id} {fname}",
                     file=sys.stderr,
                 )
-                process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id)
+                process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id, print_header)
                 x += 1
             print(f"Completed processing {x} entries in {study}", file=sys.stderr)
-            new_maf.close()
     except Exception as e:
         print(e, file=sys.stderr)
-        sys.exit()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
