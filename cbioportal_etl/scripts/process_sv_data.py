@@ -1,142 +1,100 @@
 #!/usr/bin/env python3
-"""Converts our current fusion and annot SV inputs into the cBio SV format.
+"""Converts RNA fusion, DNA annotSV and/or rMATS splice inputs into cBio SV files.
 
-For repeat rows (same breakpoint in a sample, different callers),
-ARRIBA annot is used with ceiling of mean for counts used
+Any combination of the three sources can be run in one invocation; rows from all
+selected sources are appended to the same per-project <project>.svs.txt.
 """
 
 import argparse
-import csv
 import logging
-from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    import numpy as np
-import pandas as pd
-from annotsv_to_cbio_sv import init_cbio_sv_df, rename_and_format_cols, sv_setup_outdir_metadata
-from convert_fusion_as_sv import (
-    fusion_setup_outdir_metadata,
-    init_cbio_master,
-)
+from annotsv_to_cbio_sv import COLUMNS as DNA_COLUMNS
+from annotsv_to_cbio_sv import iter_annotsv_chunks
+from convert_fusion_as_sv import COLUMNS as FUSION_COLUMNS
+from convert_fusion_as_sv import fusion_setup_outdir_metadata, iter_fusion_chunks
+# from rmats_splice_to_cbio_sv import COLUMNS as SPLICE_COLUMNS
+# from rmats_splice_to_cbio_sv import DEFAULT_COMMENT, iter_rmats_chunks
+from sv_common import SVWriter, configure_logging, sv_setup_outdir_metadata
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser."""
+    parser = argparse.ArgumentParser(
+        description="Convert fusion, annotSV and/or rMATS splice results to cbio SV format."
+    )
+    parser.add_argument("-t", "--table", required=True,
+                        help="Table with cbio project, kf bs ids, cbio IDs, and file names")
+    parser.add_argument("-o", "--out-dir", default="merged_sv",
+                        help="Result output dir. Default is merged_sv")
+    parser.add_argument("-a", "--append", action=argparse.BooleanOptionalAction,
+                        help="Append to existing project files, reusing their header")
+    parser.add_argument("-s", "--skip-symlink", action=argparse.BooleanOptionalAction,
+                        help="Skip sym links if repeating the process with the same input files")
+    # RNA fusion
+    parser.add_argument("-f", "--fusion-results",
+                        help="annoFuse results dir OR openX merged fusion file")
+    parser.add_argument("-m", "--mode", choices=["openX", "kfprod", "dgd"],
+                        help="Fusion source (required with --fusion-results)")
+    # DNA SV
+    parser.add_argument("--process-sv-results", action=argparse.BooleanOptionalAction,
+                        help="Process DNA SV results from annotSV listed in the table")
+    parser.add_argument("-l", "--link-input-dir", default="annotSV_results/",
+                        help="DNA SV directory name to store annotSV symlinks")
+    # rMATS splice
+    # parser.add_argument("--process-splice-results", action=argparse.BooleanOptionalAction,
+    #                     help="Process rMATS splice results listed in the table")
+    # parser.add_argument("--splice-link-input-dir", default="rmats_results/",
+    #                     help="rMATS splice directory name to store symlinks")
+    # parser.add_argument("--comment", default=DEFAULT_COMMENT,
+    #                     help="rMATS and GENCODE version information for the splice Comments column")
+    return parser
 
 
 def main() -> None:
-    """Convert fusion and/or annotSV results to cBio SV format."""
-    logger = logging.getLogger(__name__)
-    parser = argparse.ArgumentParser(
-        description="Convert openPBTA fusion table OR list of annofuse files to cbio format."
-    )
-    parser.add_argument(
-        "-t",
-        "--table",
-        help="Table with cbio project, kf bs ids, cbio IDs, and file names",
-        required=True,
-    )
-    parser.add_argument(
-        "-f",
-        "--fusion-results",
-        help="annoFuse results dir OR openX merged fusion file",
-    )
-    parser.add_argument(
-        "--process-sv-results",
-        action=argparse.BooleanOptionalAction,
-        help="DNA SV results from annotSV exist in table and you wish to process them",
-    )
-    parser.add_argument(
-        "-o",
-        "--out-dir",
-        default="merged_sv",
-        help="Result output dir. Default is merged_fusion",
-    )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        choices=["openX", "kfprod", "dgd"],
-        help="describe source",
-    )
-    parser.add_argument(
-        "-a",
-        "--append",
-        action=argparse.BooleanOptionalAction,
-        help="Flag to append, meaning print to STDOUT and skip header",
-    )
-    parser.add_argument(
-        "-s",
-        "--skip-symlink",
-        action=argparse.BooleanOptionalAction,
-        help="Flag to skip sym links if repeating the process with the same input files",
-    )
-    parser.add_argument(
-        "-l",
-        "--link-input-dir",
-        action="store",
-        help="DNA SV directory name to store annotSV symlinks",
-        default="annotSV_results/",
-    )
-
-
+    """Convert any combination of fusion, annotSV and rMATS results to cBio SV format."""
+    parser = build_parser()
     args = parser.parse_args()
-    # ensure dependent args are set
+    # if not (args.fusion_results or args.process_sv_results or args.process_splice_results):
+    #     parser.error("Specify at least one of --fusion-results, --process-sv-results, --process-splice-results.")
     if not (args.fusion_results or args.process_sv_results):
-        parser.error("Either --fusion-results and/or --sv-results must be specified.")
+        parser.error("Specify at least one of --fusion-results, --process-sv-results")
     if args.fusion_results and not args.mode:
         parser.error("Need to set -m mode when processing fusion data. Opts are kfprod, openX, dgd.")
+    configure_logging()
+    logger = logging.getLogger(__name__)
 
-    out_dir = args.out_dir
-    Path(out_dir).mkdir(exist_ok=True, parents=True)
+    header: list[str] = []
+    if args.process_sv_results:
+        header += DNA_COLUMNS
+    if args.fusion_results:
+        header += FUSION_COLUMNS
+    # if args.process_splice_results:
+    #     header += SPLICE_COLUMNS
+    writer = SVWriter(args.out_dir, list(dict.fromkeys(header)), append=bool(args.append))
 
+    projects: set[str] = set()
     if args.process_sv_results:
         logger.info("DNA SV flag given, processing")
-        # get DNA SV results if any
-        dna_sv_subset: pd.DataFrame = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir,
-                                                               args.table, args.skip_symlink)
-        cbio_sv_df: pd.DataFrame = init_cbio_sv_df(args.link_input_dir, dna_sv_subset)
-        cbio_sv_df = rename_and_format_cols(concat_sv_df=cbio_sv_df)
-        merged_metadata_subset = dna_sv_subset
-        project_list: np.ndarray = dna_sv_subset.cbio_project.unique()
-        merged_df = cbio_sv_df
-
+        meta = sv_setup_outdir_metadata(args.link_input_dir, args.out_dir, args.table, "sv", args.skip_symlink)
+        projects.update(meta.cbio_project.unique())
+        for project, df in iter_annotsv_chunks(args.link_input_dir, meta):
+            writer.write(project, df)
     if args.fusion_results:
         logger.info("RNA fusion data given, processing")
-        # Get RNA Fusion results if any
-        rna_fusion_subset: pd.DataFrame = fusion_setup_outdir_metadata(args.mode, args.out_dir, args.table)
-
-        cbio_fusion_df = init_cbio_master(args.fusion_results, args.mode, rna_fusion_subset)
-        merged_metadata_subset = rna_fusion_subset
-        merged_df = cbio_fusion_df
-
-    if args.process_sv_results and args.fusion_results:
-        logger.info("Both DNA SV and RNA fusion given, merging data frames")
-        merged_metadata_subset = pd.concat([dna_sv_subset, rna_fusion_subset])
-        merged_df: pd.DataFrame = pd.concat([cbio_sv_df, cbio_fusion_df])
-
-    project_list: np.ndarray = merged_metadata_subset.cbio_project.unique()
-    for project in project_list:
-        logger.info("Outputting final SV results for %s", project)
-        sub_sample_list = list(
-            merged_metadata_subset.loc[merged_metadata_subset["cbio_project"] == project,
-                                       "cbio_sample_name"],
-        )
-        out_fname: Path = Path(args.out_dir) / (project + ".svs.txt")
-        subset_merged_df: pd.DataFrame = merged_df[merged_df.Sample_Id.isin(sub_sample_list)]
-        if not args.append:
-            subset_merged_df.set_index("Sample_Id", inplace=True)
-            subset_merged_df.to_csv(out_fname, sep="\t", mode="w", index=True, quoting=csv.QUOTE_NONE)
-        else:
-            # append to existing fusion file, use same header
-            existing = pd.read_csv(out_fname, sep="\t", keep_default_na=False, na_values=[""])
-            subset_merged_df = subset_merged_df[existing.columns]
-            subset_merged_df.set_index("Sample_Id", inplace=True)
-            subset_merged_df.to_csv(
-                out_fname, sep="\t", mode="a", index=True, quoting=csv.QUOTE_NONE, header=None
-            )
+        meta = fusion_setup_outdir_metadata(args.mode, args.out_dir, args.table)
+        projects.update(meta.cbio_project.unique())
+        for project, df in iter_fusion_chunks(args.fusion_results, args.mode, meta):
+            writer.write(project, df)
+    # if args.process_splice_results:
+    #     logger.info("rMATS splice data given, processing")
+    #     meta = sv_setup_outdir_metadata(
+    #         args.splice_link_input_dir, args.out_dir, args.table, "splice", args.skip_symlink
+    #     )
+    #     projects.update(meta.cbio_project.unique())
+    #     for project, df in iter_rmats_chunks(args.splice_link_input_dir, meta, args.comment):
+    #         writer.write(project, df)
+    writer.finish(sorted(projects))
+    logger.info("Done writing SV files for %d project(s) to %s", len(projects), args.out_dir)
 
 
 if __name__ == "__main__":
