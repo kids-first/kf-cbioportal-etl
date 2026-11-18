@@ -81,7 +81,7 @@ class SVWriter:
     def __init__(self, out_dir: str, header: list[str], *, append: bool = False) -> None:
         self.out_dir = Path(out_dir)
         self.out_dir.mkdir(exist_ok=True, parents=True)
-        self.header = list(header)
+        self.header = header
         self.append = append
         self._cols: dict[str, list[str]] = {}
 
