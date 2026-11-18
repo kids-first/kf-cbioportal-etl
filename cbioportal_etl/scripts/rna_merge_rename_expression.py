@@ -11,9 +11,11 @@ import argparse
 import concurrent.futures
 import io
 import json
+import multiprocessing as mp
 import os
 import sys
 import tarfile
+import time
 import warnings
 
 import numpy as np
@@ -25,6 +27,7 @@ from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 _REF_INDEX = None
 _EXPR = None
 _RSEM_DIR = None
+_W = {}  # set in the parent before the pool forks
 
 
 def _init_worker(ref_index, expr_type, rsem_dir):
@@ -62,7 +65,7 @@ def dedupe_by_max(symbols: np.ndarray, mean_expr: np.ndarray) -> np.ndarray:
     return tmp.index.to_numpy()
 
 
-def zscore_rows(a: np.ndarray, block: int = 16384) -> np.ndarray:
+def zscore_rows(a: np.ndarray, block: int = 4096) -> np.ndarray:
     """Row-wise z-score (ddof=0, NaN-aware). NaN / zero-variance results become 0."""
     out = np.empty(a.shape, dtype=np.float32)
     with np.errstate(all="ignore"), warnings.catch_warnings():
@@ -101,6 +104,7 @@ def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> d
             file_obj = tar.extractfile(member)
             if not file_obj:
                 continue
+            print(f"{time.time()} Loading healthy reference {key}", file=sys.stderr)
             df = pd.read_csv(io.TextIOWrapper(file_obj), sep="\t", index_col=0)
             symbols = gene_symbols(df.index)
             keep = dedupe_by_max(symbols, df.mean(axis=1).to_numpy())
@@ -115,16 +119,33 @@ def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> d
     return stats_by_key
 
 
-def write_projects(mat, genes, project_samples, col_pos, path_fmt, rows=None, **kw):
+def _fmt_chunk(span):
+    s, e = span
+    rows, cols, mat = _W["rows"], _W["cols"], _W["mat"]
+    if rows is None:
+        block = mat[s:e][:, cols]
+        g = _W["genes"][s:e]
+    else:
+        r = rows[s:e]
+        block = mat[np.ix_(r, cols)]
+        g = _W["genes"][r]
+    return pd.DataFrame(block, index=g).to_csv(
+        sep="\t", header=False, float_format=_W["ff"]
+    )
+
+
+def write_projects(mat, genes, project_samples, col_pos, path_fmt,
+                   rows=None, float_format=None, chunk=2000, workers=None):
+    n = mat.shape[0] if rows is None else len(rows)
+    spans = [(s, min(s + chunk, n)) for s in range(0, n, chunk)]
+    ctx = mp.get_context("fork")
     for project, names in project_samples.items():
-        cols = [col_pos[n] for n in names]
-        if rows is None:
-            block, g = mat[:, cols], genes
-        else:
-            block, g = mat[np.ix_(rows, cols)], genes[rows]
-        pd.DataFrame(block, index=g, columns=names).to_csv(
-            path_fmt.format(project=project), sep="\t", **kw
-        )
+        _W.update(mat=mat, genes=genes, rows=rows,
+                  cols=np.array([col_pos[x] for x in names]), ff=float_format)
+        with ctx.Pool(workers) as pool, open(path_fmt.format(project=project), "w") as fh:
+            fh.write("\t".join(["Hugo_Symbol", *names]) + "\n")
+            for text in pool.imap(_fmt_chunk, spans):
+                fh.write(text)
 
 
 def match_type_for(library_type, default_match_type):
@@ -168,7 +189,7 @@ if __name__ == "__main__":
     samples = pairs["cbio_sample_name"].tolist()
 
     # ---- Load RSEM files into one preallocated float32 matrix (genes x samples) ----
-    print("Reading RSEM files...", file=sys.stderr)
+    print(f"{time.time()} Reading RSEM files...", file=sys.stderr)
     ref_index = pd.Index(
         pd.read_csv(os.path.join(rsem_dir, files[0]), sep="\t", usecols=["gene_id"])["gene_id"]
     )
@@ -182,7 +203,7 @@ if __name__ == "__main__":
                 master[:, len(loaded)] = vals
                 loaded.append(samples[i - 1])
             if i % 50 == 0:
-                print(f"Loaded {i} files", file=sys.stderr)
+                print(f"{time.time()} Loaded {i} files", file=sys.stderr)
     master = master[:, : len(loaded)]
     col_pos = {s: i for i, s in enumerate(loaded)}
 
@@ -200,7 +221,7 @@ if __name__ == "__main__":
     }
 
     # ---- Raw expression output ----
-    print(f"Outputting {expr} expression results", file=sys.stderr)
+    print(f"{time.time()} Outputting {expr} expression results", file=sys.stderr)
     write_projects(master, genes, project_samples, col_pos,
                    out_dir + "{project}.rsem_merged." + expr + ".txt")
 
@@ -209,13 +230,33 @@ if __name__ == "__main__":
     np.log2(master, out=master)
     log_master = master
 
-    print("Calculating z-scores...", file=sys.stderr)
+    print(f"{time.time()} Calculating z-scores...", file=sys.stderr)
     if "etl_experiment_strategy" in rna_subset.columns:
         # sample lists per library type (None == missing)
         groups = {}
         for s, lib in zip(rna_subset["cbio_sample_name"], rna_subset["etl_experiment_strategy"]):
             groups.setdefault(None if pd.isna(lib) else lib, {})[s] = None
 
+        # column positions per library type (only samples that loaded)
+        group_cols = {}
+        for lib, sample_dict in groups.items():
+            names = [s for s in sample_dict if s in col_pos]
+            if names:
+                group_cols[lib] = np.array([col_pos[s] for s in names])
+
+        # ---- Intra-cohort z-score per library type: always written ----
+        intra = np.zeros(log_master.shape, dtype=np.float32)
+        for lib, cols in group_cols.items():
+            print(f"{time.time()} Calculating intra-cohort z-score for {lib}", file=sys.stderr)
+            intra[:, cols] = zscore_rows(log_master[:, cols])
+        write_projects(
+            intra, genes, project_samples, col_pos,
+            out_dir + "{project}.rsem_merged_tumor_only_zscore_" + expr + ".txt",
+            float_format="%.4f",
+        )
+        del intra  # free before the vs-healthy matrix is allocated
+
+        # ---- Tumor vs healthy z-score ----
         NONE_TYPES = {"rnaseq", "rna-seq", "rna seq", "none", "nan", ""}
         only_lib = next(iter(groups)) if len(groups) == 1 else "<multiple>"
         all_none = len(groups) == 1 and (
@@ -224,7 +265,7 @@ if __name__ == "__main__":
         skip_vs_healthy = all_none and str(args.default_match_type).strip().lower() in {"none", "", "nan"}
 
         if skip_vs_healthy:
-            print("Skipping output of vs-healthy z-score because values are equivalent "
+            print(f"{time.time()} Skipping output of vs-healthy z-score because values are equivalent "
                   "to intra-cohort z-score", file=sys.stderr)
         else:
             # Load only the healthy references we actually need, reduced to mean/std
@@ -233,7 +274,7 @@ if __name__ == "__main__":
                 config_data = resolve_config_paths(json.load(f), TOOL_DIR)
             needed = {
                 f"healthy_{mt}_{expr}"
-                for mt in (match_type_for(lib, args.default_match_type) for lib in groups)
+                for mt in (match_type_for(lib, args.default_match_type) for lib in group_cols)
                 if mt
             }
             healthy = load_healthy_stats(config_data["rsem_ref"]["archive"], expr, needed)
@@ -241,15 +282,10 @@ if __name__ == "__main__":
             out = np.zeros(log_master.shape, dtype=np.float32)
             covered = np.zeros(len(genes), dtype=bool)
 
-            for lib, sample_dict in groups.items():
-                names = [s for s in sample_dict if s in col_pos]
-                if not names:
-                    continue
-                cols = np.array([col_pos[s] for s in names])
-                print(f"Processing samples with etl_experiment_strategy {lib}", file=sys.stderr)
-
+            for lib, cols in group_cols.items():
+                print(f"{time.time()} Calculating tumor vs healthy z-score for {lib}", file=sys.stderr)
                 mt = match_type_for(lib, args.default_match_type)
-                print(f"  ➤ Match type being used: {mt}", file=sys.stderr)
+                print(f"{time.time()}  ➤ Match type being used: {mt}", file=sys.stderr)
                 ref = healthy.get(f"healthy_{mt}_{expr}") if mt else None
 
                 if ref is not None:
@@ -266,8 +302,9 @@ if __name__ == "__main__":
                     covered[pos] = True
                     del x
                 else:
-                    print(f"No healthy reference available for {lib} library type, "
+                    print(f"{time.time()} No healthy reference available for {lib} library type, "
                           "using intra-cohort z-score instead", file=sys.stderr)
+                    # recomputed rather than kept in memory from the step above
                     out[:, cols] = zscore_rows(log_master[:, cols])
                     covered[:] = True
 
@@ -277,8 +314,9 @@ if __name__ == "__main__":
                 out_dir + "{project}.rsem_merged_vs_healthy_zscore_" + expr + ".txt",
                 rows=rows, float_format="%.4f",
             )
+
     else:
-        print("No etl_experiment_strategy column found, using intra-cohort z-score", file=sys.stderr)
+        print(f"{time.time()} No etl_experiment_strategy column found, using intra-cohort z-score", file=sys.stderr)
         z = zscore_rows(log_master)
         write_projects(z, genes, project_samples, col_pos,
                        out_dir + "{project}.rsem_merged_tumor_only_zscore_" + expr + ".txt",
