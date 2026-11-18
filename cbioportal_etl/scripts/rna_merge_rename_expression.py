@@ -16,6 +16,7 @@ import multiprocessing as mp
 import os
 import tarfile
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -29,17 +30,17 @@ _RSEM_DIR = None
 _W = {}  # set in the parent before the pool forks
 
 
-def _init_worker(ref_index, expr_type, rsem_dir):
+def _init_worker(ref_index: pd.Index, expr_type: str, rsem_dir: Path) -> None:
     global _REF_INDEX, _EXPR, _RSEM_DIR
     _REF_INDEX, _EXPR, _RSEM_DIR = ref_index, expr_type, rsem_dir
 
 
-def load_rsem_file(rsem_file: str):
+def load_rsem_file(rsem_file: str) -> np.ndarray | None:
     """Read one RSEM file; return the expression column as float32 aligned to the reference gene index."""
     logger = logging.getLogger(__name__)
     try:
-        s = pd.read_csv(
-            os.path.join(_RSEM_DIR, rsem_file),
+        s: pd.Series = pd.read_csv(
+            _RSEM_DIR / rsem_file,
             sep="\t",
             index_col="gene_id",
             usecols=["gene_id", _EXPR],
@@ -49,25 +50,31 @@ def load_rsem_file(rsem_file: str):
             s = s[~s.index.duplicated()].reindex(_REF_INDEX)
         return s.to_numpy(dtype=np.float32)
     except Exception as e:
-        fail_msg = f"Failed to process {rsem_file} with error {e}"
+        fail_msg: str = f"Failed to process {rsem_file} with error {e}"
         logger.exception(fail_msg)
         return None
 
 
-def gene_symbols(gene_ids) -> np.ndarray:
-    """'ENSG000_TP53' -> 'TP53'"""
+def gene_symbols(gene_ids: pd.Index) -> np.ndarray:
+    """Convert RSEM row IDs to just gene symbols.
+
+    Example: 'ENSG000_TP53' -> 'TP53'
+    """
     return pd.Series(np.asarray(gene_ids)).str.split("_", n=1).str[1].to_numpy()
 
 
 def dedupe_by_max(symbols: np.ndarray, mean_expr: np.ndarray) -> np.ndarray:
     """Row positions to keep: one per symbol (highest mean), ordered by descending mean."""
-    tmp = pd.DataFrame({"sym": symbols, "m": mean_expr})
+    tmp: pd.DataFrame = pd.DataFrame({"sym": symbols, "m": mean_expr})
     tmp = tmp.sort_values("m", ascending=False, kind="stable").drop_duplicates("sym", keep="first")
     return tmp.index.to_numpy()
 
 
 def zscore_rows(a: np.ndarray, block: int = 4096) -> np.ndarray:
-    """Row-wise z-score (ddof=0, NaN-aware). NaN / zero-variance results become 0."""
+    """Row-wise z-score (ddof=0, NaN-aware). NaN / zero-variance results become 0.
+
+    Block limits number of genes processed at once to reduce memory usage
+    """
     out = np.empty(a.shape, dtype=np.float32)
     with np.errstate(all="ignore"), warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
@@ -88,7 +95,10 @@ def zscore_rows(a: np.ndarray, block: int = 4096) -> np.ndarray:
 
 
 def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> dict:
-    """Return {key: (mean Series, std Series)} indexed by Hugo symbol, for needed references only."""
+    """Load healthy references for experiment types found in dataset.
+
+    Return {key: (mean Series, std Series)} indexed by Hugo symbol, for needed references only.
+    """
     logger = logging.getLogger(__name__)
     stats_by_key = {}
     if not needed_keys:
@@ -97,7 +107,7 @@ def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> d
         for member in tar:  # iterate lazily instead of getmembers()
             if not member.isfile():
                 continue
-            name = os.path.basename(member.name)
+            name = Path(member.name).name
             if not name.endswith(f"_{expr_type}.tsv"):
                 continue
             key = name.replace(f"_log_{expr_type}.tsv", "") + f"_{expr_type}"
@@ -109,9 +119,9 @@ def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> d
             info_ref = f"Loading healthy reference {key}"
             logger.info(info_ref)
             df = pd.read_csv(io.TextIOWrapper(file_obj), sep="\t", index_col=0)
-            symbols = gene_symbols(df.index)
-            keep = dedupe_by_max(symbols, df.mean(axis=1).to_numpy())
-            sub = df.iloc[keep]
+            symbols: np.ndarray = gene_symbols(df.index)
+            keep: np.ndarray = dedupe_by_max(symbols, df.mean(axis=1).to_numpy())
+            sub: pd.DataFrame = df.iloc[keep]
             idx = pd.Index(symbols[keep])
             mu, sd = sub.mean(axis=1), sub.std(axis=1)
             mu.index, sd.index = idx, idx
@@ -122,9 +132,11 @@ def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> d
     return stats_by_key
 
 
-def _fmt_chunk(span):
+def _fmt_chunk(span: tuple[int, int]) -> str:
+    """Format a chunk of the matrix for one project, returning a string to write to file."""
     s, e = span
     rows, cols, mat = _W["rows"], _W["cols"], _W["mat"]
+    # If rows is None, we are writing all rows; otherwise, we are writing only the specified subset of rows.
     if rows is None:
         block = mat[s:e][:, cols]
         g = _W["genes"][s:e]
@@ -137,25 +149,31 @@ def _fmt_chunk(span):
     )
 
 
-def write_projects(mat, genes, project_samples, col_pos, path_fmt,
-                   rows=None, float_format=None, chunk=2000, workers=None):
+def write_projects(mat: np.ndarray,
+                   genes: pd.Index,
+                   project_samples: dict[str, list[str]],
+                   col_pos: dict[str, int],
+                   path_fmt: str,
+                   rows: np.ndarray | None = None,
+                   float_format: str | None = None,
+                   chunk: int = 2000,
+                   workers: int | None = None,
+                   ) -> None:
+    """Write one output file per project, using multiprocessing to format chunks of the matrix."""
     n = mat.shape[0] if rows is None else len(rows)
-    spans = [(s, min(s + chunk, n)) for s in range(0, n, chunk)]
+    spans: list[tuple[int, int]] = [(s, min(s + chunk, n)) for s in range(0, n, chunk)]
     ctx = mp.get_context("fork")
     for project, names in project_samples.items():
         _W.update(mat=mat, genes=genes, rows=rows,
                   cols=np.array([col_pos[x] for x in names]), ff=float_format)
         with ctx.Pool(workers) as pool, open(path_fmt.format(project=project), "w") as fh:
             fh.write("\t".join(["Hugo_Symbol", *names]) + "\n")
-            for text in pool.imap(_fmt_chunk, spans):
-                fh.write(text)
+            fh.writelines(pool.imap(_fmt_chunk, spans))
 
 
-def match_type_for(library_type, default_match_type):
-    if library_type is None:
-        key = None
-    else:
-        key = str(library_type).strip().lower()
+def match_type_for(library_type: str | None, default_match_type: str) -> str | None:
+    """Return the match type to use for a given library type, or None if no match."""
+    key = None if library_type is None else str(library_type).strip().lower()
     if key == "rrna depletion":
         return "totalRNA"
     if key in {"poly-t enrichment", "hybrid selection"}:
@@ -187,24 +205,27 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     args = parser.parse_args()
 
-    expr = args.expression_type
-    rsem_dir = args.rsem_dir.rstrip("/")
-    out_dir = "merged_rsem/"
-    os.makedirs(out_dir, exist_ok=True)
+    expr: str = args.expression_type
+    rsem_dir: Path = Path(args.rsem_dir)
+    out_dir: Path = Path("merged_rsem")
+    out_dir.mkdir(exist_ok=True, parents=True)
 
-    all_file_meta = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
-    rna_subset = all_file_meta[all_file_meta["etl_file_type"] == "rsem"].copy()
-    pairs = rna_subset[["file_name", "cbio_sample_name"]].drop_duplicates(subset="cbio_sample_name")
-    files = pairs["file_name"].tolist()
-    samples = pairs["cbio_sample_name"].tolist()
+    all_file_meta: pd.DataFrame = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
+    rna_subset: pd.DataFrame = all_file_meta[all_file_meta["etl_file_type"] == "rsem"].copy()
+    pairs: pd.DataFrame = rna_subset[["file_name", "cbio_sample_name"]].drop_duplicates(subset="cbio_sample_name")
+    files: list[str] = pairs["file_name"].tolist()
+    samples: list[str] = pairs["cbio_sample_name"].tolist()
 
     # ---- Load RSEM files into one preallocated float32 matrix (genes x samples) ----
     logger.info("Reading RSEM files...")
-    ref_index = pd.Index(
-        pd.read_csv(os.path.join(rsem_dir, files[0]), sep="\t", usecols=["gene_id"])["gene_id"]
+    first_file: Path = rsem_dir / files[0]
+    ref_index: pd.Index = pd.Index(
+        pd.read_csv(first_file, sep="\t", usecols=["gene_id"])["gene_id"],
     )
+    # initialize master matrix
     master = np.empty((len(ref_index), len(files)), dtype=np.float32)
-    loaded = []
+    loaded: list[str] = []
+    # process files in parallel, each worker has access to the reference index and expression type
     with concurrent.futures.ProcessPoolExecutor(
         initializer=_init_worker, initargs=(ref_index, expr, rsem_dir)
     ) as executor:
@@ -213,29 +234,29 @@ if __name__ == "__main__":
                 master[:, len(loaded)] = vals
                 loaded.append(samples[i - 1])
             if i % 50 == 0:
-                load_ct = f"Loaded {i} files"
+                load_ct: str = f"Loaded {i} files"
                 logger.info(load_ct)
     master = master[:, : len(loaded)]
     col_pos = {s: i for i, s in enumerate(loaded)}
 
     # ---- Collapse duplicate gene symbols (keep highest mean expression) ----
-    symbols = gene_symbols(ref_index)
-    row_mean = (np.nanmean if np.isnan(master).any() else np.mean)(master, axis=1, dtype=np.float64)
-    keep = dedupe_by_max(symbols, row_mean)
-    master = master[keep]  # contiguous copy of the kept rows only
-    genes = pd.Index(symbols[keep], name="Hugo_Symbol")
+    symbols: np.ndarray = gene_symbols(ref_index)
+    row_mean: np.ndarray = (np.nanmean if np.isnan(master).any() else np.mean)(master, axis=1, dtype=np.float64)
+    keep: np.ndarray = dedupe_by_max(symbols, row_mean)
+    master: np.ndarray = master[keep]  # contiguous copy of the kept rows only
+    genes: pd.Index = pd.Index(symbols[keep], name="Hugo_Symbol")
     del row_mean, keep, symbols
 
-    project_samples = {
+    project_samples: dict[str, list[str]] = {
         proj: [s for s in dict.fromkeys(grp["cbio_sample_name"]) if s in col_pos]
         for proj, grp in rna_subset.groupby("cbio_project", sort=False)
     }
 
     # ---- Raw expression output ----
-    expr_msg = f"Outputting {expr} expression results"
+    expr_msg: str = f"Outputting {expr} expression results"
     logger.info(expr_msg)
     write_projects(master, genes, project_samples, col_pos,
-                   out_dir + "{project}.rsem_merged." + expr + ".txt")
+                   out_dir.as_posix() + "/{project}.rsem_merged." + expr + ".txt")
 
     # ---- log2(x + 1) in place ----
     master += 1
@@ -264,13 +285,13 @@ if __name__ == "__main__":
             intra[:, cols] = zscore_rows(log_master[:, cols])
         write_projects(
             intra, genes, project_samples, col_pos,
-            out_dir + "{project}.rsem_merged_tumor_only_zscore_" + expr + ".txt",
+            out_dir.as_posix() + "/{project}.rsem_merged_tumor_only_zscore_" + expr + ".txt",
             float_format="%.4f",
         )
         del intra  # free before the vs-healthy matrix is allocated
 
         # ---- Tumor vs healthy z-score ----
-        NONE_TYPES = {"rnaseq", "rna-seq", "rna seq", "none", "nan", ""}
+        NONE_TYPES = {"rnaseq", "rna-seq", "rna seq", "none", "nan", "", "not reported"}
         only_lib = next(iter(groups)) if len(groups) == 1 else "<multiple>"
         all_none = len(groups) == 1 and (
             only_lib is None or str(only_lib).strip().lower() in NONE_TYPES
@@ -327,7 +348,7 @@ if __name__ == "__main__":
             rows = np.flatnonzero(covered)
             write_projects(
                 out, genes, project_samples, col_pos,
-                out_dir + "{project}.rsem_merged_vs_healthy_zscore_" + expr + ".txt",
+                out_dir.as_posix() + "/{project}.rsem_merged_vs_healthy_zscore_" + expr + ".txt",
                 rows=rows, float_format="%.4f",
             )
 
@@ -336,5 +357,5 @@ if __name__ == "__main__":
         logger.info(no_exp_msg)
         z = zscore_rows(log_master)
         write_projects(z, genes, project_samples, col_pos,
-                       out_dir + "{project}.rsem_merged_tumor_only_zscore_" + expr + ".txt",
+                       out_dir.as_posix() + "/{project}.rsem_merged_tumor_only_zscore_" + expr + ".txt",
                        float_format="%.4f")
