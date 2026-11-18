@@ -14,224 +14,272 @@ import json
 import os
 import sys
 import tarfile
+import warnings
 
 import numpy as np
 import pandas as pd
-from scipy import stats
 
 from cbioportal_etl.scripts.resolve_config_paths import resolve_config_paths
 
+# Per-worker globals (set once per process by _init_worker)
+_REF_INDEX = None
+_EXPR = None
+_RSEM_DIR = None
 
-def load_rsem_file(rsem_file: str, sample: str, rsem_dir: str, expr_type: str) -> pd.DataFrame:
-    """Read and format a single RSEM file.
 
-    Args:
-        rsem_file: Filename of RSEM (example: 'sample.rsem.genes.results.gz')
-        sample: Sample ID
-        rsem_dir: Directory where RSEM files are located
-        expr_type: Type of expression value to extract (TPM or FPKM)
+def _init_worker(ref_index, expr_type, rsem_dir):
+    global _REF_INDEX, _EXPR, _RSEM_DIR
+    _REF_INDEX, _EXPR, _RSEM_DIR = ref_index, expr_type, rsem_dir
 
-    """
+
+def load_rsem_file(rsem_file: str):
+    """Read one RSEM file; return the expression column as float32 aligned to the reference gene index."""
     try:
-        current = pd.read_csv(os.path.join(rsem_dir, rsem_file), sep="\t", index_col=0)
-        subset = current[[expr_type]].copy()
-        subset.rename(columns={expr_type: sample}, inplace=True)
-        return subset
+        s = pd.read_csv(
+            os.path.join(_RSEM_DIR, rsem_file),
+            sep="\t",
+            index_col="gene_id",
+            usecols=["gene_id", _EXPR],
+            dtype={_EXPR: np.float32},
+        )[_EXPR]
+        if not s.index.equals(_REF_INDEX):
+            s = s[~s.index.duplicated()].reindex(_REF_INDEX)
+        return s.to_numpy(dtype=np.float32)
     except Exception as e:
         print(f"{e}\nFailed to process {rsem_file}", file=sys.stderr)
         return None
 
 
+def gene_symbols(gene_ids) -> np.ndarray:
+    """'ENSG000_TP53' -> 'TP53'"""
+    return pd.Series(np.asarray(gene_ids)).str.split("_", n=1).str[1].to_numpy()
+
+
+def dedupe_by_max(symbols: np.ndarray, mean_expr: np.ndarray) -> np.ndarray:
+    """Row positions to keep: one per symbol (highest mean), ordered by descending mean."""
+    tmp = pd.DataFrame({"sym": symbols, "m": mean_expr})
+    tmp = tmp.sort_values("m", ascending=False, kind="stable").drop_duplicates("sym", keep="first")
+    return tmp.index.to_numpy()
+
+
+def zscore_rows(a: np.ndarray, block: int = 16384) -> np.ndarray:
+    """Row-wise z-score (ddof=0, NaN-aware). NaN / zero-variance results become 0."""
+    out = np.empty(a.shape, dtype=np.float32)
+    with np.errstate(all="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        for s in range(0, a.shape[0], block):
+            x = a[s:s + block]
+            if np.isnan(x).any():
+                mu = np.nanmean(x, axis=1, keepdims=True, dtype=np.float64)
+                sd = np.nanstd(x, axis=1, keepdims=True, dtype=np.float64)
+            else:
+                mu = x.mean(axis=1, keepdims=True, dtype=np.float64)
+                sd = x.std(axis=1, keepdims=True, dtype=np.float64)
+            sd[sd == 0] = np.inf  # zero variance -> 0
+            z = out[s:s + block]
+            np.subtract(x, mu, out=z, casting="same_kind")
+            z /= sd
+            z[np.isnan(z)] = 0
+    return out
+
+
+def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> dict:
+    """Return {key: (mean Series, std Series)} indexed by Hugo symbol, for needed references only."""
+    stats_by_key = {}
+    if not needed_keys:
+        return stats_by_key
+    with tarfile.open(archive_path, "r:gz") as tar:
+        for member in tar:  # iterate lazily instead of getmembers()
+            if not member.isfile():
+                continue
+            name = os.path.basename(member.name)
+            if not name.endswith(f"_{expr_type}.tsv"):
+                continue
+            key = name.replace(f"_log_{expr_type}.tsv", "") + f"_{expr_type}"
+            if key not in needed_keys:
+                continue
+            file_obj = tar.extractfile(member)
+            if not file_obj:
+                continue
+            df = pd.read_csv(io.TextIOWrapper(file_obj), sep="\t", index_col=0)
+            symbols = gene_symbols(df.index)
+            keep = dedupe_by_max(symbols, df.mean(axis=1).to_numpy())
+            sub = df.iloc[keep]
+            idx = pd.Index(symbols[keep])
+            mu, sd = sub.mean(axis=1), sub.std(axis=1)
+            mu.index, sd.index = idx, idx
+            stats_by_key[key] = (mu, sd)
+            del df, sub
+            if len(stats_by_key) == len(needed_keys):
+                break
+    return stats_by_key
+
+
+def write_projects(mat, genes, project_samples, col_pos, path_fmt, rows=None, **kw):
+    for project, names in project_samples.items():
+        cols = [col_pos[n] for n in names]
+        if rows is None:
+            block, g = mat[:, cols], genes
+        else:
+            block, g = mat[np.ix_(rows, cols)], genes[rows]
+        pd.DataFrame(block, index=g, columns=names).to_csv(
+            path_fmt.format(project=project), sep="\t", **kw
+        )
+
+
+def match_type_for(library_type, default_match_type):
+    if library_type is None:
+        key = None
+    else:
+        key = str(library_type).strip().lower()
+    if key == "rrna depletion":
+        return "totalRNA"
+    if key in {"poly-t enrichment", "hybrid selection"}:
+        return "polyA"
+    return default_match_type if default_match_type != "none" else None
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Merge rsem gene files using manifest file info.")
+    parser.add_argument("-t", "--table", dest="table",
+                        help="Table with cbio project, kf bs ids, cbio IDs, and file names")
+    parser.add_argument("-r", "--rsem-dir", dest="rsem_dir", help="rsem file directory")
+    parser.add_argument("-et", "--expression-type", dest="expression_type",
+                        choices=["TPM", "FPKM"], default="TPM",
+                        help="Which expression value to use: TPM or FPKM. Default is TPM.")
+    parser.add_argument("-sc", "--study-config", dest="study_config", help="cbio study config file.")
     parser.add_argument(
-        "-t",
-        "--table",
-        action="store",
-        dest="table",
-        help="Table with cbio project, kf bs ids, cbio IDs, and file names",
-    )
-    parser.add_argument(
-        "-r",
-        "--rsem-dir",
-        action="store",
-        dest="rsem_dir",
-        help="rsem file directory",
-    )
-    parser.add_argument(
-        "-et", 
-        "--expression-type",
-        action="store",
-        dest="expression_type",
-        choices=["TPM", "FPKM"],
-        default="TPM",
-        help="Which expression value to use: TPM or FPKM. Default is TPM.",
-    )
-    parser.add_argument(
-        "-sc", 
-        "--study-config",
-        action="store",
-        dest="study_config",
-        help="cbio study config file.",
-    )
-    parser.add_argument(
-        "-dmt",
-        "--default-match-type",
-        action="store",
-        dest="default_match_type",
-        choices=["polyA", "totalRNA", "none"],
-        default="none",
+        "-dmt", "--default-match-type", dest="default_match_type",
+        choices=["polyA", "totalRNA", "none"], default="none",
         help="Default match type for samples with unknown RNA library type for z-score calculations. "
         "Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score.",
     )
     args = parser.parse_args()
 
+    expr = args.expression_type
     rsem_dir = args.rsem_dir.rstrip("/")
     out_dir = "merged_rsem/"
     os.makedirs(out_dir, exist_ok=True)
 
     all_file_meta = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
     rna_subset = all_file_meta[all_file_meta["etl_file_type"] == "rsem"].copy()
-    rsem_list = rna_subset[["file_name", "cbio_sample_name"]].drop_duplicates().values.tolist()
+    pairs = rna_subset[["file_name", "cbio_sample_name"]].drop_duplicates(subset="cbio_sample_name")
+    files = pairs["file_name"].tolist()
+    samples = pairs["cbio_sample_name"].tolist()
 
+    # ---- Load RSEM files into one preallocated float32 matrix (genes x samples) ----
     print("Reading RSEM files...", file=sys.stderr)
-    seen = set()
-    df_list = []
-    with concurrent.futures.ProcessPoolExecutor() as executor:
-        futures = {
-            executor.submit(load_rsem_file, fname, sample, rsem_dir, args.expression_type): sample
-            for fname, sample in rsem_list if sample not in seen and not seen.add(sample)
-        }
-        for i, fut in enumerate(concurrent.futures.as_completed(futures), 1):
-            result = fut.result()
-            if result is not None:
-                df_list.append(result)
+    ref_index = pd.Index(
+        pd.read_csv(os.path.join(rsem_dir, files[0]), sep="\t", usecols=["gene_id"])["gene_id"]
+    )
+    master = np.empty((len(ref_index), len(files)), dtype=np.float32)
+    loaded = []
+    with concurrent.futures.ProcessPoolExecutor(
+        initializer=_init_worker, initargs=(ref_index, expr, rsem_dir)
+    ) as executor:
+        for i, vals in enumerate(executor.map(load_rsem_file, files, chunksize=8), 1):
+            if vals is not None:
+                master[:, len(loaded)] = vals
+                loaded.append(samples[i - 1])
             if i % 50 == 0:
                 print(f"Loaded {i} files", file=sys.stderr)
+    master = master[:, : len(loaded)]
+    col_pos = {s: i for i, s in enumerate(loaded)}
 
-    master_tbl = pd.concat(df_list, axis=1).astype(np.float32).copy()
-    master_tbl.reset_index(inplace=True)
-    master_tbl["Hugo_Symbol"] = master_tbl["gene_id"].str.split("_", n=1).str[1]
-    master_tbl.drop(columns=["gene_id"], inplace=True)
+    # ---- Collapse duplicate gene symbols (keep highest mean expression) ----
+    symbols = gene_symbols(ref_index)
+    row_mean = (np.nanmean if np.isnan(master).any() else np.mean)(master, axis=1, dtype=np.float64)
+    keep = dedupe_by_max(symbols, row_mean)
+    master = master[keep]  # contiguous copy of the kept rows only
+    genes = pd.Index(symbols[keep], name="Hugo_Symbol")
+    del row_mean, keep, symbols
 
-    sample_list = master_tbl.columns.drop("Hugo_Symbol").tolist()
-    master_tbl["mean_expr"] = master_tbl[sample_list].mean(axis=1)
-    master_tbl.sort_values("mean_expr", ascending=False, inplace=True)
-    master_tbl.drop_duplicates("Hugo_Symbol", keep="first", inplace=True)
-    master_tbl.drop(columns=["mean_expr"], inplace=True)
-    master_tbl.set_index("Hugo_Symbol", inplace=True)
-    log_master_tbl = np.log2(master_tbl + 1)
+    project_samples = {
+        proj: [s for s in dict.fromkeys(grp["cbio_sample_name"]) if s in col_pos]
+        for proj, grp in rna_subset.groupby("cbio_project", sort=False)
+    }
 
-    project_list = rna_subset.cbio_project.unique()
-    print(f"Outputting {args.expression_type} expression results", file=sys.stderr)
-    for project in project_list:
-        sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
-        master_tbl[sub_samples].to_csv(f"{out_dir}{project}.rsem_merged.{args.expression_type}.txt", sep="\t")
+    # ---- Raw expression output ----
+    print(f"Outputting {expr} expression results", file=sys.stderr)
+    write_projects(master, genes, project_samples, col_pos,
+                   out_dir + "{project}.rsem_merged." + expr + ".txt")
+
+    # ---- log2(x + 1) in place ----
+    master += 1
+    np.log2(master, out=master)
+    log_master = master
 
     print("Calculating z-scores...", file=sys.stderr)
-    # Studies with library type column will be processed by library type 
     if "etl_experiment_strategy" in rna_subset.columns:
-        # load healthy references
-        TOOL_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-        with open(args.study_config) as f:
-            config_data: dict = json.load(f)
-        config_data = resolve_config_paths(config_data, TOOL_DIR)
-
-        healthy_files = {}
-
-        archive_path = config_data["rsem_ref"]["archive"]
-        with tarfile.open(archive_path, "r:gz") as tar:
-            for member in tar.getmembers():
-                if not member.isfile():
-                    continue
-                name = os.path.basename(member.name)
-                if name.endswith(f"_{args.expression_type}.tsv"):
-                    key = name.replace(f"_log_{args.expression_type}.tsv", "") + f"_{args.expression_type}"
-                    file_obj = tar.extractfile(member)
-                    if file_obj:
-                        df = pd.read_csv(io.TextIOWrapper(file_obj), sep="\t", index_col=0)
-                        # convert genes to Hugo symbols
-                        df["Hugo_Symbol"] = df.index.str.split("_", n=1).str[1]
-                        # keep the most highly expressed entry per Hugo symbol for duplicates
-                        df["mean_expr"] = df.drop(columns="Hugo_Symbol").mean(axis=1)
-                        df = df.sort_values("mean_expr", ascending=False).drop_duplicates("Hugo_Symbol", keep="first")
-                        df.set_index("Hugo_Symbol", inplace=True)
-                        df.drop(columns="mean_expr", inplace=True)
-                        healthy_files[key] = df
-
-        zscore_intracohort = []
-        zscore_vs_healthy = []
-        # Process samples grouped by library type
-        unique_strategies = rna_subset["etl_experiment_strategy"].dropna().unique().tolist()
-        if rna_subset["etl_experiment_strategy"].isna().any():
-            unique_strategies.append(np.nan)
-        for library_type in unique_strategies:
-            if pd.isna(library_type):
-                print("Processing samples with missing etl_experiment_strategy", file=sys.stderr)
-                group_df = rna_subset[rna_subset["etl_experiment_strategy"].isna()]
-            else:
-                print(f"Processing samples with etl_experiment_strategy {library_type}", file=sys.stderr)
-                group_df = rna_subset[rna_subset["etl_experiment_strategy"] == library_type]
-
-            group_samples = group_df["cbio_sample_name"].tolist()
-            group_tbl = log_master_tbl[group_samples].copy()
-
-            # Intra-cohort z-score
-            print(f"Calculating intra-cohort z-score for {library_type}")
-            # Calculate z-score and ignore NaN values when computing mean and SD for each row
-            # Mean and SD is calculated with non-NaN values
-            zscore_vals = stats.zscore(group_tbl, axis=1, nan_policy='omit')
-            intracohort_df = pd.DataFrame(zscore_vals, index=group_tbl.index, columns=group_tbl.columns).fillna(0)
-            zscore_intracohort.append(intracohort_df)
-
-            # Tumor vs healthy reference z-score (only if match_type available)
-            print(f"Calculating tumor vs healthy z-score for {library_type}")
-            library_key = str(library_type).strip().lower() if not pd.isna(library_type) else None
-            match_type = (
-                "totalRNA" if library_key == "rrna depletion"
-                else "polyA" if library_key in {"poly-t enrichment", "hybrid selection"}
-                else args.default_match_type if args.default_match_type != "none"
-                else None
-            )
-            print(f"  ➤ Match type being used: {match_type}", file=sys.stderr)
-            ref_key = f"healthy_{match_type}_{args.expression_type}" if match_type else None
-
-            if ref_key and ref_key in healthy_files:
-                healthy_ref = healthy_files[ref_key]
-                common_genes = group_tbl.index.intersection(healthy_ref.index)
-                mu = healthy_ref.loc[common_genes].mean(axis=1)
-                sigma = healthy_ref.loc[common_genes].std(axis=1)
-                zscore_df = group_tbl.loc[common_genes].sub(mu, axis=0).div(sigma, axis=0).fillna(0)
-                zscore_vs_healthy.append(zscore_df)
-            else:
-                print(f"No healthy reference available for {library_type} library type, using intra-cohort z-score instead", file=sys.stderr)
-                zscore_vs_healthy.append(intracohort_df[group_tbl.columns])
-
-        master_zscore_vs_healthy = pd.concat(zscore_vs_healthy, axis=1).fillna(0).astype(np.float32)
-        master_zscore_intracohort = pd.concat(zscore_intracohort, axis=1).fillna(0).astype(np.float32)
+        # sample lists per library type (None == missing)
+        groups = {}
+        for s, lib in zip(rna_subset["cbio_sample_name"], rna_subset["etl_experiment_strategy"]):
+            groups.setdefault(None if pd.isna(lib) else lib, {})[s] = None
 
         NONE_TYPES = {"rnaseq", "rna-seq", "rna seq", "none", "nan", ""}
-        raw_value = unique_strategies[0]
-        is_none_type = pd.isna(raw_value) or str(raw_value).strip().lower() in NONE_TYPES
-        all_library_types_none = len(unique_strategies) == 1 and is_none_type
-        skip_vs_healthy_output = all_library_types_none and str(args.default_match_type).strip().lower() in {"none", "", "nan"}
-        for project in project_list:
-            if skip_vs_healthy_output or master_zscore_vs_healthy.empty:
-                error_suffix = "values are equivalent to intra-cohort z-score" if skip_vs_healthy_output else "vs-healthy table is empty"
-                print(f"Skipping output of vs-healthy z-score for {project} because {error_suffix}", file=sys.stderr)
-                continue
-            sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
-            healthy_outfile = f"{out_dir}{project}.rsem_merged_vs_healthy_zscore_{args.expression_type}.txt"
-            master_zscore_vs_healthy[sub_samples].to_csv(healthy_outfile, sep="\t", float_format="%.4f")
+        only_lib = next(iter(groups)) if len(groups) == 1 else "<multiple>"
+        all_none = len(groups) == 1 and (
+            only_lib is None or str(only_lib).strip().lower() in NONE_TYPES
+        )
+        skip_vs_healthy = all_none and str(args.default_match_type).strip().lower() in {"none", "", "nan"}
 
+        if skip_vs_healthy:
+            print("Skipping output of vs-healthy z-score because values are equivalent "
+                  "to intra-cohort z-score", file=sys.stderr)
+        else:
+            # Load only the healthy references we actually need, reduced to mean/std
+            TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            with open(args.study_config) as f:
+                config_data = resolve_config_paths(json.load(f), TOOL_DIR)
+            needed = {
+                f"healthy_{mt}_{expr}"
+                for mt in (match_type_for(lib, args.default_match_type) for lib in groups)
+                if mt
+            }
+            healthy = load_healthy_stats(config_data["rsem_ref"]["archive"], expr, needed)
+
+            out = np.zeros(log_master.shape, dtype=np.float32)
+            covered = np.zeros(len(genes), dtype=bool)
+
+            for lib, sample_dict in groups.items():
+                names = [s for s in sample_dict if s in col_pos]
+                if not names:
+                    continue
+                cols = np.array([col_pos[s] for s in names])
+                print(f"Processing samples with etl_experiment_strategy {lib}", file=sys.stderr)
+
+                mt = match_type_for(lib, args.default_match_type)
+                print(f"  ➤ Match type being used: {mt}", file=sys.stderr)
+                ref = healthy.get(f"healthy_{mt}_{expr}") if mt else None
+
+                if ref is not None:
+                    mu_s, sd_s = ref
+                    pos = np.flatnonzero(genes.isin(mu_s.index))
+                    x = log_master[np.ix_(pos, cols)]  # copy, safe to modify in place
+                    mu = mu_s.reindex(genes[pos]).to_numpy(np.float32)[:, None]
+                    sd = sd_s.reindex(genes[pos]).to_numpy(np.float32)[:, None]
+                    with np.errstate(all="ignore"):
+                        x -= mu
+                        x /= sd
+                    x[np.isnan(x)] = 0
+                    out[np.ix_(pos, cols)] = x
+                    covered[pos] = True
+                    del x
+                else:
+                    print(f"No healthy reference available for {lib} library type, "
+                          "using intra-cohort z-score instead", file=sys.stderr)
+                    out[:, cols] = zscore_rows(log_master[:, cols])
+                    covered[:] = True
+
+            rows = np.flatnonzero(covered)
+            write_projects(
+                out, genes, project_samples, col_pos,
+                out_dir + "{project}.rsem_merged_vs_healthy_zscore_" + expr + ".txt",
+                rows=rows, float_format="%.4f",
+            )
     else:
-        # Studies without library type columns will use intra-cohort z-score
         print("No etl_experiment_strategy column found, using intra-cohort z-score", file=sys.stderr)
-        zscore_vals = stats.zscore(log_master_tbl, axis=1, nan_policy='omit')
-        master_zscore_log = pd.DataFrame(zscore_vals, index=log_master_tbl.index, columns=log_master_tbl.columns).fillna(0).astype(np.float32)
-
-        for project in project_list:
-            sub_samples = rna_subset[rna_subset["cbio_project"] == project]["cbio_sample_name"].tolist()
-            outfile = f"{out_dir}{project}.rsem_merged_tumor_only_zscore_{args.expression_type}.txt"
-            master_zscore_log[sub_samples].to_csv(outfile, sep="\t", float_format="%.4f")
+        z = zscore_rows(log_master)
+        write_projects(z, genes, project_samples, col_pos,
+                       out_dir + "{project}.rsem_merged_tumor_only_zscore_" + expr + ".txt",
+                       float_format="%.4f")
