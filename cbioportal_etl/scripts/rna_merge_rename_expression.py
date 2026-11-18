@@ -11,11 +11,10 @@ import argparse
 import concurrent.futures
 import io
 import json
+import logging
 import multiprocessing as mp
 import os
-import sys
 import tarfile
-import time
 import warnings
 
 import numpy as np
@@ -37,6 +36,7 @@ def _init_worker(ref_index, expr_type, rsem_dir):
 
 def load_rsem_file(rsem_file: str):
     """Read one RSEM file; return the expression column as float32 aligned to the reference gene index."""
+    logger = logging.getLogger(__name__)
     try:
         s = pd.read_csv(
             os.path.join(_RSEM_DIR, rsem_file),
@@ -49,7 +49,8 @@ def load_rsem_file(rsem_file: str):
             s = s[~s.index.duplicated()].reindex(_REF_INDEX)
         return s.to_numpy(dtype=np.float32)
     except Exception as e:
-        print(f"{e}\nFailed to process {rsem_file}", file=sys.stderr)
+        fail_msg = f"Failed to process {rsem_file} with error {e}"
+        logger.exception(fail_msg)
         return None
 
 
@@ -88,6 +89,7 @@ def zscore_rows(a: np.ndarray, block: int = 4096) -> np.ndarray:
 
 def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> dict:
     """Return {key: (mean Series, std Series)} indexed by Hugo symbol, for needed references only."""
+    logger = logging.getLogger(__name__)
     stats_by_key = {}
     if not needed_keys:
         return stats_by_key
@@ -104,7 +106,8 @@ def load_healthy_stats(archive_path: str, expr_type: str, needed_keys: set) -> d
             file_obj = tar.extractfile(member)
             if not file_obj:
                 continue
-            print(f"{time.time()} Loading healthy reference {key}", file=sys.stderr)
+            info_ref = f"Loading healthy reference {key}"
+            logger.info(info_ref)
             df = pd.read_csv(io.TextIOWrapper(file_obj), sep="\t", index_col=0)
             symbols = gene_symbols(df.index)
             keep = dedupe_by_max(symbols, df.mean(axis=1).to_numpy())
@@ -175,6 +178,13 @@ if __name__ == "__main__":
         help="Default match type for samples with unknown RNA library type for z-score calculations. "
         "Use 'polyA' or 'totalRNA' to override fallback to intra-cohort z-score.",
     )
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    logger = logging.getLogger(__name__)
     args = parser.parse_args()
 
     expr = args.expression_type
@@ -189,7 +199,7 @@ if __name__ == "__main__":
     samples = pairs["cbio_sample_name"].tolist()
 
     # ---- Load RSEM files into one preallocated float32 matrix (genes x samples) ----
-    print(f"{time.time()} Reading RSEM files...", file=sys.stderr)
+    logger.info("Reading RSEM files...")
     ref_index = pd.Index(
         pd.read_csv(os.path.join(rsem_dir, files[0]), sep="\t", usecols=["gene_id"])["gene_id"]
     )
@@ -203,7 +213,8 @@ if __name__ == "__main__":
                 master[:, len(loaded)] = vals
                 loaded.append(samples[i - 1])
             if i % 50 == 0:
-                print(f"{time.time()} Loaded {i} files", file=sys.stderr)
+                load_ct = f"Loaded {i} files"
+                logger.info(load_ct)
     master = master[:, : len(loaded)]
     col_pos = {s: i for i, s in enumerate(loaded)}
 
@@ -221,7 +232,8 @@ if __name__ == "__main__":
     }
 
     # ---- Raw expression output ----
-    print(f"{time.time()} Outputting {expr} expression results", file=sys.stderr)
+    expr_msg = f"Outputting {expr} expression results"
+    logger.info(expr_msg)
     write_projects(master, genes, project_samples, col_pos,
                    out_dir + "{project}.rsem_merged." + expr + ".txt")
 
@@ -230,7 +242,7 @@ if __name__ == "__main__":
     np.log2(master, out=master)
     log_master = master
 
-    print(f"{time.time()} Calculating z-scores...", file=sys.stderr)
+    logger.info("Calculating z-scores...")
     if "etl_experiment_strategy" in rna_subset.columns:
         # sample lists per library type (None == missing)
         groups = {}
@@ -247,7 +259,8 @@ if __name__ == "__main__":
         # ---- Intra-cohort z-score per library type: always written ----
         intra = np.zeros(log_master.shape, dtype=np.float32)
         for lib, cols in group_cols.items():
-            print(f"{time.time()} Calculating intra-cohort z-score for {lib}", file=sys.stderr)
+            lib_msg = f"Calculating intra-cohort z-score for {lib}"
+            logger.info(lib_msg)
             intra[:, cols] = zscore_rows(log_master[:, cols])
         write_projects(
             intra, genes, project_samples, col_pos,
@@ -265,8 +278,9 @@ if __name__ == "__main__":
         skip_vs_healthy = all_none and str(args.default_match_type).strip().lower() in {"none", "", "nan"}
 
         if skip_vs_healthy:
-            print(f"{time.time()} Skipping output of vs-healthy z-score because values are equivalent "
-                  "to intra-cohort z-score", file=sys.stderr)
+            skip_msg = ("Skipping output of vs-healthy z-score because values are equivalent to "
+            "intra-cohort z-score")
+            logger.info(skip_msg)
         else:
             # Load only the healthy references we actually need, reduced to mean/std
             TOOL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -283,9 +297,11 @@ if __name__ == "__main__":
             covered = np.zeros(len(genes), dtype=bool)
 
             for lib, cols in group_cols.items():
-                print(f"{time.time()} Calculating tumor vs healthy z-score for {lib}", file=sys.stderr)
+                lib_msg = f"Calculating tumor vs healthy z-score for {lib}"
+                logger.info(lib_msg)
                 mt = match_type_for(lib, args.default_match_type)
-                print(f"{time.time()}  ➤ Match type being used: {mt}", file=sys.stderr)
+                mt_msg = f"➤ Match type being used: {mt}"
+                logger.info(mt_msg)
                 ref = healthy.get(f"healthy_{mt}_{expr}") if mt else None
 
                 if ref is not None:
@@ -302,8 +318,8 @@ if __name__ == "__main__":
                     covered[pos] = True
                     del x
                 else:
-                    print(f"{time.time()} No healthy reference available for {lib} library type, "
-                          "using intra-cohort z-score instead", file=sys.stderr)
+                    no_ref_msg = f"No healthy reference available for {lib} library type, using intra-cohort z-score instead"
+                    logger.info(no_ref_msg)
                     # recomputed rather than kept in memory from the step above
                     out[:, cols] = zscore_rows(log_master[:, cols])
                     covered[:] = True
@@ -316,7 +332,8 @@ if __name__ == "__main__":
             )
 
     else:
-        print(f"{time.time()} No etl_experiment_strategy column found, using intra-cohort z-score", file=sys.stderr)
+        no_exp_msg = "No etl_experiment_strategy column found, using intra-cohort z-score"
+        logger.info(no_exp_msg)
         z = zscore_rows(log_master)
         write_projects(z, genes, project_samples, col_pos,
                        out_dir + "{project}.rsem_merged_tumor_only_zscore_" + expr + ".txt",
