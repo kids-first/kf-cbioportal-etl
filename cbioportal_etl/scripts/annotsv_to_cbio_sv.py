@@ -40,6 +40,12 @@ SV_TYPE_CLASS: dict[str, str] = {
     "INS": "Insertion",
     "BND": "Breakend",
 }
+# ClinGen annotSV column -> label used in the Annotation column. Add or change entries here;
+# the input columns, numeric parsing and annotation text all follow this dict.
+CLINGEN_COLUMNS: dict[str, str] = {
+    "HI": "Haploinsufficiency",
+    "TS": "Triplosensitivity",
+}
 # every annotSV column used; sample-specific BS ID columns are added per file
 STATIC_INPUT_COLS: frozenset[str] = frozenset(
     {"Annotation_mode", "SV_type", "HI", "TS", "ACMG_class", "INFO", "Frameshift", *RENAME_DICT}
@@ -47,14 +53,18 @@ STATIC_INPUT_COLS: frozenset[str] = frozenset(
 
 
 def make_annotation(df: pd.DataFrame) -> pd.Series:
-    """Vectorized ClinGen HI/TS and ACMG_class annotation, e.g. 'ClinGen Haploinsufficiency=3;ACMG_class=4'."""
-    hi, ts = df["HI"], df["TS"]
-    labels = (
-        hi.notna().map({True: "Haploinsufficiency", False: ""})
-        + ","
-        + ts.notna().map({True: "Triplosensitivity", False: ""})
-    ).str.strip(",")
-    values = (hi.astype("string").fillna("") + "," + ts.astype("string").fillna("")).str.strip(",")
+    """Vectorized ClinGen and ACMG annotation, e.g. 'ClinGen Haploinsufficiency=3;ACMG_class=4'.
+ 
+    Labels and values come from CLINGEN_COLUMNS; a column is skipped for rows where it is blank.
+    """
+    labels = pd.Series("", index=df.index, dtype=object)
+    values = pd.Series("", index=df.index, dtype=object)
+    for column, label in CLINGEN_COLUMNS.items():
+        col = df[column].astype(object)
+        has = col.notna() & (col.astype(str) != "")
+        sep = (labels != "").map({True: ",", False: ""})  # comma only after a previous hit
+        labels += (sep + label).where(has, "")
+        values += (sep + col.where(has, "").astype(str)).where(has, "")
     clingen = ("ClinGen " + labels + "=" + values).where(labels != "", "")
     acmg = df["ACMG_class"].astype(object).fillna("").astype(str).str.removeprefix("full=")
     acmg_part = ("ACMG_class=" + acmg).where(~acmg.isin(["", "NA", "nan"]), "")
@@ -62,8 +72,14 @@ def make_annotation(df: pd.DataFrame) -> pd.Series:
 
 
 def parse_read_support(sample_col: pd.Series) -> tuple[pd.Series, pd.Series]:
-    """Parse paired-end and split read counts from the PR:SR style sample column."""
-    parts = sample_col.str.split(":", n=2, expand=True)
+    """Parse paired-end and split-read ALT support counts from sample fields (FORMAT/PR:SR).
+
+    Follows form: paired_read_ref,paired_read_alt:split_read_ref,split_read_alt
+    """
+    if sample_col.str.count(":").gt(1).any():
+        too_many_fields = "Unexpected extra ':' fields in sample column"
+        raise ValueError(too_many_fields)
+    parts = sample_col.str.split(":", n=1, expand=True)
     paired = parts[0].str.split(",").str[1].astype("Int64")
     if parts.shape[1] > 1:
         split = pd.to_numeric(parts[1].str.split(",").str[1], errors="coerce").astype("Int64")
