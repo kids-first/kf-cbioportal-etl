@@ -2,116 +2,57 @@
 """Merge MAF Files.
 
 Merge and filter MAF files to create an output with a singular header and
-variants not nor,ally suitable for cBio removed
+variants not normally suitable for cBio removed
 
 """
 
 import argparse
-import concurrent.futures
-import json
-import os
+import logging
 import sys
-from typing import IO, NamedTuple
+from operator import itemgetter
+from pathlib import Path
+from typing import IO
 
 import pandas as pd
 
-
-class EntryIndices(NamedTuple):
-    """Named tuple to simplify passing on indicies of headers."""
-
-    tid_idx: int
-    nid_idx: int
-    v_idx: int
-    h_idx: int
-
-
-def filter_entry(
-    entry: str,
-    tum_id: str,
-    norm_id: str,
-    entry_indices: EntryIndices,
-    maf_exc: dict[str, int],
-) -> list[str] | None:
-    """Only output entries not in exclusion list while dropping ENTREZ ID, but keeping TERT promoter hits.
-
-    Args:
-    entry: line from input MAF file
-    tum_id: ID to change Tumor_Sample_Barcode to
-    norm_id: ID to change Matched_Norm_Sample_Barcode to
-    entry_indices: Named tuple with teh following:
-        Index position for Tumor_Sample_Barcode ID in entry as list,
-        Index position for Matched_Norm_Sample_Barcode ID in entry as list,
-        Index position of Variant_Classification in entry as list,
-        Index position of Hugo_Symbol in entry as list
-    """
-    data: list = entry.rstrip("\n").split("\t")
-    # Want to allow TERT promoter as exception to exclusion rules
-    if data[entry_indices.v_idx] not in maf_exc or (
-        data[entry_indices.h_idx] == "TERT" and data[entry_indices.v_idx] == "5'Flank"
-    ):
-        data[entry_indices.tid_idx] = tum_id
-        data[entry_indices.nid_idx] = norm_id
-        return data
-    return None
+logger = logging.getLogger(__name__)
 
 
 def process_maf(
-    maf_fn: str, new_maf: IO, maf_exc: dict[str, int], tum_id: str, norm_id: str
-) -> None:
-    """Iterate over maf file, skipping header lines since the files are being merged.
+        maf_fn: Path,
+        new_maf: IO,
+        maf_exc: dict[str, int],
+        tum_id: str,
+        norm_id: str,
+        print_header: list[str]) -> None:
+    """Process a single MAF file, filtering out unwanted entries and writing to new MAF."""
+    # read in ~ 1MB at a time
+    with maf_fn.open(buffering=1 << 20) as cur_maf:
+        next(cur_maf)  # first line, skipped as in the original
+        cur_header = next(cur_maf).rstrip("\n").split("\t")
+        col = {name: i for i, name in enumerate(cur_header)}
+        tid_idx = col["Tumor_Sample_Barcode"]
+        nid_idx = col["Matched_Norm_Sample_Barcode"]
+        v_idx = col["Variant_Classification"]
+        h_idx = col["Hugo_Symbol"]
 
-    With possibility of mixed source, search headers
+        # Output columns missing from this file get index -1, which points at the
+        # "" appended to each row below.
+        pick = itemgetter(*[col.get(name, -1) for name in print_header])
+        split_n = max(v_idx, h_idx) + 1
+        write = new_maf.write
 
-    Args:
-    maf_fn: Input MAF filename
-    new_maf: Output maf file handle
-    maf_exc: Dict with Variant_Classification exclusionary terms
-    tum_id: ID to change Tumor_Sample_Barcode to
-    norm_id: ID to change Matched_Norm_Sample_Barcode to
-
-    """
-    with open(maf_fn) as cur_maf:
-        next(cur_maf)
-        head: str = next(cur_maf)
-
-        cur_header: list = head.rstrip("\n").split("\t")
-        h_dict: dict[str, int | None] = {}
-        for item in print_header:
-            if item in cur_header:
-                h_dict[item] = cur_header.index(item)
-            else:
-                h_dict[item] = None
-
-        entry_indices = EntryIndices(
-            cur_header.index("Tumor_Sample_Barcode"),
-            cur_header.index("Matched_Norm_Sample_Barcode"),
-            cur_header.index("Variant_Classification"),
-            cur_header.index("Hugo_Symbol"),
-        )
-
-        with concurrent.futures.ThreadPoolExecutor(16) as executor:
-            results: set[Future[list[str] | None]] = {
-                executor.submit(
-                    filter_entry,
-                    entry,
-                    tum_id,
-                    norm_id,
-                    entry_indices,
-                    maf_exc,
-                )
-                for entry in cur_maf
-            }
-            for result in concurrent.futures.as_completed(results):
-                filtered: list[str] | None = result.result()
-                if filtered is not None:
-                    to_print: list[str] = []
-                    for item in print_header:
-                        if h_dict[item] is not None:
-                            to_print.append(filtered[h_dict[item]])
-                        else:
-                            to_print.append("")
-
-                    new_maf.write("\t".join(to_print) + "\n")
+        for line in cur_maf:
+            # Cheap partial split first: only the leading fields are needed to decide.
+            head = line.split("\t", split_n)
+            vc = head[v_idx]
+            if vc in maf_exc and not (vc == "5'Flank" and head[h_idx] == "TERT"):
+                continue
+            row = line.rstrip("\n").split("\t")
+            row[tid_idx] = tum_id
+            row[nid_idx] = norm_id
+            row.append("")
+            write("\t".join(pick(row)) + "\n")
 
 
 def process_tbl(study: str, file_meta_dict: list[list], print_head: str) -> None:
@@ -126,24 +67,25 @@ def process_tbl(study: str, file_meta_dict: list[list], print_head: str) -> None
     try:
         x = 0
         # project/disease name should be name of directory hosting datasheet
-        print(f"Processing {study} project", file=sys.stderr)
-        with open(f"{out_dir}{study}.maf", "w") as new_maf:
+        logger.info("Processing %s project", study)
+        with (out_dir / f"{study}.maf").open("w") as new_maf:
             new_maf.write(print_head)
             for fname, cbio_tum_id, cbio_norm_id in file_meta_dict:
-                print(
-                    f"Found relevant maf to process for {cbio_tum_id} {cbio_norm_id} {fname}",
-                    file=sys.stderr,
-                )
-                process_maf(maf_dir + fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id)
+                logger.info("Found relevant maf to process for %s %s %s", cbio_tum_id, cbio_norm_id, fname)
+                process_maf(maf_dir / fname, new_maf, maf_exc, cbio_tum_id, cbio_norm_id, print_header)
                 x += 1
-            print(f"Completed processing {x} entries in {study}", file=sys.stderr)
-            new_maf.close()
-    except Exception as e:
-        print(e, file=sys.stderr)
-        sys.exit()
+            logger.info("Completed processing %d entries in %s", x, study)
+    except Exception:
+        logger.exception("Failed while processing %s", study)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     parser = argparse.ArgumentParser(
         description="Merge and filter MAFs using ETL table withe file locations.",
     )
@@ -162,48 +104,46 @@ if __name__ == "__main__":
         help="File with maf header only",
     )
     parser.add_argument(
-        "-j",
-        "--config",
-        action="store",
-        dest="config_file",
-        help="json config file with data types and data locations",
+        "-s",
+        "--skip-symlink",
+        action="store_true",
+        help="Flag to skip sym links if repeating the process with the same input files",
     )
 
+
     args = parser.parse_args()
-    with open(args.config_file) as f:
-        config_data = json.load(f)
     # Create symlinks to mafs in one place for ease of processing
-    maf_dir: str = "MAFS/"
+    maf_dir: Path = Path("MAFS")
     all_file_meta = pd.read_csv(args.table, sep="\t", dtype={"cbio_sample_name": str})
     maf_subset = all_file_meta[all_file_meta["etl_file_type"] == "maf"].copy()
     study = maf_subset["cbio_project"].iloc[0]
     maf_list = maf_subset[["file_name", "cbio_sample_name", "cbio_matched_normal_name"]].fillna("").astype(str).drop_duplicates().values.tolist()
-
-    maf_dirs_in: str = ",".join(maf_subset.file_type.unique().tolist())
-    print(f"Symlinking maf files from {maf_dirs_in} to {maf_dir}", file=sys.stderr)
-    os.makedirs("MAFS", exist_ok=True)
-    sym_errs: int = 0
-    for dirname in maf_dirs_in.split(","):
-        if os.path.exists(dirname):
-            abs_path: str = os.path.abspath(dirname)
-        else:
-            print(f"Input MAF dir {dirname} does not exist. Check if files were downloaded to the correct location", file=sys.stderr)
+    if args.skip_symlink:
+        logger.info("Skipping symlinking of MAFs to %s", maf_dir)
+    else:
+        maf_dirs_in: list[str] = maf_subset.file_type.unique().tolist()
+        logger.info("Symlinking maf files from %s to %s", ",".join(maf_dirs_in), maf_dir)
+        maf_dir.mkdir(exist_ok=True)
+        sym_errs: int = 0
+        for dirname in maf_dirs_in:
+            if not Path(dirname).exists():
+                logger.error(
+                    "Input MAF dir %s does not exist. Check if files were downloaded to the correct location",
+                    dirname,
+                )
+                sys.exit(2)
+            for src in Path(dirname).resolve().iterdir():
+                try:
+                    (maf_dir / src.name).symlink_to(src)
+                except OSError:
+                    logger.exception("Could not sym link %s in %s", src.name, dirname)
+                    sym_errs += 1
+        # If symlink errors, stop here as data will be incomplete
+        if sym_errs:
+            logger.error("Could not sym link %d files, exiting!", sym_errs)
             sys.exit(2)
-        try:
-            for fname in os.listdir(dirname):
-                src: str = os.path.join(abs_path, fname)
-                dest: str = os.path.join(maf_dir, fname)
-                os.symlink(src, dest)
-        except Exception as e:
-            print(e, file=sys.stderr)
-            print(f"Could not sym link {fname} in {dirname}", file=sys.stderr)
-            sym_errs += 1
-    # If symlink errors, stop here as data will be incomplete
-    if sym_errs:
-        print(f"Could not sym link {sym_errs} files, exiting!", file=sys.stderr)
-        sys.exit(2)
 
-    with open(args.header) as head_fh:
+    with Path(args.header).open() as head_fh:
         print_head: str = next(head_fh)
         cur_head: str = next(head_fh)
         print_header: list[str] = cur_head.rstrip("\n").split("\t")
@@ -221,9 +161,9 @@ if __name__ == "__main__":
         "5'Flank": 0,
         "RNA": 0,
     }
-    out_dir: str = "merged_mafs/"
-    os.makedirs(out_dir, exist_ok=True)
+    out_dir: Path = Path("merged_mafs")
+    out_dir.mkdir(exist_ok=True, parents=True)
     # iterating through projects that are the first key in dict
     process_tbl(study, maf_list, print_head)
 
-    sys.stderr.write("Done, check logs\n")
+    logger.info("Done processing MAFs for %s", study)
