@@ -151,10 +151,10 @@ def process_dgd_fusion(
         Subprocess run of DGD fusion processing step
 
     """
-    dgd_fusion_cmd = f"python3 {os.path.join(script_dir, 'convert_fusion_as_sv.py')} -t {cbio_id_table} -f {fusion_dir} -m dgd"
+    dgd_fusion_cmd = f"python3 {os.path.join(script_dir, 'convert_fusion_as_sv.py')} -t {cbio_id_table} -f {fusion_dir} -o merged_fusion -m dgd"
     if dgd_status == "both":
         sys.stderr.write("Appending DGD fusion calls\n")
-        append_fusion = "merged_fusion/" + cbio_study_id + ".fusions.txt"
+        append_fusion = "merged_fusion/" + cbio_study_id + ".svs.txt"
         dgd_fusion_cmd += " -a >> " + append_fusion
     else:
         sys.stderr.write("Processing DGD fusion calls\n")
