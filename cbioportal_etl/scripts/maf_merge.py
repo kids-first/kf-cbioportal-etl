@@ -7,7 +7,6 @@ variants not normally suitable for cBio removed
 """
 
 import argparse
-import csv
 import logging
 import sys
 from operator import itemgetter
@@ -18,6 +17,26 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+MISSING = -1  # index of the "" sentinel appended to every row
+
+
+def _column_index(header_line: str) -> dict[str, int]:
+    """Map column name -> position for one MAF header line."""
+    return {name: i for i, name in enumerate(header_line.rstrip("\n").split("\t"))}
+
+
+def _make_output_picker(col: dict[str, int], print_header: list[str]):
+    """Build a callable that pulls the output fields from a split row, in order.
+
+    Columns absent from this file resolve to MISSING, which points at the
+    trailing "" appended to each row.
+    """
+    indices = [col.get(name, MISSING) for name in print_header]
+    if len(indices) == 1:  # itemgetter returns a bare item (not a tuple) for one index
+        only = indices[0]
+        return lambda row: (row[only],)
+    return itemgetter(*indices)
+
 
 def process_maf(
         maf_fn: Path,
@@ -27,21 +46,36 @@ def process_maf(
         norm_id: str,
         print_header: list[str]) -> None:
     """Process a single MAF file, filtering out unwanted entries and writing to new MAF."""
-    # read in ~ 1MB at a time
-    with open(maf_fn, buffering=1 << 20) as cur_maf:
-            next(cur_maf)  # first line, skipped as in the original
+    with maf_fn.open(buffering=1 << 20) as cur_maf:  # ~1MB reads
+        next(cur_maf)  # first line (version/comment), skipped as in the original
 
-            reader = csv.DictReader(cur_maf, delimiter="\t")
+        # --- one-time setup: all the readable structure lives here ---
+        col = _column_index(next(cur_maf))
+        tumor_idx = col["Tumor_Sample_Barcode"]
+        norm_idx = col["Matched_Norm_Sample_Barcode"]
+        class_idx = col["Variant_Classification"]
+        gene_idx = col["Hugo_Symbol"]
+        pick_output = _make_output_picker(col, print_header)
 
-            for row in reader:
-                vc = row.get("Variant_Classification", "")
-                hs = row.get("Hugo_Symbol", "")
-                if vc in maf_exc and not (vc == "5'Flank" and hs == "TERT"):
-                    continue
-                row["Tumor_Sample_Barcode"] = tum_id
-                row["Matched_Norm_Sample_Barcode"] = norm_id
-                print_line = "\t".join(str(row.get(field, "")) for field in print_header)
-                print(print_line, file=new_maf)
+        # Filtering only needs the leading fields, so split just that far.
+        n_leading_fields = max(class_idx, gene_idx) + 1
+        write = new_maf.write
+
+        # --- hot loop: kept flat on purpose (no per-row function calls) ---
+        for line in cur_maf:
+            head = line.split("\t", n_leading_fields)  # partial split: cheap reject
+            variant_class = head[class_idx]
+            is_excluded = variant_class in maf_exc and not (
+                variant_class == "5'Flank" and head[gene_idx] == "TERT"
+            )
+            if is_excluded:
+                continue
+
+            row = line.rstrip("\n").split("\t")  # full split only for kept rows
+            row[tumor_idx] = tum_id
+            row[norm_idx] = norm_id
+            row.append("")  # sentinel for MISSING columns
+            write("\t".join(pick_output(row)) + "\n")
 
 
 def process_tbl(study: str, file_meta_dict: list[list], print_head: str) -> None:
