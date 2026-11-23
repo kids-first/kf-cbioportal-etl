@@ -7,6 +7,7 @@ variants not normally suitable for cBio removed
 """
 
 import argparse
+import csv
 import logging
 import sys
 from operator import itemgetter
@@ -27,32 +28,20 @@ def process_maf(
         print_header: list[str]) -> None:
     """Process a single MAF file, filtering out unwanted entries and writing to new MAF."""
     # read in ~ 1MB at a time
-    with maf_fn.open(buffering=1 << 20) as cur_maf:
-        next(cur_maf)  # first line, skipped as in the original
-        cur_header = next(cur_maf).rstrip("\n").split("\t")
-        col = {name: i for i, name in enumerate(cur_header)}
-        tid_idx = col["Tumor_Sample_Barcode"]
-        nid_idx = col["Matched_Norm_Sample_Barcode"]
-        v_idx = col["Variant_Classification"]
-        h_idx = col["Hugo_Symbol"]
+    with open(maf_fn, buffering=1 << 20) as cur_maf:
+            next(cur_maf)  # first line, skipped as in the original
 
-        # Output columns missing from this file get index -1, which points at the
-        # "" appended to each row below.
-        pick = itemgetter(*[col.get(name, -1) for name in print_header])
-        split_n = max(v_idx, h_idx) + 1
-        write = new_maf.write
+            reader = csv.DictReader(cur_maf, delimiter="\t")
 
-        for line in cur_maf:
-            # Cheap partial split first: only the leading fields are needed to decide.
-            head = line.split("\t", split_n)
-            vc = head[v_idx]
-            if vc in maf_exc and not (vc == "5'Flank" and head[h_idx] == "TERT"):
-                continue
-            row = line.rstrip("\n").split("\t")
-            row[tid_idx] = tum_id
-            row[nid_idx] = norm_id
-            row.append("")
-            write("\t".join(pick(row)) + "\n")
+            for row in reader:
+                vc = row.get("Variant_Classification", "")
+                hs = row.get("Hugo_Symbol", "")
+                if vc in maf_exc and not (vc == "5'Flank" and hs == "TERT"):
+                    continue
+                row["Tumor_Sample_Barcode"] = tum_id
+                row["Matched_Norm_Sample_Barcode"] = norm_id
+                print_line = "\t".join(str(row.get(field, "")) for field in print_header)
+                print(print_line, file=new_maf)
 
 
 def process_tbl(study: str, file_meta_dict: list[list], print_head: str) -> None:
