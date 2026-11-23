@@ -42,8 +42,6 @@ def check_status(status, data_type, run_status):
 def process_maf(
     maf_loc_dict: dict[str, str | list[str]],
     cbio_id_table: str,
-    data_config_file: str,
-    dgd_status: str,
     script_dir: str,
     run_status: dict[str, subprocess.Popen],
 ) -> None:
@@ -52,7 +50,6 @@ def process_maf(
     Args:
         maf_loc_dict: Config dict entry with dbt file_type names and file header location
         cbio_id_table: Path of ETL table with IDs and file locations
-        data_config_file: Path of file with ETL reference locations
         dgd_status: values of kf, both, and dgd to determine whether to append data or not
         script_dir: path of dir containing ETL processing scripts
         run_status: Dict to track subprocess call statuses
@@ -67,36 +64,9 @@ def process_maf(
         if not maf_dir:
             print(f"Skipping {maf_type} as it is not defined in the config", file=sys.stderr)
             continue
-        maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} -j {data_config_file} 2> collate_mafs.log"
+        maf_cmd = f"python3 {os.path.join(script_dir, 'maf_merge.py')} -t {cbio_id_table} -i {maf_header} 2> collate_mafs.log"
         log_cmd(maf_cmd)
         run_status["maf"] = subprocess.Popen(maf_cmd, shell=True)
-
-
-def process_append_dgd_maf(
-    maf_loc_dict: dict[str, str | list[str]],
-    cbio_id_table: str,
-    cbio_study_id: str,
-    script_dir: str,
-) -> subprocess.Popen:
-    """Append DGD mafs to existing collated kf maf.
-
-    Args:
-        maf_loc_dict: Config dict entry with dbt file_type names and file header location
-        cbio_id_table: Path of ETL table with IDs and file locations
-        cbio_study_id: Name of study being processed
-        script_dir: path of dir containing ETL processing scripts
-
-    Returns:
-        Subprocess run of append python script
-
-    """
-    print("Appending DGD to exsting KF maf", file=sys.stderr)
-    maf_header = maf_loc_dict["header"]
-    in_maf_dir = maf_loc_dict["dgd"]
-    append_maf = "merged_mafs/" + cbio_study_id + ".maf"
-    append_cmd = f"python3 {os.path.join(script_dir, 'add_dgd_maf_to_pbta.py')} -i {maf_header} -m {in_maf_dir} -t {cbio_id_table} >> {append_maf} 2> dgd_append_maf.log"
-    log_cmd(append_cmd)
-    return subprocess.Popen(append_cmd, shell=True)
 
 
 def process_cnv(
@@ -160,7 +130,7 @@ def process_kf_fusion(
 
     """
     print("Processing KF fusion calls", file=sys.stderr)
-    fusion_cmd = f"python3 {os.path.join(script_dir, 'convert_fusion_as_sv.py')} -t {cbio_id_table} -f {fusion_dir} -m {mode} 2> convert_fusion_as_sv.log"
+    fusion_cmd = f"python3 {os.path.join(script_dir, 'convert_fusion_as_sv.py')} -t {cbio_id_table} -f {fusion_dir} -m {mode} -o merged_fusion 2> convert_fusion_as_sv.log"
     log_cmd(fusion_cmd)
     run_status["fusion"] = subprocess.Popen(fusion_cmd, shell=True)
 
@@ -181,10 +151,10 @@ def process_dgd_fusion(
         Subprocess run of DGD fusion processing step
 
     """
-    dgd_fusion_cmd = f"python3 {os.path.join(script_dir, 'convert_fusion_as_sv.py')} -t {cbio_id_table} -f {fusion_dir} -m dgd"
+    dgd_fusion_cmd = f"python3 {os.path.join(script_dir, 'convert_fusion_as_sv.py')} -t {cbio_id_table} -f {fusion_dir} -o merged_fusion -m dgd"
     if dgd_status == "both":
         sys.stderr.write("Appending DGD fusion calls\n")
-        append_fusion = "merged_fusion/" + cbio_study_id + ".fusions.txt"
+        append_fusion = "merged_fusion/" + cbio_study_id + ".svs.txt"
         dgd_fusion_cmd += " -a >> " + append_fusion
     else:
         sys.stderr.write("Processing DGD fusion calls\n")
@@ -242,8 +212,6 @@ def run_py(args):
                     process_maf,
                     config_data["file_loc_defs"]["mafs"],
                     args.manifest,
-                    args.study_config,
-                    args.dgd_status,
                     script_dir,
                     run_status,
                 )
